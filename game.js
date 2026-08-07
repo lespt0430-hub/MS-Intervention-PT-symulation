@@ -89,12 +89,12 @@ function buildRoom() {
   // 노멀맵이 스펙클 알갱이와 홈을 실제 요철로 만들어 준다.
   const floorMat = RENDER.pbrMaterial(
     (fx) => {
-      fx.fillStyle = '#dfe4e6'; fx.fillRect(0, 0, 512, 512);
+      fx.fillStyle = '#e6e7df'; fx.fillRect(0, 0, 512, 512);
       // 넓은 얼룩 — 단색 바닥이 플라스틱처럼 보이는 걸 막는다
       for (let i = 0; i < 26; i++) {
         const g = fx.createRadialGradient(Math.random() * 512, Math.random() * 512, 0,
           Math.random() * 512, Math.random() * 512, 60 + Math.random() * 110);
-        g.addColorStop(0, 'rgba(198,206,210,0.20)');
+        g.addColorStop(0, 'rgba(202,205,193,0.20)');
         g.addColorStop(1, 'rgba(198,206,210,0)');
         fx.fillStyle = g; fx.fillRect(0, 0, 512, 512);
       }
@@ -107,12 +107,12 @@ function buildRoom() {
         fx.fillStyle = 'rgba(120,132,140,' + (0.12 + Math.random() * 0.2) + ')';
         fx.fillRect(Math.random() * 512, Math.random() * 512, 1.3, 1.3);
       }
-      fx.strokeStyle = 'rgba(150,163,172,0.30)'; fx.lineWidth = 1.5;
+      fx.strokeStyle = 'rgba(163,168,155,0.16)'; fx.lineWidth = 1.5;
       [[0, 0], [256, 256], [256, 0], [0, 256]].forEach(([x, y]) => fx.strokeRect(x, y, 256, 256));
     },
     {
       size: [512, 512], repeat: [w / 4, d / 4], normalStrength: 1.1, normalScale: 0.55,
-      rough: { base: 0.30, dark: 0.72 }, envMapIntensity: 1.15,
+      rough: { base: 0.18, dark: 0.55 }, envMapIntensity: 1.35,
       // 높이: 알갱이는 아주 얕게, 이음선 홈은 깊게
       height: (hx) => {
         hx.fillStyle = '#808080'; hx.fillRect(0, 0, 512, 512);
@@ -131,26 +131,31 @@ function buildRoom() {
   floor.receiveShadow = true;
   GAME.scene.add(floor);
 
-  // 중앙 통로 러너 (미끄럼방지 매트) — 고무 결이 보이도록 성긴 노멀
-  const runnerMat = RENDER.pbrMaterial(
-    (g) => {
-      g.fillStyle = '#8fa8b8'; g.fillRect(0, 0, 256, 256);
-      for (let y = 0; y < 256; y += 6) {
-        g.fillStyle = 'rgba(96,120,136,0.35)';
-        g.fillRect(0, y, 256, 3);
-      }
-      for (let i = 0; i < 900; i++) {
-        g.fillStyle = 'rgba(255,255,255,' + Math.random() * 0.10 + ')';
-        g.fillRect(Math.random() * 256, Math.random() * 256, 1.4, 1.4);
-      }
+  // 중앙 통로 — 고무 매트가 아니라 바닥에 직접 도색한 보행훈련 레인.
+  // 실제 재활병원 치료실 바닥에는 이런 보행 트랙 라인이 그려져 있다.
+  // UV: u가 레인 길이(19m), v가 레인 폭(1.8m) 방향이다. 따라서 캔버스에
+  // 가로 띠를 그리면 레인을 따라 이어지는 선이 되고, u로 반복해 1m 눈금을 만든다.
+  const laneMat = RENDER.pbrMaterial(
+    (g, S) => {
+      g.fillStyle = '#e6e7df'; g.fillRect(0, 0, S, S);       // 바닥과 같은 색
+      g.fillStyle = '#e8b93a';                                // 노란 레인 경계선
+      g.fillRect(0, Math.round(S * 0.13), S, 7);
+      g.fillRect(0, Math.round(S * 0.85), S, 7);
+      g.fillStyle = 'rgba(199,74,68,0.85)';                   // 붉은 중앙선
+      g.fillRect(0, Math.round(S * 0.49), S, 5);
+      // 1m 눈금 — 레인 양 가장자리에만 짧게. 폭 전체를 가로지르면
+      // 보행 레인이 아니라 사다리 드릴처럼 보인다.
+      g.fillStyle = '#e8b93a';
+      g.fillRect(0, Math.round(S * 0.13) - 10, 8, 10);
+      g.fillRect(0, Math.round(S * 0.85) + 7, 8, 10);
     },
-    { size: [256, 256], repeat: [19, 1.8], normalStrength: 2.2, normalScale: 0.8,
-      rough: { base: 0.9, dark: 0.98 }, envMapIntensity: 0.6 }
+    { size: [256, 256], repeat: [19, 1], normalStrength: 0.5, normalScale: 0.25,
+      rough: { base: 0.22, dark: 0.35 }, envMapIntensity: 1.2 }
   );
-  const runner = new THREE.Mesh(new THREE.PlaneGeometry(19, 1.8), runnerMat);
-  runner.rotation.x = -Math.PI / 2; runner.position.set(-1, 0.004, 0);
-  runner.receiveShadow = true;
-  GAME.scene.add(runner);
+  const lane = new THREE.Mesh(new THREE.PlaneGeometry(19, 1.8), laneMat);
+  lane.rotation.x = -Math.PI / 2; lane.position.set(-1, 0.004, 0);
+  lane.receiveShadow = true;
+  GAME.scene.add(lane);
 
   // 천장 — 600×600 미네랄울 흡음 타일. 실제 병원 천장의 특징인
   // 미세 타공(perforation)을 넣으면 단조로운 흰 판이 즉시 천장으로 읽힌다.
@@ -187,20 +192,20 @@ function buildRoom() {
   const WALL_TILE = 4;                                  // 텍스처 1장이 덮는 폭(m)
   const bandTop = 512 * (1 - 1.1 / h);                  // 바닥에서 1.1m 지점
   const wallDraw = (g, W, H, dark) => {
-    g.fillStyle = dark ? '#8a8a8a' : '#f2f4f0'; g.fillRect(0, 0, W, H);
+    g.fillStyle = dark ? '#8a8a8a' : '#f1eee7'; g.fillRect(0, 0, W, H);
     for (let i = 0; i < 2600; i++) { // 도장면 미세 질감(오렌지필)
       const a = Math.random() * (dark ? 0.5 : 0.3);
-      g.fillStyle = dark ? 'rgba(120,120,120,' + a + ')' : 'rgba(210,216,210,' + a + ')';
+      g.fillStyle = dark ? 'rgba(120,120,120,' + a + ')' : 'rgba(214,208,194,' + a + ')';
       g.fillRect(Math.random() * W, Math.random() * bandTop, 2.2, 2.2);
     }
-    g.fillStyle = dark ? '#8f8f8f' : '#c6d6de'; g.fillRect(0, bandTop, W, H - bandTop);
+    g.fillStyle = dark ? '#8f8f8f' : '#dfd2b6'; g.fillRect(0, bandTop, W, H - bandTop);
     for (let x = 0; x < W; x += 128) { // 패널 세로 홈
-      g.strokeStyle = dark ? '#303030' : 'rgba(140,160,172,0.5)';
+      g.strokeStyle = dark ? '#303030' : 'rgba(176,158,120,0.5)';
       g.lineWidth = dark ? 3 : 2;
       g.beginPath(); g.moveTo(x, bandTop + 10); g.lineTo(x, H - 8); g.stroke();
     }
     // 몰딩 — 튀어나온 띠라서 높이맵에서 밝게
-    g.fillStyle = dark ? '#d8d8d8' : '#8fa5b2'; g.fillRect(0, bandTop - 8, W, 11);
+    g.fillStyle = dark ? '#d8d8d8' : '#c2ae87'; g.fillRect(0, bandTop - 8, W, 11);
     if (dark) return;
     // 바닥·천장과 만나는 모서리의 주변광 차폐. 색상맵에만 그린다
     // (높이맵에 넣으면 없는 요철이 생긴다)
@@ -239,7 +244,7 @@ function buildRoom() {
   mkWall(d, w / 2, 0, -Math.PI / 2, wallMatShort);
 
   // 걸레받이
-  const skirtMat = new THREE.MeshStandardMaterial({ color: 0x7f939f, roughness: 0.45, metalness: 0.05 });
+  const skirtMat = new THREE.MeshStandardMaterial({ color: 0xa8967a, roughness: 0.45, metalness: 0.05 });
   [[w, 0, -d / 2 + 0.02, 0], [w, 0, d / 2 - 0.02, Math.PI], [d, -w / 2 + 0.02, 0, Math.PI / 2], [d, w / 2 - 0.02, 0, -Math.PI / 2]].forEach(([ww, x, z, ry]) => {
     const s = new THREE.Mesh(new THREE.PlaneGeometry(ww, 0.15), skirtMat);
     s.position.set(x, 0.075, z); s.rotation.y = ry;
@@ -340,6 +345,33 @@ function buildRoom() {
     lp.position.set(x, h - 0.044, 0);
     GAME.scene.add(fr, lp);
   }
+
+  // 원형 매입 다운라이트 — 참고 사진 3장 모두에 있는 국내 병원 천장의 특징.
+  // 28개를 개별 메시로 두면 내장 그래픽에서 드로우콜이 아까우므로
+  // InstancedMesh로 묶어 전구·테두리 각각 1회 호출로 처리한다.
+  const dlX = [-10.5, -7, -3.5, 0, 3.5, 7, 10.5];
+  const dlZ = [-5.9, -2.4, 2.4, 5.9];
+  const dlCount = dlX.length * dlZ.length;
+  const bulbGeo = new THREE.CircleGeometry(0.085, 16);
+  const ringGeo = new THREE.RingGeometry(0.085, 0.115, 16);
+  const bulbs = new THREE.InstancedMesh(bulbGeo,
+    new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xfff2dc, emissiveIntensity: 2.1, roughness: 1 }), dlCount);
+  const rings = new THREE.InstancedMesh(ringGeo,
+    new THREE.MeshStandardMaterial({ color: 0xf2f1ed, roughness: 0.45, metalness: 0.15, envMapIntensity: 1.0 }), dlCount);
+  const m4 = new THREE.Matrix4();
+  const qDown = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); // 아래를 향하게
+  const one = new THREE.Vector3(1, 1, 1);
+  let di = 0;
+  dlX.forEach((x) => dlZ.forEach((z) => {
+    m4.compose(new THREE.Vector3(x, h - 0.012, z), qDown, one);
+    bulbs.setMatrixAt(di, m4);
+    m4.compose(new THREE.Vector3(x, h - 0.016, z), qDown, one);
+    rings.setMatrixAt(di, m4);
+    di++;
+  }));
+  bulbs.instanceMatrix.needsUpdate = true;
+  rings.instanceMatrix.needsUpdate = true;
+  GAME.scene.add(bulbs, rings);
 }
 
 // ── 환자 인형: 질환별 자세 ──
@@ -514,7 +546,7 @@ function curtainMaterial(widthMeters) {
   // 색상맵의 명암만으로는 평면이지만, 같은 패턴을 노멀맵으로 만들면
   // 빛의 방향에 따라 주름이 살아 움직인다.
   const draw = (g, S, dark) => {
-    g.fillStyle = dark ? '#808080' : '#d5e7dc';
+    g.fillStyle = dark ? '#808080' : '#f7f5f0';
     g.fillRect(0, 0, S, S);
     for (let x = 0; x < S; x++) {           // 주름: 부드러운 사인 음영
       const f = Math.sin((x / S) * Math.PI * 2 * 4);
@@ -522,7 +554,7 @@ function curtainMaterial(widthMeters) {
       if (dark) {
         g.fillStyle = 'rgb(' + Math.round(v) + ',' + Math.round(v) + ',' + Math.round(v) + ')';
       } else {
-        g.fillStyle = 'rgba(85,115,100,' + (0.10 - f * 0.07) + ')';
+        g.fillStyle = 'rgba(108,116,124,' + (0.11 - f * 0.08) + ')';
       }
       g.fillRect(x, 0, 1, S);
     }
@@ -532,9 +564,13 @@ function curtainMaterial(widthMeters) {
       g.fillStyle = dark ? 'rgba(0,0,0,0.035)' : 'rgba(70,100,86,0.04)';
       g.fillRect(0, i + 2, S, 1);
     }
-    if (!dark) { // 하단 포인트 밴드
-      g.fillStyle = 'rgba(120,160,140,0.45)';
-      g.fillRect(0, Math.round(S * 0.77), S, Math.round(S * 0.055));
+    if (!dark) {
+      // 가는 청·적 세로 줄무늬 — 병원 프라이버시 커튼의 전형적인 무늬.
+      // 높이맵에는 넣지 않는다 (인쇄된 무늬이지 요철이 아니다).
+      for (let x = 0; x < S; x += 34) {
+        g.fillStyle = 'rgba(116,152,190,0.55)'; g.fillRect(x, 0, 2, S);
+        g.fillStyle = 'rgba(202,118,110,0.45)'; g.fillRect(x + 17, 0, 1.5, S);
+      }
     }
   };
 
@@ -558,7 +594,7 @@ function makeBed(patient, num, x, z, facing) {
 
   // 프레임 — 분체도장 스틸
   const frame = new THREE.Mesh(new THREE.BoxGeometry(BED_W, 0.12, BED_L),
-    new THREE.MeshStandardMaterial({ color: 0xb9c4cc, roughness: 0.4, metalness: 0.5, envMapIntensity: 1.1 }));
+    new THREE.MeshStandardMaterial({ color: 0xeceef0, roughness: 0.35, metalness: 0.35, envMapIntensity: 1.1 }));
   frame.position.y = BED_H - 0.12; frame.castShadow = true;
   g.add(frame);
   // 다리 — 크롬 파이프
@@ -570,7 +606,7 @@ function makeBed(patient, num, x, z, facing) {
   });
   // 매트리스 — 치료대 인조가죽(레자). 광이 살짝 도는 게 실제 질감이다.
   const mat = new THREE.Mesh(new THREE.BoxGeometry(BED_W, 0.14, BED_L),
-    new THREE.MeshStandardMaterial({ color: 0xf4f7f9, roughness: 0.34, metalness: 0.04, envMapIntensity: 1.0 }));
+    new THREE.MeshStandardMaterial({ color: 0xd08f52, roughness: 0.52, metalness: 0.03, envMapIntensity: 0.8 }));
   mat.position.y = BED_H; mat.castShadow = true; mat.receiveShadow = true;
   g.add(mat);
   // 베개 (머리쪽 = -facing 방향) — 면 커버라 완전 무광
@@ -608,7 +644,7 @@ function makeBed(patient, num, x, z, facing) {
 
   // 헤드보드 — 멜라민 라미네이트
   const headboard = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.42, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0xc4d0d8, roughness: 0.38, metalness: 0.1, envMapIntensity: 1.0 }));
+    new THREE.MeshStandardMaterial({ color: 0xe4e7ea, roughness: 0.38, metalness: 0.1, envMapIntensity: 1.0 }));
   headboard.position.set(0, BED_H + 0.24, -facing * (BED_L / 2 + 0.03));
   headboard.castShadow = true;
   g.add(headboard);
@@ -638,7 +674,7 @@ function makeBed(patient, num, x, z, facing) {
   const entryZ = facing * 1.35;        // 입구 로컬 z
   const cubLen = Math.abs(entryZ - wallZ);
   const cubMidZ = (wallZ + entryZ) / 2;
-  const railMat = new THREE.MeshStandardMaterial({ color: 0xaab7c0, metalness: 0.75, roughness: 0.28, envMapIntensity: 1.3 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0xc4a274, metalness: 0.05, roughness: 0.52, envMapIntensity: 0.7 });
   const railY = 2.16;
 
   const curMat = curtainMaterial(cubLen);
@@ -669,6 +705,27 @@ function makeBed(patient, num, x, z, facing) {
   const halfCur = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 1.48), curtainMaterial(0.45));
   halfCur.position.set(-(CUB_HW - 0.48), 1.41, entryZ);
   g.add(halfCur);
+  // 부스 번호판 (입구 레일 위에 매달림) — 참고 렌더링처럼 통로에서 번호가 보인다.
+  // 발치 명패는 가까이 가야 읽히지만 이건 멀리서도 베드를 찾을 수 있다.
+  const bayPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.22),
+    printedMat(makeTextCanvas([String(num)], 256, 128, { bg: '#2c5f7c', color: '#ffffff', fontSize: 92 }),
+      { roughness: 0.4, envMapIntensity: 1.1, side: THREE.DoubleSide }));
+  bayPlate.position.set(0, railY + 0.30, entryZ);
+  g.add(bayPlate);
+  [-1, 1].forEach((sx) => {   // 번호판 매단 줄
+    const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.19, 4),
+      new THREE.MeshStandardMaterial({ color: 0x8d9aa2, metalness: 0.6, roughness: 0.4 }));
+    wire.position.set(sx * 0.16, railY + 0.505, entryZ);
+    g.add(wire);
+  });
+
+  // 침대 하부 수납 바구니 — 참고 렌더링에 베드마다 놓여 있다
+  const basket = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.17, 0.34),
+    new THREE.MeshStandardMaterial({ color: 0x8e97a0, roughness: 0.55, metalness: 0.05, envMapIntensity: 0.8 }));
+  basket.position.set(0, 0.11, facing * 0.34);
+  basket.castShadow = true;
+  g.add(basket);
+
   // 천장 지지봉 (모서리 4곳)
   [[-CUB_HW, wallZ], [CUB_HW, wallZ], [-CUB_HW, entryZ], [CUB_HW, entryZ]].forEach(([sx, sz]) => {
     const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, GAME.ROOM.h - railY, 6), railMat);
