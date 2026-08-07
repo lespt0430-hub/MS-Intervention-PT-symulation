@@ -30,19 +30,19 @@ RENDER.PRESETS = {
     pixelRatio: 1, shadow: 1024, shadowType: 'pcf',
     ceiling: 'point', ceilingCount: 3, ceilingIntensity: 4.0,
     hemi: 0.16, sun: 0.62, envIntensity: 0.35,
-    post: false, aniso: 4,
+    post: false, aniso: 4, reflect: 0,
   },
   medium: {
     pixelRatio: 1, shadow: 2048, shadowType: 'pcfsoft',
     ceiling: 'area', ceilingCount: 3, ceilingIntensity: 4.5,
     hemi: 0.15, sun: 0.55, envIntensity: 0.40,
-    post: 'aa', aniso: 8,
+    post: 'aa', aniso: 8, reflect: 0,
   },
   high: {
     pixelRatio: 1.5, shadow: 2048, shadowType: 'pcfsoft',
     ceiling: 'area', ceilingCount: 5, ceilingIntensity: 4.2,
     hemi: 0.14, sun: 0.55, envIntensity: 0.45,
-    post: 'full', aniso: 16,
+    post: 'full', aniso: 16, reflect: 0.58,
   },
 };
 
@@ -332,6 +332,77 @@ RENDER.aoDecal = function (scene, cx, cz, hw, hd, y) {
   return m;
 };
 
+// ── 바닥 반사 ────────────────────────────────────────────────
+// 참고 사진의 재활치료실 바닥은 폴리싱 에폭시라 천장 조명과 장비가 그대로
+// 비친다. 환경맵만으로는 이 반사가 안 나온다 — 환경맵은 방 전체를 뭉뚱그린
+// 저해상도 큐브라 "무엇이 비치는지"를 표현하지 못하기 때문이다.
+// 그래서 높음 등급에서만 실제 평면 반사(장면을 한 번 더 그려 뒤집어 붙임)를 켠다.
+//
+// 그대로 쓰면 거울이 되어 버리므로 두 가지를 손본다:
+//  1) 알파로 흐리게 얹어 바닥 재질(얼룩·이음선)이 비쳐 보이게 한다
+//  2) 프레넬 — 바닥을 비스듬히 볼수록 반사가 강해진다. 실제 광택면의 성질이고,
+//     이게 없으면 발밑까지 똑같이 비쳐서 물웅덩이처럼 보인다.
+RENDER.floorReflector = null;
+RENDER.buildFloorReflection = function (scene, room) {
+  const strength = RENDER.q.reflect || 0;
+  if (!strength || !window.TX || !TX.Reflector) return null;
+
+  const shader = {
+    name: 'FloorGlossReflection',
+    uniforms: {
+      color: { value: null },
+      tDiffuse: { value: null },
+      textureMatrix: { value: null },
+      strength: { value: strength },
+    },
+    vertexShader: [
+      'uniform mat4 textureMatrix;',
+      'varying vec4 vUv;',
+      'varying vec3 vWorld;',
+      'void main() {',
+      '  vUv = textureMatrix * vec4( position, 1.0 );',
+      '  vec4 wp = modelMatrix * vec4( position, 1.0 );',
+      '  vWorld = wp.xyz;',
+      '  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );',
+      '}',
+    ].join('\n'),
+    fragmentShader: [
+      'uniform vec3 color;',
+      'uniform sampler2D tDiffuse;',
+      'uniform float strength;',
+      'varying vec4 vUv;',
+      'varying vec3 vWorld;',
+      'void main() {',
+      '  vec3 V = normalize( cameraPosition - vWorld );',
+      // 바닥 법선은 +Y. 시선이 수평에 가까울수록(V.y가 0에 가까울수록) 반사가 세다
+      '  float fres = pow( 1.0 - clamp( V.y, 0.0, 1.0 ), 4.0 );',
+      '  float a = strength * mix( 0.16, 1.0, fres );',
+      '  vec4 base = texture2DProj( tDiffuse, vUv );',
+      '  gl_FragColor = vec4( base.rgb * color, a );',
+      '  #include <tonemapping_fragment>',
+      '  #include <colorspace_fragment>',
+      '}',
+    ].join('\n'),
+  };
+
+  // 반사는 흐릿하게 깔리는 것이라 원본 해상도가 필요 없다.
+  // 절반 해상도면 눈에 띄는 차이 없이 픽셀 수가 1/4로 줄어든다.
+  const w = Math.max(256, Math.round(window.innerWidth * 0.5));
+  const h = Math.max(256, Math.round(window.innerHeight * 0.5));
+  const refl = new TX.Reflector(new THREE.PlaneGeometry(room.w, room.d), {
+    textureWidth: w, textureHeight: h, clipBias: 0.004,
+    color: 0xdfe4e2, shader: shader,
+  });
+  refl.rotation.x = -Math.PI / 2;
+  refl.position.y = 0.002;
+  refl.material.transparent = true;
+  refl.material.depthWrite = false;
+  refl.renderOrder = -1;      // 바닥 위, 나머지 물체보다 먼저
+  scene.add(refl);
+  RENDER.floorReflector = refl;
+  return refl;
+};
+
 // ── 후처리 ───────────────────────────────────────────────────
 RENDER.buildComposer = function (renderer, scene, camera) {
   const q = RENDER.q;
@@ -423,6 +494,13 @@ RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
   RENDER.ceilingLights.forEach((l) => { scene.remove(l); if (l.dispose) l.dispose(); });
   RENDER.ceilingLights = [];
   RENDER._addCeilingLights(scene, GAME.ROOM);
+
+  // 바닥 반사 — 장면을 한 번 더 그리는 비용이라 등급을 내릴 때 가장 먼저 끈다
+  if (RENDER.floorReflector && !q.reflect) {
+    scene.remove(RENDER.floorReflector);
+    if (RENDER.floorReflector.dispose) RENDER.floorReflector.dispose();
+    RENDER.floorReflector = null;
+  }
 
   // 후처리 체인 재구성
   if (RENDER.composer) { RENDER.composer.dispose(); RENDER.composer = null; }

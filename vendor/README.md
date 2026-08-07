@@ -21,6 +21,7 @@ GitHub Pages(또는 로컬 폴더)에서 함께 제공되므로 의존하는 외
 | `UnrealBloomPass` | 형광등 패널 빛번짐 (높음 화질 전용) |
 | `RoomEnvironment` | 절차적 실내 환경맵. HDRI 파일을 받지 않고 금속·유리 반사를 만든다 |
 | `RectAreaLightUniformsLib` | 면광원(형광등 패널) 사용 전 초기화 필요 |
+| `Reflector` | 바닥 평면 반사 — 광택 에폭시 바닥에 천장·장비가 비친다 (높음 화질 전용) |
 
 ## 다시 만드는 방법
 
@@ -43,11 +44,12 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
+import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 
 window.THREE = THREE;
 window.TX = {
   EffectComposer, RenderPass, OutputPass, SMAAPass, GTAOPass,
-  UnrealBloomPass, RoomEnvironment, RectAreaLightUniformsLib,
+  UnrealBloomPass, RoomEnvironment, RectAreaLightUniformsLib, Reflector,
 };
 ```
 

@@ -39,6 +39,8 @@ function initGame() {
   buildBeds();
   buildDecor();
   buildContactShadows();
+  // 반사는 방·장비가 모두 들어온 뒤에 붙인다 (비칠 대상이 있어야 한다)
+  RENDER.buildFloorReflection(c.scene, c.ROOM);
   RENDER.buildComposer(c.renderer, c.scene, c.camera);
   bindControls();
   animate();
@@ -111,8 +113,10 @@ function buildRoom() {
       [[0, 0], [256, 256], [256, 0], [0, 256]].forEach(([x, y]) => fx.strokeRect(x, y, 256, 256));
     },
     {
-      size: [512, 512], repeat: [w / 4, d / 4], normalStrength: 1.1, normalScale: 0.55,
-      rough: { base: 0.18, dark: 0.55 }, envMapIntensity: 1.35,
+      // 참고 사진의 치료실 바닥은 천장 조명이 그대로 비칠 만큼 광택이 강한
+      // 폴리싱 에폭시다. 러프니스를 더 낮추고 환경광 반사를 올려 그 느낌을 맞춘다.
+      size: [512, 512], repeat: [w / 4, d / 4], normalStrength: 1.1, normalScale: 0.5,
+      rough: { base: 0.11, dark: 0.48 }, envMapIntensity: 1.7,
       // 높이: 알갱이는 아주 얕게, 이음선 홈은 깊게
       height: (hx) => {
         hx.fillStyle = '#808080'; hx.fillRect(0, 0, 512, 512);
@@ -131,31 +135,47 @@ function buildRoom() {
   floor.receiveShadow = true;
   GAME.scene.add(floor);
 
-  // 중앙 통로 — 고무 매트가 아니라 바닥에 직접 도색한 보행훈련 레인.
-  // 실제 재활병원 치료실 바닥에는 이런 보행 트랙 라인이 그려져 있다.
-  // UV: u가 레인 길이(19m), v가 레인 폭(1.8m) 방향이다. 따라서 캔버스에
-  // 가로 띠를 그리면 레인을 따라 이어지는 선이 되고, u로 반복해 1m 눈금을 만든다.
-  const laneMat = RENDER.pbrMaterial(
-    (g, S) => {
-      g.fillStyle = '#e6e7df'; g.fillRect(0, 0, S, S);       // 바닥과 같은 색
-      g.fillStyle = '#e8b93a';                                // 노란 레인 경계선
-      g.fillRect(0, Math.round(S * 0.13), S, 7);
-      g.fillRect(0, Math.round(S * 0.85), S, 7);
-      g.fillStyle = 'rgba(199,74,68,0.85)';                   // 붉은 중앙선
-      g.fillRect(0, Math.round(S * 0.49), S, 5);
-      // 1m 눈금 — 레인 양 가장자리에만 짧게. 폭 전체를 가로지르면
-      // 보행 레인이 아니라 사다리 드릴처럼 보인다.
-      g.fillStyle = '#e8b93a';
-      g.fillRect(0, Math.round(S * 0.13) - 10, 8, 10);
-      g.fillRect(0, Math.round(S * 0.85) + 7, 8, 10);
-    },
-    { size: [256, 256], repeat: [19, 1], normalStrength: 0.5, normalScale: 0.25,
-      rough: { base: 0.22, dark: 0.35 }, envMapIntensity: 1.2 }
+  // 보행 훈련 트랙 — 참고 사진(운동2)의 치료실 바닥에 그려진 것은 직선 레인이
+  // 아니라 빨강·노랑 이중선으로 도색한 타원 트랙이다. 환자가 한 바퀴 돌며 걷는
+  // 용도라, 직선 레인보다 이쪽이 실제 재활치료실의 바닥 풍경에 가깝다.
+  // 장비는 트랙 안쪽에 모여 있으므로 선이 장비를 관통하지 않는다.
+  const TRK = { w: 21.0, d: 7.0, r: 2.4 };   // 트랙 바깥 치수(m)·모서리 반경
+  const PX = 96;                             // m → px
+  const trackCv = document.createElement('canvas');
+  trackCv.width = Math.round(TRK.w * PX);
+  trackCv.height = Math.round(TRK.d * PX);
+  const tg = trackCv.getContext('2d');
+  // 선 이외는 완전 투명 — 바닥 재질이 그대로 비쳐야 도색한 선으로 보인다
+  tg.clearRect(0, 0, trackCv.width, trackCv.height);
+  const roundRectPath = (ctx, x, y, ww, hh, r) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + ww, y, x + ww, y + hh, r);
+    ctx.arcTo(x + ww, y + hh, x, y + hh, r);
+    ctx.arcTo(x, y + hh, x, y, r);
+    ctx.arcTo(x, y, x + ww, y, r);
+    ctx.closePath();
+  };
+  tg.lineJoin = 'round';
+  // 바깥에서 안으로: 빨강 → 노랑 → (보행 레인 1.5m) → 노랑 → 빨강
+  [[0.12, '#c2453c'], [0.32, '#e0ae33'], [1.82, '#e0ae33'], [2.02, '#c2453c']].forEach(([inset, col]) => {
+    tg.strokeStyle = col;
+    tg.lineWidth = 0.07 * PX;
+    roundRectPath(tg, inset * PX, inset * PX,
+      (TRK.w - inset * 2) * PX, (TRK.d - inset * 2) * PX,
+      Math.max(0.25, TRK.r - inset) * PX);
+    tg.stroke();
+  });
+  const track = new THREE.Mesh(
+    new THREE.PlaneGeometry(TRK.w, TRK.d),
+    new THREE.MeshStandardMaterial({
+      map: RENDER.colorTex(trackCv), transparent: true, roughness: 0.30,
+      metalness: 0, envMapIntensity: 1.2, depthWrite: false,
+    })
   );
-  const lane = new THREE.Mesh(new THREE.PlaneGeometry(19, 1.8), laneMat);
-  lane.rotation.x = -Math.PI / 2; lane.position.set(-1, 0.004, 0);
-  lane.receiveShadow = true;
-  GAME.scene.add(lane);
+  track.rotation.x = -Math.PI / 2;
+  track.position.set(0, 0.004, 0);
+  GAME.scene.add(track);
 
   // 천장 — 600×600 미네랄울 흡음 타일. 실제 병원 천장의 특징인
   // 미세 타공(perforation)을 넣으면 단조로운 흰 판이 즉시 천장으로 읽힌다.
@@ -402,7 +422,9 @@ function buildPatientFigure(patient) {
     white: new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9, envMapIntensity: 0.5 }),
     // 얼음팩 — 반투명하고 젖은 표면
     ice: new THREE.MeshStandardMaterial({ color: 0xbfe3f5, roughness: 0.12, metalness: 0.05, envMapIntensity: 1.4, transparent: true, opacity: 0.86 }),
-    blanket: new THREE.MeshStandardMaterial({ color: 0xe4ebf2, roughness: 0.96, envMapIntensity: 0.45 }),
+    // 담요는 반원통 껍질이라 안쪽 면도 보인다 → DoubleSide
+    blanket: new THREE.MeshStandardMaterial({ color: 0xdfe8f0, roughness: 0.97, envMapIntensity: 0.4, side: THREE.DoubleSide }),
+    sheet: new THREE.MeshStandardMaterial({ color: 0xf4f7fa, roughness: 0.95, envMapIntensity: 0.4 }),
   };
   const pose = Object.assign({ roll: 0, lift: 0, legR: {}, legL: {}, armR: 'side', armL: 'side', foot: 'up', props: [] }, PATIENT_POSES[patient.id] || {});
 
@@ -434,6 +456,15 @@ function buildPatientFigure(patient) {
     (parent || body).add(m);
     return m;
   };
+  // 몸통·골반처럼 모서리가 없어야 하는 부위. 구 하나를 눌러 타원체로 쓴다
+  // (직육면체로 두면 아무리 재질이 좋아도 사람이 아니라 상자로 읽힌다).
+  const ellip = (p, rx, ry, rz, mat, parent) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 16), mat);
+    m.scale.set(rx, ry, rz);
+    m.position.copy(p); m.castShadow = true;
+    (parent || body).add(m);
+    return m;
+  };
 
   // 머리·얼굴
   const headC = V(0, 0.15, 0);
@@ -451,8 +482,8 @@ function buildPatientFigure(patient) {
 
   // 목·몸통·골반·어깨
   seg(V(0, 0.13, 0.06), V(0, 0.115, 0.20), 0.05, M.skin);
-  box(V(0, 0.115, 0.45), 0.42, 0.17, 0.52, M.shirt);
-  box(V(0, 0.10, 0.82), 0.36, 0.15, 0.26, M.pants);
+  ellip(V(0, 0.105, 0.44), 0.215, 0.100, 0.28, M.shirt);   // 흉곽
+  ellip(V(0, 0.095, 0.82), 0.185, 0.085, 0.17, M.pants);   // 골반
   ball(V(0.21, 0.12, 0.26), 0.065, M.shirt);
   ball(V(-0.21, 0.12, 0.26), 0.065, M.shirt);
 
@@ -508,7 +539,23 @@ function buildPatientFigure(patient) {
     const kR = joints.kneeR, aR = joints.ankleR, dR = joints.shankDirR;
     switch (prop) {
       case 'neckroll':    xCyl(V(0, 0.05, 0.12), 0.05, 0.34, M.white); break;
-      case 'blanket':     box(V(0, 0.10, 1.16), 0.56, 0.16, 0.78, M.blanket, fig); break;
+      case 'blanket': {
+        // 다리 위에 덮인 담요. 예전에는 0.16m 두께 상자여서 스티로폼 덩어리로 보였다.
+        // 반원통 껍질을 씌우면 다리 윤곽을 따라 천이 흐르는 것처럼 읽힌다.
+        // 발쪽으로 갈수록 좁아져야 한다. 굵기가 일정하면 담요가 아니라 통나무다.
+        const bg = new THREE.CylinderGeometry(0.20, 0.29, 1.16, 22, 1, true, 0, Math.PI);
+        bg.rotateZ(Math.PI / 2); bg.rotateY(Math.PI / 2);   // 축을 z로, 껍질을 위쪽으로
+        const bl = new THREE.Mesh(bg, M.blanket);
+        bl.position.set(0, 0.0, 1.19);
+        bl.castShadow = true;
+        fig.add(bl);
+        // 가슴께로 접어 올린 시트 끝단
+        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.05, 0.14), M.sheet);
+        hem.position.set(0, 0.19, 0.63);
+        hem.castShadow = true;
+        fig.add(hem);
+        break;
+      }
       case 'bolsterKneeR': xCyl(V(kR.x, 0.06, kR.z), 0.09, 0.5, M.white); break;
       case 'bolsterKnees': xCyl(V(0, 0.055, kR.z), 0.07, 0.5, M.white); break;
       case 'wrapKneeR':   seg(kR.clone().addScaledVector(dR, -0.09), kR.clone().addScaledVector(dR, 0.09), 0.085, M.white, fig); break;
@@ -538,8 +585,9 @@ function buildBeds() {
 // 커튼 원단 — 베드 12개가 전부 같은 재질이므로 폭별로 한 번만 만들어 공유한다.
 // (r128 버전은 베드마다 텍스처를 복제해 같은 이미지를 24번 GPU에 올렸다)
 const CURTAIN_CACHE = {};
-function curtainMaterial(widthMeters) {
-  const key = widthMeters.toFixed(2);
+function curtainMaterial(widthMeters, heightMeters) {
+  const H = heightMeters || 1.5;
+  const key = widthMeters.toFixed(2) + 'x' + H.toFixed(2);
   if (CURTAIN_CACHE[key]) return CURTAIN_CACHE[key];
 
   // 주름(굵은 세로 결) + 직조(가는 격자)를 겹쳐 그린다.
@@ -565,11 +613,16 @@ function curtainMaterial(widthMeters) {
       g.fillRect(0, i + 2, S, 1);
     }
     if (!dark) {
-      // 가는 청·적 세로 줄무늬 — 병원 프라이버시 커튼의 전형적인 무늬.
+      // 가는 청·적 격자무늬 — 참고 렌더링의 커튼은 세로줄만이 아니라
+      // 가로줄이 함께 있는 잔격자다. 세로줄만 그으면 블라인드처럼 보인다.
       // 높이맵에는 넣지 않는다 (인쇄된 무늬이지 요철이 아니다).
       for (let x = 0; x < S; x += 34) {
         g.fillStyle = 'rgba(116,152,190,0.55)'; g.fillRect(x, 0, 2, S);
         g.fillStyle = 'rgba(202,118,110,0.45)'; g.fillRect(x + 17, 0, 1.5, S);
+      }
+      for (let y = 0; y < S; y += 34) {
+        g.fillStyle = 'rgba(116,152,190,0.34)'; g.fillRect(0, y, S, 1.5);
+        g.fillStyle = 'rgba(202,118,110,0.26)'; g.fillRect(0, y + 17, S, 1);
       }
     }
   };
@@ -577,7 +630,9 @@ function curtainMaterial(widthMeters) {
   const m = RENDER.pbrMaterial(
     (g, S) => draw(g, S, false),
     {
-      size: [256, 256], repeat: [widthMeters / 1.2, 1],
+      // 주름 폭·직조 결의 실치수를 커튼 크기와 무관하게 유지한다.
+      // (세로 반복을 1로 고정하면 천장까지 오는 커튼에서 직조가 늘어나 보인다)
+      size: [256, 256], repeat: [widthMeters / 1.2, H / 1.5],
       normalStrength: 1.8, normalScale: 0.8,
       rough: { base: 0.95, dark: 0.99 }, envMapIntensity: 0.45,
       side: THREE.DoubleSide,
@@ -623,14 +678,21 @@ function makeBed(patient, num, x, z, facing) {
   fig.rotation.y = facing > 0 ? 0 : Math.PI;
   g.add(fig);
 
-  // 명패 (발치)
+  // 발판(footboard) + 환자 카드 — 실제 병상은 발판에 카드홀더가 끼워져 있다.
+  // 예전에는 0.85m짜리 판이 발치 허공에 떠 있어서, 베드에 다가갈수록
+  // 간판이 시야를 다 가리고 지지물도 없어 붕 떠 보였다.
   const sexAge = patient.sex + ', ' + patient.age + '세';
+  const laminate = new THREE.MeshStandardMaterial({ color: 0xe4e7ea, roughness: 0.38, metalness: 0.1, envMapIntensity: 1.0 });
+  const footboard = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.34, 0.05), laminate);
+  footboard.position.set(0, BED_H + 0.20, facing * (BED_L / 2 + 0.03));
+  footboard.castShadow = true;
+  g.add(footboard);
   const placard = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.85, 0.42),
-    printedMat(makeTextCanvas(['베드 ' + num, patient.name + ' (' + sexAge + ')'], 512, 256, { border: '#2c5f7c', fontSize: 56 }),
+    new THREE.PlaneGeometry(0.62, 0.29),
+    printedMat(makeTextCanvas(['베드 ' + num, patient.name + ' (' + sexAge + ')'], 512, 240, { border: '#2c5f7c', fontSize: 54 }),
       { roughness: 0.45, envMapIntensity: 1.1 })
   );
-  placard.position.set(0, 0.95, facing * (BED_L / 2 + 0.02));
+  placard.position.set(0, BED_H + 0.21, facing * (BED_L / 2 + 0.062));
   placard.rotation.y = facing > 0 ? 0 : Math.PI;
   g.add(placard);
 
@@ -674,50 +736,62 @@ function makeBed(patient, num, x, z, facing) {
   const entryZ = facing * 1.35;        // 입구 로컬 z
   const cubLen = Math.abs(entryZ - wallZ);
   const cubMidZ = (wallZ + entryZ) / 2;
-  const railMat = new THREE.MeshStandardMaterial({ color: 0xc4a274, metalness: 0.05, roughness: 0.52, envMapIntensity: 0.7 });
-  const railY = 2.16;
+  // 참고 렌더링(w1536)의 부스 구조를 그대로 따른다: 바닥에서 천장까지 올라가는
+  // 목재 각기둥 사이에 가로보를 걸고, 그 보에 커튼을 매단다. 번호판은 보 위에 붙는다.
+  // 앞선 구현도 같은 방식이었지만 기둥이 지름 2.4cm 철사 굵기라 비계처럼 보였다.
+  // 실제 목재 기둥은 10cm 각재이고, 굵기가 있어야 구조물로 읽힌다.
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0xc9a978, metalness: 0, roughness: 0.62, envMapIntensity: 0.65 });
+  const POST = 0.10;               // 각기둥 한 변
+  const beamY = 2.34;              // 가로보 윗면 높이
+  const CUR_TOP = beamY - 0.06;    // 보에 걸린 커튼 상단
+  const CUR_BOT = 0.09;            // 하단 — 참고 렌더링처럼 바닥 가까이 내려온다
+  const curH = CUR_TOP - CUR_BOT;
+  const curY = (CUR_TOP + CUR_BOT) / 2;
 
-  const curMat = curtainMaterial(cubLen);
-  const bundleMat = new THREE.MeshStandardMaterial({ color: 0xbcd8c9, roughness: 0.95 });
+  const curMat = curtainMaterial(cubLen, curH);
+  const bundleMat = new THREE.MeshStandardMaterial({ color: 0xf1eee7, roughness: 0.95, envMapIntensity: 0.45 });
 
-  // 양옆 레일 + 커튼 (부스 벽)
+  // 입구 각기둥 2개 (바닥 → 천장)
   [-CUB_HW, CUB_HW].forEach((sx) => {
-    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, cubLen, 8), railMat);
-    rail.rotation.x = Math.PI / 2;
-    rail.position.set(sx, railY, cubMidZ);
-    g.add(rail);
-    const side = new THREE.Mesh(new THREE.PlaneGeometry(cubLen, 1.48), curMat);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(POST, GAME.ROOM.h, POST), woodMat);
+    post.position.set(sx, GAME.ROOM.h / 2, entryZ);
+    post.castShadow = true;
+    g.add(post);
+  });
+  // 옆 가로보 + 커튼 (부스 칸막이) — 보는 기둥에서 벽까지 건너간다
+  [-CUB_HW, CUB_HW].forEach((sx) => {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, cubLen), woodMat);
+    beam.position.set(sx, beamY - 0.045, cubMidZ);
+    beam.castShadow = true;
+    g.add(beam);
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(cubLen, curH), curMat);
     side.rotation.y = Math.PI / 2;
     side.castShadow = true;
-    side.position.set(sx, 1.41, cubMidZ);
+    side.position.set(sx, curY, cubMidZ);
     g.add(side);
   });
-  // 입구 레일 (커튼은 양쪽으로 걷어둠)
-  const frontRail = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, CUB_HW * 2, 8), railMat);
-  frontRail.rotation.z = Math.PI / 2;
-  frontRail.position.set(0, railY, entryZ);
-  g.add(frontRail);
+  // 입구 가로보 (커튼은 양쪽으로 걷어둠)
+  const frontBeam = new THREE.Mesh(new THREE.BoxGeometry(CUB_HW * 2, 0.09, 0.06), woodMat);
+  frontBeam.position.set(0, beamY - 0.045, entryZ);
+  frontBeam.castShadow = true;
+  g.add(frontBeam);
   [-1, 1].forEach((sx) => {
-    const bundle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 1.46, 8), bundleMat);
-    bundle.position.set(sx * (CUB_HW - 0.12), 1.41, entryZ);
+    const bundle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, curH, 8), bundleMat);
+    bundle.position.set(sx * (CUB_HW - 0.14), curY, entryZ);
+    bundle.castShadow = true;
     g.add(bundle);
   });
-  const halfCur = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 1.48), curtainMaterial(0.45));
-  halfCur.position.set(-(CUB_HW - 0.48), 1.41, entryZ);
+  const halfCur = new THREE.Mesh(new THREE.PlaneGeometry(0.45, curH), curtainMaterial(0.45, curH));
+  halfCur.position.set(-(CUB_HW - 0.50), curY, entryZ);
   g.add(halfCur);
-  // 부스 번호판 (입구 레일 위에 매달림) — 참고 렌더링처럼 통로에서 번호가 보인다.
-  // 발치 명패는 가까이 가야 읽히지만 이건 멀리서도 베드를 찾을 수 있다.
-  const bayPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.22),
+  // 부스 번호판 — 참고 렌더링처럼 가로보 위에 얹혀 통로 쪽을 향한다.
+  // 커튼이 바닥까지 내려오므로 통로에서 베드를 찾는 단서는 이것뿐이다.
+  const bayPlate = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.21, 0.035),
     printedMat(makeTextCanvas([String(num)], 256, 128, { bg: '#2c5f7c', color: '#ffffff', fontSize: 92 }),
-      { roughness: 0.4, envMapIntensity: 1.1, side: THREE.DoubleSide }));
-  bayPlate.position.set(0, railY + 0.30, entryZ);
+      { roughness: 0.4, envMapIntensity: 1.1 }));
+  bayPlate.position.set(0, beamY + 0.06, entryZ);
+  bayPlate.castShadow = true;
   g.add(bayPlate);
-  [-1, 1].forEach((sx) => {   // 번호판 매단 줄
-    const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.19, 4),
-      new THREE.MeshStandardMaterial({ color: 0x8d9aa2, metalness: 0.6, roughness: 0.4 }));
-    wire.position.set(sx * 0.16, railY + 0.505, entryZ);
-    g.add(wire);
-  });
 
   // 침대 하부 수납 바구니 — 참고 렌더링에 베드마다 놓여 있다
   const basket = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.17, 0.34),
@@ -726,12 +800,6 @@ function makeBed(patient, num, x, z, facing) {
   basket.castShadow = true;
   g.add(basket);
 
-  // 천장 지지봉 (모서리 4곳)
-  [[-CUB_HW, wallZ], [CUB_HW, wallZ], [-CUB_HW, entryZ], [CUB_HW, entryZ]].forEach(([sx, sz]) => {
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, GAME.ROOM.h - railY, 6), railMat);
-    rod.position.set(sx, (GAME.ROOM.h + railY) / 2, sz);
-    g.add(rod);
-  });
   // 옆 커튼 통과 방지
   GAME.obstacles.push(
     { cx: x - CUB_HW, cz: z + cubMidZ, hw: 0.1, hd: cubLen / 2 },
@@ -946,14 +1014,32 @@ function buildDecor() {
   clock.rotation.y = Math.PI;
   s.add(clock);
 
-  // 화분 4개 (모서리)
-  [[-11, -6.5], [11, -6.5], [-11, 6.5], [11, 6.5]].forEach(([x, z]) => {
-    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.35, 12), std(0xb06f4e));
-    pot.position.set(x, 0.175, z);
-    const bush = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), std(0x4e8d5b, { roughness: 0.9 }));
-    bush.position.set(x, 0.65, z);
-    bush.castShadow = true;
-    s.add(pot, bush);
+  // 화분 4개 (모서리) — 예전에는 구 하나가 공중에 떠 막대사탕처럼 보였다.
+  // 화분 → 흙 → 줄기 → 크기가 다른 잎 덩어리 3개로 쌓아야 식물로 읽힌다.
+  const potMat = std(0xb9b3a8, { roughness: 0.55, envMapIntensity: 0.9 });  // 무광 세라믹 화분
+  const soilMat = std(0x4b3a2c, { roughness: 1.0 });
+  const stemMat = std(0x5c7a4a, { roughness: 0.85 });
+  [[-11, -6.5, 1], [11, -6.5, -1], [-11, 6.5, -1], [11, 6.5, 1]].forEach(([x, z, flip]) => {
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.145, 0.34, 16), potMat);
+    pot.position.set(x, 0.17, z);
+    pot.castShadow = true;
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.212, 0.212, 0.04, 16), potMat);
+    rim.position.set(x, 0.335, z);
+    const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.185, 0.03, 14), soilMat);
+    soil.position.set(x, 0.345, z);
+    s.add(pot, rim, soil);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.032, 0.42, 8), stemMat);
+    stem.position.set(x, 0.56, z);
+    s.add(stem);
+    // 잎 덩어리 — 크기·높이·색을 어긋나게 두어야 단일 구로 안 보인다
+    [[0.00, 0.90, 0.00, 0.30, 0x4e8d5b], [0.17, 0.76, 0.10, 0.21, 0x5b9c64],
+     [-0.14, 0.80, -0.12, 0.18, 0x437c50]].forEach(([dx, y, dz, r, col]) => {
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 11), std(col, { roughness: 0.88, envMapIntensity: 0.6 }));
+      leaf.position.set(x + dx * flip, y, z + dz);
+      leaf.scale.y = 0.78;   // 위에서 눌린 수형
+      leaf.castShadow = true;
+      s.add(leaf);
+    });
   });
 
   // 벽 포스터
