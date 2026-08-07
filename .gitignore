@@ -3,3 +3,10 @@ node_modules/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 참고용 사진·렌더링 — 제3자 저작물이므로 공개 저장소에 올리지 않는다
+# (ACON 워터마크 렌더링 / 웹 사진). 로컬에는 그대로 남는다.
+*.jpg
+*.jpeg
+*.png
+*.webp
