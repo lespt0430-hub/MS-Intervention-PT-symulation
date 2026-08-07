@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-Desktop------------------\\\\e9da5765-17a1-46f3-9920-dde80d84c0a8\\\\scratchpad\\\\validate.js\")",
+      "PowerShell(pip install *)",
+      "PowerShell(node --version)",
+      "PowerShell(python \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-Desktop------------------\\\\0b1e9ffb-616a-423a-b91b-8d621d76e9c1\\\\scratchpad\\\\extract_pdfs2.py\")",
+      "PowerShell(node --check game.js; node --check patients1.js; node --check patients2.js; node --check exams.js; node --check ui.js; echo \"SYNTAX OK\")",
+      "PowerShell(node --check ui.js; echo OK)",
+      "Read(//c/Program Files/Blender Foundation/**)",
+      "Bash(npm -v)",
+      "Bash(git --version)"
+    ]
+  }
+}

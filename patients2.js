@@ -1,0 +1,527 @@
+// 가상환자 데이터 6~10번 (JOSPT CPG 기반)
+
+PATIENTS.push({
+  id: 'p7',
+  name: '강대호', age: 52, sex: '남', job: '자영업 (등산 애호가)',
+  chiefComplaint: '등산 후부터 무릎 안쪽이 아프고 가끔 걸려요',
+  region: 'knee',
+  colors: { blanket: 0xa3c9a8, skin: 0xdba97e, hair: 0x3d3d3d },
+  persona: `[인적사항] 강대호, 52세 남성, 자영업(철물점 운영). 주말마다 등산 15년째.
+[주호소] 6주 전 등산 중 바위를 내려딛다 무릎이 살짝 비틀린 뒤부터 오른쪽 무릎 안쪽이 아프고, 가끔 무릎 속에서 뭔가 '걸리는' 느낌이 난다.
+[현병력] 6주 전 하산 중 바위에서 내려딛으며 무릎이 안쪽으로 비틀림. 당시 '뜨끔'했으나 걸을 만해서 하산 완료. 다음날부터 무릎 안쪽 통증과 붓기. 붓기는 2~3일에 걸쳐 서서히 오름(당일 즉시 부은 게 아님). 이후 통증은 오르내리며 지속.
+[통증 양상] 오른쪽 무릎 안쪽 관절선 부위 국소 통증. NRS 4/10(평지), 6/10(계단·쪼그려 앉기). 쪼그려 앉으면 안쪽이 집힘.
+[기계적 증상] 가끔 걸리는 느낌(catching), 두 번 정도 무릎이 완전히 안 펴지는 느낌이 잠깐 있었음(잠김 유사). 무릎이 '팍 꺾이는' 느낌(giving way)은 없음.
+[악화 요인] 쪼그려 앉기, 계단 내려가기, 방향 전환, 양반다리.
+[완화 요인] 안정, 다리 뻗고 앉기.
+[부종] 활동 많은 날 저녁 무릎이 약간 붓는 느낌.
+[적신호] 발열·야간통·불안정 없음.
+[과거력] 무릎 부상 처음. 병원에서 X-ray는 찍음("뼈는 괜찮다"). MRI는 아직.
+[동반질환] 경도 고지혈증.
+[기능 제한] 등산 못 가는 중(가장 큰 불만), 계단 내려갈 때 난간 잡음, 쪼그려 앉아 일 못 함.
+[성격·말투] 호탕한 아저씨 말투, 존댓말과 반말 섞임("아이고 선생님, 이거 수술해야 되는 거요?"). 등산 복귀 열망.`,
+  keyHistory: [
+    { id: 'onset', label: '수상 기전 (6주 전 하산 중 비틀림)', keywords: ['언제', '어떻게', '다치', '시작'],
+      answer: '6주 전에 등산 갔다가 하산길에 바위에서 내려딛는데 무릎이 안쪽으로 살짝 비틀렸어요. 그때 뜨끔했는데 걸을 만해서 그냥 내려왔죠.' },
+    { id: 'swelling_onset', label: '부종 발생 시점 (수상 후 2~3일에 걸쳐 서서히)', keywords: ['붓', '부었', '부종'],
+      answer: '당장 부은 건 아니고 이삼일에 걸쳐서 서서히 붓더라고요. 요즘도 많이 움직인 날 저녁엔 좀 붓는 것 같아요.' },
+    { id: 'location', label: '통증 위치 (내측 관절선)', keywords: ['어디', '부위', '위치', '안쪽'],
+      answer: '오른쪽 무릎 안쪽이요. (무릎 안쪽 관절 틈 라인을 손가락으로 가리키며) 딱 이 라인이 아파요.' },
+    { id: 'mechanical', label: '기계적 증상 — 걸림·잠김 확인', keywords: ['걸리', '잠기', '안 펴', '소리', '끼'],
+      answer: '가끔 무릎 속에서 뭐가 걸리는 느낌이 나요. 두어 번은 무릎이 잠깐 안 펴지는 것 같기도 했고요.' },
+    { id: 'giving_way', label: '불안정감(giving way) 유무 확인 (없음)', keywords: ['꺾이', '무너지', '불안', '휘청'],
+      answer: '팍 꺾이거나 무너지는 느낌은 없어요. 그건 아니에요.' },
+    { id: 'aggravating', label: '악화 요인 (쪼그려 앉기, 계단 하강, 회전)', keywords: ['아프', '심해', '어떨 때', '계단', '쪼그'],
+      answer: '쪼그려 앉으면 안쪽이 집히고요, 계단 내려갈 때랑 방향 틀 때 아파요. 양반다리도 불편하고요.' },
+    { id: 'history', label: '과거 무릎 부상력·검사력 (X-ray 정상)', keywords: ['예전', '처음', '엑스레이', '병원', '검사'],
+      answer: '무릎 다친 건 처음이에요. 엑스레이는 찍었는데 뼈는 괜찮다고 하데요. MRI는 아직 안 찍었어요.' },
+    { id: 'activity', label: '활동 수준 (15년 등산, 주말 등산)', keywords: ['운동', '등산', '활동', '취미'],
+      answer: '등산을 15년 다녔어요. 주말마다 산에 가는 게 낙인데 요즘 못 가고 있죠.' },
+    { id: 'redflag', label: '적신호 선별 (발열·야간통 없음)', keywords: ['열', '밤에', '체중'],
+      answer: '열나거나 밤에 아파서 깨는 건 없어요.' },
+    { id: 'goal', label: '치료 목표 (등산 복귀)', keywords: ['목표', '복귀', '하고 싶', '바라'],
+      answer: '등산 다시 가는 게 목표죠. 아이고 선생님, 근데 이거 수술해야 되는 거요?' },
+  ],
+  requiredExams: ['jointline', 'mcmurray', 'k_effusion', 'k_arom', 'lachman', 'k_mmt', 'thessaly'],
+  relatedExams: ['pain_scale', 'k_prom', 'valgus_varus', 'ant_drawer_k', 'obs_gait', 'ikdc', 'obs_swelling'],
+  examResults: {
+    obs_gait: '평지 보행 거의 정상, 계단 하강 동작에서 조심스러움.',
+    obs_swelling: '우측 무릎 경미한 종창 의심 — 대퇴사두근 내측 위축 경향.',
+    k_effusion: 'Stroke test 1+ (경미한 삼출).',
+    k_arom: '우측 굴곡 125°(끝범위 내측 불편감), 신전 -3°(끝범위 뻣뻣함). 좌측 정상.',
+    k_prom: '수동 굴곡 끝범위와 과신전 시 내측 관절선 통증.',
+    jointline: '내측 관절선 중간~후방 명확한 압통. 외측 관절선 압통 없음.',
+    mcmurray: '양성 — 굴곡+외회전에서 내측 관절선 통증과 덜컥거림(click).',
+    thessaly: '20° 회전 시 내측 통증·걸림 재현 — 양성.',
+    lachman: '음성 — 단단한 끝느낌, 전위 정상.',
+    ant_drawer_k: '음성.',
+    pivot_shift: '음성.',
+    valgus_varus: '0°·30° 모두 안정적, 통증 경미.',
+    k_mmt: '우측 대퇴사두근 4/5 (경미 약화·억제), 그 외 정상.',
+    hop_test: '통증으로 수행 제한 — 현 시점 부적합.',
+    ikdc: 'KOOS 통증 65, 스포츠/여가 40 (뚜렷한 저하).',
+    pain_scale: 'NRS 4/10 (평지), 6/10 (계단·쪼그려 앉기).',
+    obs_posture: '특이소견 없음.', vital: '정상.',
+  },
+  diagnosisOptions: [
+    { id: 'dx1', name: '내측 반월판 손상 (meniscal tear)' },
+    { id: 'dx2', name: '전방십자인대 염좌' },
+    { id: 'dx3', name: '내측측부인대 염좌' },
+    { id: 'dx4', name: '슬개대퇴 통증 증후군' },
+    { id: 'dx5', name: '무릎 골관절염' },
+    { id: 'dx6', name: '거위발 건염 (pes anserine)' },
+  ],
+  correctDx: 'dx1', partialDx: ['dx5'],
+  dxExplanation: '내측 반월판 손상이 정답. 근거: 체중부하 상태 회전(비틀림) 수상 기전, 지연성 종창(2~3일에 걸쳐 — 수시간 내 급격한 혈관절증인 ACL과 감별), 내측 관절선 압통, McMurray·Thessaly 양성, 걸림·잠김 유사 증상, Lachman·전방전위 음성(ACL 배제), 외반/내반 스트레스 안정(MCL 배제). CPG 위험요인: 연령(52세)과 수상 후 경과 시간은 퇴행성 변화·연골 병변 동반의 예측 인자 — 무릎 OA 부분점수 근거. 2018 개정판 검사 권고(B): 반월판 손상 환자 전원에게 기준선·종결 시점에 modified stroke test(삼출), 능동 ROM, 최대 등척성 사두근 근력, 강제 과신전, 최대 수동 굴곡, McMurray, 관절선 압통을 표준 시행 + IKDC 2000/KOOS 결과도구(B), 한발뛰기 검사(C). 확진·수술 적응 판단에 MRI 의뢰 고려. — Knee Pain and Mobility Impairments: Meniscal and Articular Cartilage Lesions Revision 2018 CPG.',
+  treatments: [
+    { id: 't1', name: '점진적 무릎 관절가동범위 회복 운동 (조기 시작)', grade: 'B', recommended: true, note: 'CPG: 점진적 무릎 운동을 조기에 활용 — 신전 -3° 제한 회복 우선' },
+    { id: 't2', name: '대퇴사두근·햄스트링 점진적 근력강화 + 기능적 운동', grade: 'B', recommended: true, note: 'CPG: 사두근·뒤넙다리근 근력, 사두근 지구력, 기능적 수행력 향상을 위한 근력훈련+기능운동' },
+    { id: 't3', name: '신경근 전기자극(NMES) — 대퇴사두근 활성 보조', grade: 'B', recommended: true, note: 'CPG: 반월판·연골 손상 환자의 사두근 근력 증가에 NMES 사용 가능 — 사두근 4/5·위축 경향에 대응' },
+    { id: 't4', name: '감독 하 재활 + 홈 프로그램 병행 및 독립 수행 교육', grade: 'B', recommended: true, note: '2018 개정: 관절경 반월판절제술 후 진료실 감독 재활에 운동을 포함"하여야 하며" 홈 프로그램의 진행을 감독·교육 — 보존적 관리에도 준용' },
+    { id: 't5', name: '점진적 체중부하 증가 및 단계적 활동 복귀 (평지 걷기→경사→등산)', grade: 'C', recommended: true, note: 'CPG: 점진적 체중부하는 상충 증거, 점진적 활동 복귀는 권고 — 연골 병변 동반 시 복귀 연장 필요' },
+    { id: 't6', name: '즉시 무조건 수술 의뢰 (보존치료 생략)', grade: 'X', recommended: false, note: '잠김 고착 등 절대적 적응증 없는 퇴행성·안정성 파열은 보존치료 우선 시도가 원칙' },
+    { id: 't7', name: '심한 통증 무시하고 깊은 쪼그려 앉기 반복 훈련', grade: 'X', recommended: false, note: '급성기 심부 굴곡·회전 부하는 병변 자극 — 부적절' },
+    { id: 't8', name: '장기간 부목 고정 및 목발 비체중부하', grade: 'X', recommended: false, note: '불필요한 고정·비체중부하는 위축·강직 초래' },
+  ],
+  cpgRef: 'Knee Pain and Mobility Impairments: Meniscal and Articular Cartilage Lesions Revision 2018 (JOSPT CPG)',
+});
+
+PATIENTS.push({
+  id: 'p8',
+  name: '한지수', age: 22, sex: '여', job: '대학 축구선수',
+  chiefComplaint: '경기 중 무릎이 팍 꺾이면서 뚝 소리가 났어요',
+  region: 'knee',
+  colors: { blanket: 0xaed6f1, skin: 0xf1c8a8, hair: 0x2b1f16 },
+  persona: `[인적사항] 한지수, 22세 여성, 대학 축구부 선수(미드필더).
+[주호소] 10일 전 경기 중 방향 전환하다 왼쪽 무릎이 팍 꺾이면서 '뚝' 소리가 났고, 이후 붓고 불안정하다.
+[현병력] 10일 전 경기 중 상대 없이 혼자 급격히 방향 전환(비접촉)하다가 무릎이 안쪽으로 꺾임(외반+회전). '뚝(pop)' 소리를 분명히 느낌. 즉시 주저앉았고 경기 지속 불가. 2~3시간 만에 무릎이 크게 부어오름. 병원 응급실에서 X-ray 골절 없음 확인. MRI 예약돼 있으나 아직 안 찍음.
+[통증 양상] 처음엔 무릎 전체 심한 통증, 지금은 NRS 3/10 정도로 감소. 깊숙한 불편감.
+[불안정감] 걸을 때 무릎을 못 믿겠음. 계단 내려갈 때, 방향 바꿀 때 무릎이 '무너질 것 같은' 느낌. 한 번은 실제로 살짝 꺾임.
+[부종] 첫 3일 심했고 지금은 많이 빠졌지만 아직 약간 부어 있음.
+[악화 요인] 방향 전환, 계단 하강, 한발 서기.
+[완화 요인] 안정, 얼음찜질.
+[적신호] 없음. 감각·혈행 정상.
+[과거력] 무릎 부상 처음. 발목 염좌 과거 2회(완쾌).
+[동반질환] 없음.
+[기능 제한] 훈련 완전 중단. 선수 생명 걱정이 매우 큼. 시즌 복귀가 최대 관심사.
+[심리] "수술하면 시즌 끝나는 거잖아요..." 불안해하며 눈물 글썽. 그래도 재활 의지 강함.
+[성격·말투] 예의 바르고 간결. 운동선수답게 자기 몸 상태를 구체적으로 표현함.`,
+  keyHistory: [
+    { id: 'mechanism', label: '수상 기전 (비접촉성 방향전환, 외반+회전)', keywords: ['어떻게', '다치', '순간', '기전', '방향'],
+      answer: '10일 전 경기 중에 상대와 부딪힌 것도 아닌데, 혼자 급하게 방향을 바꾸다가 무릎이 안쪽으로 팍 꺾였어요.' },
+    { id: 'pop', label: '수상 시 파열음(pop) 확인', keywords: ['소리', '뚝', '팝', '느낌'],
+      answer: '네, 꺾이는 순간 뚝 소리가 분명히 났어요. 느낌도 왔고요.' },
+    { id: 'swelling_onset', label: '부종 시점 (2~3시간 내 급격 — 혈관절증 시사)', keywords: ['붓', '부었', '부종', '바로'],
+      answer: '두세 시간 만에 무릎이 크게 부어올랐어요. 첫 3일이 제일 심했고 지금은 좀 빠졌는데 아직 부어 있어요.' },
+    { id: 'instability', label: '불안정감·giving way 확인', keywords: ['꺾이', '무너지', '불안', '휘청', '믿'],
+      answer: '무릎을 못 믿겠어요. 계단 내려갈 때나 방향 바꿀 때 무너질 것 같고, 한 번은 실제로 살짝 꺾였어요.' },
+    { id: 'continue', label: '경기 지속 가능 여부 (즉시 중단)', keywords: ['계속', '뛰었', '걸을 수'],
+      answer: '바로 주저앉았고 경기는 더 못 뛰었어요. 그 길로 교체돼서 나왔어요.' },
+    { id: 'imaging', label: '영상 검사력 (X-ray 정상, MRI 예정)', keywords: ['엑스레이', 'MRI', '검사', '병원'],
+      answer: '그날 응급실에서 엑스레이 찍었는데 골절은 없대요. MRI는 예약해놨는데 아직 안 찍었어요.' },
+    { id: 'history', label: '과거 부상력 (무릎 처음, 발목 2회)', keywords: ['예전', '처음', '전에도'],
+      answer: '무릎 부상은 처음이에요. 발목은 예전에 두 번 접질렸는데 다 나았고요.' },
+    { id: 'sport', label: '스포츠·포지션·시즌 상황', keywords: ['축구', '운동', '선수', '포지션', '시즌'],
+      answer: '대학 축구부 미드필더예요. 지금 시즌 중인데 훈련을 완전히 쉬고 있어요.' },
+    { id: 'psych', label: '심리 상태 (수술·시즌 아웃 불안)', keywords: ['걱정', '불안', '무섭', '수술'],
+      answer: '수술하면 시즌 끝나는 거잖아요... 솔직히 많이 불안해요. 그래도 재활은 뭐든 열심히 할 거예요.' },
+    { id: 'redflag', label: '적신호·신경혈관 증상 선별 (없음)', keywords: ['저리', '감각', '열', '색깔'],
+      answer: '저리거나 감각이 이상한 건 없어요. 발 색깔도 정상이고 열도 없어요.' },
+  ],
+  requiredExams: ['lachman', 'k_effusion', 'pivot_shift', 'jointline', 'k_arom', 'valgus_varus', 'k_mmt'],
+  relatedExams: ['pain_scale', 'ant_drawer_k', 'mcmurray', 'obs_gait', 'obs_swelling', 'ikdc', 'k_prom', 'acl_rsi'],
+  examResults: {
+    obs_gait: '경도의 방어적 보행, 좌측 입각기 무릎 굴곡 유지(quadriceps avoidance 경향).',
+    obs_swelling: '좌측 무릎 중등도 종창 잔존, 대퇴사두근 위축 시작 관찰.',
+    k_effusion: 'Stroke test 2+ (중등도 삼출).',
+    k_arom: '좌측 굴곡 120°, 신전 -5° (삼출로 인한 제한). 우측 정상.',
+    k_prom: '수동에서도 완전 신전 제한(-5°), 통증보다 팽만감.',
+    lachman: '양성 — 전방 전위 증가, 끝느낌 물렁함(soft end-feel). 우측 대비 명확한 차이.',
+    ant_drawer_k: '양성 — 전방 전위 증가.',
+    pivot_shift: '양성 의심 — 근성 방어 있으나 아탈구 느낌 재현.',
+    mcmurray: '내측에서 경미한 통증, 명확한 click 없음 (동반 반월판 손상 완전 배제 불가).',
+    jointline: '내측 관절선 경미한 압통, 외측 압통 없음.',
+    valgus_varus: '30° 외반에서 경미한 이완 느낌·통증(경도 MCL 동반 손상 의심), 0°는 안정.',
+    k_mmt: '좌측 대퇴사두근 4-/5 (억제성 약화), 슬괵근 4/5.',
+    hop_test: '급성기 — 시행 부적합(불안정·삼출). 복귀 판정 시 건측 대비 대칭지수(LSI) 90% 이상이 기준.',
+    ikdc: 'IKDC 45점 (심한 기능 저하).',
+    acl_rsi: 'ACL-RSI 32/100 — 재부상 두려움·심리적 준비도 낮음. 복귀 전 심리 요인 관리 필요.',
+    pain_scale: 'NRS 3/10 (안정), 5/10 (계단).',
+    obs_posture: '특이소견 없음.', vital: '정상.',
+  },
+  diagnosisOptions: [
+    { id: 'dx1', name: '전방십자인대(ACL) 염좌/파열' },
+    { id: 'dx2', name: '내측 반월판 단독 손상' },
+    { id: 'dx3', name: '내측측부인대 단독 염좌' },
+    { id: 'dx4', name: '슬개골 탈구 후 상태' },
+    { id: 'dx5', name: '후방십자인대 염좌' },
+    { id: 'dx6', name: '슬개대퇴 통증 증후군' },
+  ],
+  correctDx: 'dx1', partialDx: ['dx3'],
+  dxExplanation: 'ACL 염좌/파열이 정답. 근거: 비접촉성 방향전환 수상(전형적 기전 — 외반+회전), pop 청취, 수시간(2~3시간) 내 급격한 종창(혈관절증), 즉시 경기 중단, giving way 반복, Lachman·전방전위 양성(물렁한 끝느낌), pivot shift 양성 의심. 외반 30° 이완은 경도 MCL 동반 손상 시사(부분점수 — CPG는 급성 PCL·중증 MCL·후외측 손상에 보호 부목 사용 가능을 별도 언급). CPG 검사 권고: 이완도/안정성·하지 운동협응·대퇴 근력·삼출·ROM을 평가하고, IKDC·KOOS 결과도구와 한발뛰기 배터리(멀리뛰기/교차/3회/6m 시간)로 대칭성·복귀 준비도를 추적하며, 복귀를 방해할 심리 요인은 ACL-RSI로 평가. MRI로 확진 및 동반 손상 평가 필요. — Knee Stability and Movement Coordination Impairments: Knee Ligament Sprain Revision 2017 CPG.',
+  treatments: [
+    { id: 't1', name: '즉각적 재활: 부종 조절 + 즉각적(조기) 가동술 — 완전 신전 회복 우선', grade: 'B', recommended: true, note: 'CPG: 즉각적 가동은 ROM 증가·통증 감소·신전 소실 관련 연부조직 유해반응 위험 감소 (지연 가동보다 유리)' },
+    { id: 't2', name: '체중부하 + 비체중부하 병행 근력운동 (사두근·슬괵근, 구심성+원심성)', grade: 'A', recommended: true, note: 'CPG: 재건술 후 4-6주부터 6-10개월간 주 2-3회 — 수술 전(prehab)부터 시작하면 수술 후 결과 향상' },
+    { id: 't3', name: '신경근 전기자극(NMES) — 사두근 근력 회복 (6-8주 근력운동과 병행)', grade: 'B', recommended: true, note: 'CPG: NMES를 근력강화 운동과 함께 수행 시 사두근 근력·단기 기능 향상 — 억제성 약화(4-/5)에 적용' },
+    { id: 't4', name: '신경근 재교육 (균형·착지 협응·perturbation 훈련) — 근력운동에 접목', grade: 'B', recommended: true, note: 'CPG: 신경근 재교육 훈련은 근력 강화 운동들에 "접목하여 수행하여야 한다"' },
+    { id: 't5', name: '냉치료 (급성기·수술 후 통증 관리)', grade: 'C', recommended: true, note: 'CPG: 재건술 직후 통증 감소에 냉동치료 사용 가능 — 급성기 부종 관리에도 적용' },
+    { id: 't6', name: '정형외과 협진 — 수술 여부 상담 + 복귀 심리 요인(ACL-RSI) 관리', grade: 'A', recommended: true, note: '경쟁 스포츠 복귀 목표 선수는 재건술 상담 필요. 시즌아웃 불안 등 심리 요인도 복귀 준비도 평가에 포함' },
+    { id: 't7', name: '기능성 무릎 보조기 (환자 선호 반영하여 결정)', grade: 'C', recommended: true, note: 'CPG: 지지·반대 증거가 병존 — 환자가 선호하는 바를 이끌어내 사용 여부를 함께 결정' },
+    { id: 't8', name: '지속적 수동운동 기계(CPM) 장기 적용', grade: 'X', recommended: false, note: 'CPG상 CPM은 재건술 "직후 통증 감소" 목적에 한정 — 장기 적용은 이득 근거 부족, 능동 운동 우선' },
+    { id: 't9', name: '불안정한 상태로 즉시 팀 훈련 복귀 허용', grade: 'X', recommended: false, note: '불안정 상태 복귀는 반월판·연골 2차 손상 위험 — 금기. 복귀는 근력·hop 대칭성 기준 충족 후' },
+    { id: 't10', name: '4주 이상 무릎 완전 고정', grade: 'X', recommended: false, note: '장기 고정은 강직·위축 초래 — 즉각적 가동이 원칙' },
+    { id: 't11', name: '비수술 관리 후보 여부 선별 (Fitzgerald 기준) — 해당 시 perturbation 훈련 포함 재활', grade: 'C', recommended: true, note: 'Fitzgerald 비수술 후보 기준: ①동반 인대/반월판 손상 없음 ②단측 손상 ③timed hop ≥80% ④KOS-ADLS ≥80% ⑤전반적 평가 ≥60% ⑥giving way ≤1회. 본 환자는 MCL 동반 의심+giving way로 경계례 — 선별 자체가 의사결정에 필수' },
+    { id: 't12', name: '복귀 후 운동 기반 ACL 재부상 예방 프로그램 (PEP·Sportsmetrics 등) — 팀 차원 도입 제안', grade: 'A', recommended: true, note: '예방 CPG 2018: 18세 미만·여성 축구선수에 특히 권고. 근위부 조절+근력+플라이오메트릭 다요소 구성, 세션 20분 초과·주 30분 초과, 프리시즌 시작 후 시즌 내내 지속, 높은 순응도 필수' },
+  ],
+  cpgRef: 'Knee Stability and Movement Coordination Impairments: Knee Ligament Sprain Revision 2017 + Exercise-Based Knee and ACL Injury Prevention 2018 (JOSPT CPG) + Fitzgerald 비수술 재활 가이드라인 2000',
+});
+
+PATIENTS.push({
+  id: 'p9',
+  name: '문가영', age: 24, sex: '여', job: '대학원생 (러닝 초보)',
+  chiefComplaint: '무릎 앞쪽이 계단 내려갈 때랑 오래 앉아 있으면 아파요',
+  region: 'knee',
+  colors: { blanket: 0xc9b8e8, skin: 0xf1c8a8, hair: 0x2e2118 },
+  persona: `[인적사항] 문가영, 24세 여성, 대학원생. 8주 전부터 다이어트 목적 러닝 시작(운동 경험 거의 없던 상태에서 주 5회, 회당 5km로 급격히 시작).
+[주호소] 양쪽 무릎 앞쪽(오른쪽이 더 심함)이 계단 내려갈 때, 쪼그려 앉을 때, 오래 앉아 있다 일어날 때 아프다.
+[현병력] 러닝 시작 3주째부터 서서히 무릎 앞이 뻐근하더니 지난 한 달간 점점 심해짐. 한 번에 다친 적 없음. 지금은 러닝 중반부터 아프고, 수업 중 1시간 이상 앉아 있으면 무릎 앞이 뻐근해서 다리를 자꾸 펴게 됨(영화관 징후).
+[통증 양상] 무릎 앞쪽, 슬개골 주변부의 넓게 퍼진(미만성) 둔통. 손으로 슬개골 주위를 문지르며 표현. NRS 4/10(계단), 5/10(쪼그려 앉기). 붓기 없음.
+[기계적 증상] 잠김·걸림·불안정감(무너짐) 전혀 없음. '뚝' 소리 난 적 없음. 가끔 계단에서 사각사각(crepitus) 느낌.
+[악화 요인] 계단 내려가기(오르기보다 심함), 쪼그려 앉기, 오래 앉기(영화관 징후), 러닝 후반부, 언덕 내리막.
+[완화 요인] 쉬기, 다리 펴기, 러닝 거리 줄이면 덜함.
+[적신호] 야간통·발열·외상·종창 없음.
+[과거력] 무릎 부상·수술 없음. 병원 첫 방문.
+[동반질환] 없음.
+[신발·훈련] 일반 운동화로 시작(러닝화 아님). 준비운동·근력운동 안 함. 평소 체육 활동 거의 없었음.
+[기능 제한] 러닝을 계속하고 싶은데 무릎이 걱정. 계단 많은 캠퍼스 생활 불편.
+[성격·말투] 차분하고 논리적인 대학원생. 존댓말. "인터넷 보니 연골연화증이라던데 맞나요?" 같은 검색 기반 질문.`,
+  keyHistory: [
+    { id: 'location', label: '통증 위치 (슬개골 주변 미만성 전방 통증)', keywords: ['어디', '부위', '위치', '앞쪽'],
+      answer: '무릎 앞쪽이요. 한 점이 아니라 슬개골 주변이 전체적으로 뻐근하게 아파요. (손바닥으로 무릎 앞을 문지르며) 이 언저리 전부요.' },
+    { id: 'aggravating', label: '악화 요인 (계단 하강·스쿼트·오래 앉기 — PFJ 부하 활동)', keywords: ['아프', '심해', '어떨 때', '계단', '앉'],
+      answer: '계단 내려갈 때가 제일 아프고요, 쪼그려 앉을 때도요. 수업에서 1시간 넘게 앉아 있으면 뻐근해서 자꾸 다리를 펴게 돼요.' },
+    { id: 'onset', label: '발병 배경 (러닝 급격 시작 — 과부하)', keywords: ['언제', '시작', '얼마나', '러닝', '운동'],
+      answer: '두 달 전에 다이어트하려고 러닝을 시작했는데요, 운동을 안 하던 사람이 갑자기 주 5회씩 뛰었어요. 3주쯤 지나니까 무릎 앞이 뻐근해지더라고요.' },
+    { id: 'trauma', label: '외상력 확인 (없음)', keywords: ['다치', '부딪', '넘어지', '삐끗'],
+      answer: '다친 적은 전혀 없어요. 서서히 아파진 거예요.' },
+    { id: 'mechanical', label: '잠김·걸림·불안정감 확인 (없음 — 반월판·인대 감별)', keywords: ['잠기', '걸리', '꺾이', '무너지', '소리'],
+      answer: '잠기거나 걸리거나 무릎이 꺾이는 건 없어요. 가끔 계단에서 사각거리는 느낌만 있어요.' },
+    { id: 'swelling', label: '종창 여부 (없음 — 관절내 병변 감별)', keywords: ['붓', '부었', '부종'],
+      answer: '부은 적은 없어요.' },
+    { id: 'bilateral', label: '양측성 여부 (양측, 우측 우세 — PFP 특징)', keywords: ['양쪽', '반대', '왼쪽'],
+      answer: '사실 양쪽 다 아픈데 오른쪽이 더 심해요.' },
+    { id: 'sitting', label: '장시간 좌위 통증 — 영화관 징후 확인', keywords: ['오래 앉', '앉아 있으면', '영화', '일어날 때'],
+      answer: '오래 앉아 있으면 무릎 앞이 뻐근해져요. 영화 보고 일어날 때도 그렇고요. 그래서 앉아 있다가 자꾸 다리를 펴요.' },
+    { id: 'training', label: '훈련·신발 요인 (일반 운동화, 준비운동 없음)', keywords: ['신발', '준비운동', '어떻게 뛰', '몇 번'],
+      answer: '그냥 일반 운동화 신고 뛰었어요. 준비운동이나 근력운동은 따로 안 했고요. 주 5회, 한 번에 5km씩 뛰었어요.' },
+    { id: 'redflag', label: '적신호 선별 (야간통·발열 없음)', keywords: ['밤에', '열', '체중'],
+      answer: '밤에 아파서 깨는 건 없어요. 열도 없고요.' },
+  ],
+  requiredExams: ['pfp_squat', 'step_down', 'hip_strength_k', 'patellar_tilt', 'jointline', 'mcmurray', 'akps'],
+  relatedExams: ['pain_scale', 'k_arom', 'k_mmt', 'k_effusion', 'lachman', 'patellar_mob', 'muscle_length_k', 'obs_gait', 'obs_posture'],
+  examResults: {
+    pfp_squat: '양성 — 스쿼트 시 슬개골 뒤·주변부의 익숙한 통증 재현 (CPG A등급 진단 검사). 계단 하강에서도 동일 통증.',
+    step_down: '스텝다운 시 우측 무릎의 동적 외반(dynamic knee valgus) 뚜렷 — 골반 하강 + 고관절 내전·내회전 조절 저하. 통증 재현.',
+    hip_strength_k: '우측 고관절 외전근 4-/5, 외회전근 4-/5 — 후외측 고관절 근육 약화. 좌측도 경도 저하.',
+    patellar_tilt: '양성 — 외측 지지대 긴장으로 슬개골 외측 기울임, 저가동성 동반 (CPG C등급 보조 진단).',
+    patellar_mob: '외측 활주 저가동성. 슬개골 압박 시 불편감. 탈구 불안감(apprehension) 없음.',
+    jointline: '내·외측 관절선 압통 없음 — 반월판 병변 시사 소견 없음.',
+    mcmurray: '음성.',
+    lachman: '음성 — 인대 안정.',
+    k_effusion: 'Stroke test 음성 — 삼출 없음.',
+    k_arom: 'ROM 전범위 정상. 끝범위 통증 없음. 굴곡 시 경미한 염발음.',
+    k_prom: '정상.',
+    k_mmt: '대퇴사두근 4+/5 (통증 억제성 경미 저하), 그 외 정상.',
+    muscle_length_k: '햄스트링 단축(SLR 65°), 장딴지근 단축(배굴 5°), 대퇴사두근·ITB 경도 단축.',
+    obs_gait: '러닝 관찰: 후족부 착지 + 보폭 크고 케이던스 낮음(162spm). 우측 입각기 골반 하강 경향.',
+    obs_posture: '기립 시 경도 편평족(회내) 경향 — 주상골 하강 11mm.',
+    akps: 'AKPS(Kujala) 72/100 — 중등도 기능 저하. KOOS-PF 65. VAS 통상 통증 4/10, 최악 6/10.',
+    pain_scale: 'NRS 4/10 (계단 하강), 5/10 (쪼그려 앉기), 0-1/10 (안정).',
+    obs_swelling: '종창·변형 없음.', vital: '정상.',
+    hop_test: '통증 범위 내 수행 가능 — 대칭성 경도 저하.', ikdc: 'AKPS/KOOS-PF가 PFP 특이 도구로 우선 (CPG A등급 권고).',
+  },
+  diagnosisOptions: [
+    { id: 'dx1', name: '슬개대퇴 통증 증후군 (patellofemoral pain)' },
+    { id: 'dx2', name: '슬개건병증 (jumper\'s knee)' },
+    { id: 'dx3', name: '내측 반월판 손상' },
+    { id: 'dx4', name: '장경인대 증후군 (ITBS)' },
+    { id: 'dx5', name: '슬개골 아탈구/불안정성' },
+    { id: 'dx6', name: '오스굿-슐라터병' },
+  ],
+  correctDx: 'dx1', partialDx: ['dx2'],
+  dxExplanation: '슬개대퇴 통증(PFP)이 정답. CPG 진단기준(B): ①슬개골 뒤/주변 통증 ②스쿼트·계단·오래 앉기 등 굴곡 상태 슬개대퇴관절(PFJ) 부하 활동에서 통증 재현 ③전방 무릎통증을 일으킬 다른 병태의 배제 — 모두 부합. 스쿼트 통증 재현은 CPG가 A등급으로 권고하는 진단 검사이며, 슬개골 기울임 검사 양성(저가동성 동반)이 진단을 보조(C). 감별: 관절선 압통·McMurray 음성(반월판), Lachman 음성·불안정감 없음(인대), 삼출 없음, 슬개건 국소 압통이 아닌 미만성 통증(슬개건병증 — 부분점수), 성장기 아님(오스굿). CPG 하위분류: ①과사용/과부하(러닝 급증) ②근수행 결핍(고관절 외전·외회전 약화) ③운동협응 결핍(동적 외반) ④가동성 손상(햄스트링·장딴지 단축 + 과회내) — 본 환자는 4개 하위분류 요소가 혼재된 전형례로, 중재를 하위분류에 맞춰 설계해야 한다. — Patellofemoral Pain CPG 2019.',
+  treatments: [
+    { id: 't1', name: '고관절+무릎 표적 결합 운동치료 (초기엔 후외측 고관절 근육 우선, 체중부하 스쿼트+비체중부하 신전 병행)', grade: 'A', recommended: true, note: 'CPG: 단·중·장기 통증 감소와 기능 향상에 고관절·무릎 결합 운동을 "포함하여야 한다" — 운동치료가 핵심 중재. 초기에는 고관절 표적 운동 우선 가능' },
+    { id: 't2', name: '결합 중재 접근 — 운동치료를 중심으로 발보조기·테이핑·슬개가동술·하지 스트레칭 결합', grade: 'A', recommended: true, note: 'CPG: 결합 중재가 무치료·단독 중재보다 우수 — 단, 운동치료가 반드시 핵심 구성요소여야 한다' },
+    { id: 't3', name: '기성 발보조기 (과회내 환자, 최대 6주 단기, 운동과 결합)', grade: 'A', recommended: true, note: 'CPG: 정상보다 큰 회내가 있는 환자의 단기(6주) 통증 감소에 기성 보조기 처방 — 맞춤형이 기성보다 낫다는 근거 불충분' },
+    { id: 't4', name: '맞춤형 슬개 테이핑 (운동치료와 병행, 즉각적 통증 감소·초기 4주)', grade: 'B', recommended: true, note: 'CPG: 즉각 통증 감소를 돕고 단기(4주) 운동 효과 증진 — 장기 효과는 없음. 근육 기능 향상 목적 테이핑은 비권고' },
+    { id: 't5', name: '러닝 게이트 재교육 — 전족부 착지 큐잉, 케이던스 증가, 러닝 중 고관절 내전 감소 큐잉 (복수 세션)', grade: 'C', recommended: true, note: 'CPG: 후족부 착지 러너의 전족부 착지 전환, 케이던스 증가(현재 162spm), 피크 고관절 내전 감소 큐잉 — 본 환자 러닝 소견에 정확히 부합' },
+    { id: 't6', name: '환자 교육 — 부하 관리(러닝량 조절), 체중 관리, 운동치료 순응 중요성, PFJ 과부하 생체역학, 운동공포 관리', grade: 'C', recommended: true, note: 'CPG(F등급·전문가 의견): 교육은 능동적 관리 순응도를 높이고 부작용 가능성이 낮음 — "연골연화증" 검색 불안에 대한 설명 포함' },
+    { id: 't7', name: '슬개대퇴 보조기 (brace/sleeve/strap) 처방', grade: 'X', recommended: false, note: 'CPG: PFP 환자에게 슬개대퇴 무릎 보조기를 "처방하지 않아야 한다"(B등급 반대)' },
+    { id: 't8', name: '드라이니들링', grade: 'X', recommended: false, note: 'CPG: PFP 치료에 드라이니들링을 "사용하지 않아야 한다"(A등급 반대)' },
+    { id: 't9', name: '도수치료 단독 적용 (요추·무릎·슬개대퇴 가동술/도수교정만)', grade: 'X', recommended: false, note: 'CPG: 도수치료를 단독으로 "사용하지 않아야 한다"(A등급 반대) — 운동과 결합 시에만 보조적 가치' },
+    { id: 't10', name: '물리적 인자 치료 (초음파·냉치료·음파영동·이온도입·전기자극·레이저)', grade: 'X', recommended: false, note: 'CPG: 생물물리학적 인자들을 PFP 치료에 "사용하지 않아야 한다"(B등급 반대)' },
+    { id: 't11', name: 'EMG/시각 바이오피드백 추가', grade: 'X', recommended: false, note: 'CPG: 내측광근 EMG 바이오피드백, 하지 정렬 시각 바이오피드백 모두 비권고(B등급 반대)' },
+    { id: 't12', name: '통증 무시하고 현 러닝량 유지', grade: 'X', recommended: false, note: '과부하가 발병 기전 — 부하 조절 없는 지속은 증상 악화' },
+  ],
+  cpgRef: 'Patellofemoral Pain (JOSPT CPG 2019)',
+});
+
+PATIENTS.push({
+  id: 'p10',
+  name: '오민석', age: 35, sex: '남', job: '회사원 (아마추어 마라토너)',
+  chiefComplaint: '달리기 시작할 때 발뒤꿈치 위 힘줄이 아파요',
+  region: 'ankle',
+  colors: { blanket: 0xf8c471, skin: 0xdba97e, hair: 0x211c18 },
+  persona: `[인적사항] 오민석, 35세 남성, 회사원. 마라톤 동호회 4년차, 주 4회 러닝(주간 50km).
+[주호소] 두 달 전부터 오른쪽 발뒤꿈치 위 힘줄(아킬레스건)이 달리기 시작할 때와 아침에 일어나 첫발 디딜 때 아프고 뻣뻣하다.
+[현병력] 두 달 전 풀코스 마라톤 대회를 준비하며 주간 거리를 35km에서 55km로 갑자기 늘림 + 언덕 훈련 추가. 그 무렵부터 우측 아킬레스건 통증 시작. 처음엔 러닝 초반에만 아프고 몸이 풀리면 괜찮았는데, 요즘은 러닝 내내 아프고 다음날 아침 뻣뻣함이 심해짐.
+[통증 양상] 발뒤꿈치 부착부에서 위로 약 4~5cm 지점(건 중간부)의 국소 통증. 누르면 아픔. NRS 4/10(아침 첫발), 5/10(러닝 중). 붓고 두꺼워진 느낌.
+[악화 요인] 러닝(특히 언덕·스피드), 아침 첫발, 계단 오르기, 오래 앉았다 일어날 때.
+[완화 요인] 몸이 풀리면(워밍업 후) 다소 완화 — 하지만 최근엔 완화 폭 줄어듦.
+[적신호] 갑자기 '뚝' 끊어진 느낌 없음(파열 아님). 발열 없음. 저림 없음.
+[과거력] 2년 전 같은 부위 가볍게 아팠다가 2주 쉬니 나았음. 이번엔 쉬어도 잘 안 나음. 플루오로퀴놀론 항생제 복용력 없음.
+[동반질환] 없음.
+[신발·훈련] 쿠션 러닝화(600km 사용, 교체 시기 지남). 최근 언덕 훈련 추가. 스트레칭 잘 안 함.
+[기능 제한] 대회(2개월 후) 출전이 목표인데 훈련을 못 함. 계단 오를 때 불편.
+[성격·말투] 논리적이고 데이터를 좋아함(러닝 앱 기록 언급). "훈련량을 어떻게 조절해야 하죠?" 같은 구체적 질문. 존댓말.`,
+  keyHistory: [
+    { id: 'onset', label: '발병 시기·훈련량 변화 (주간 거리 급증 + 언덕)', keywords: ['언제', '시작', '훈련', '거리', '늘'],
+      answer: '두 달 전부터요. 풀코스 대회 준비하면서 주간 거리를 35에서 55킬로로 늘리고 언덕 훈련도 추가했는데, 딱 그 무렵부터 시작됐어요.' },
+    { id: 'location', label: '통증 위치 (부착부 상방 4~5cm, 건 중간부)', keywords: ['어디', '부위', '위치', '몇 센치'],
+      answer: '발뒤꿈치에서 위로 4~5센티쯤 올라간 힘줄 부분이요. 누르면 아프고 좀 두꺼워진 느낌이에요.' },
+    { id: 'morning', label: '아침 첫발 통증·뻣뻣함 (건병증 특징)', keywords: ['아침', '첫발', '일어나', '뻣뻣'],
+      answer: '아침에 일어나서 첫발 디딜 때 제일 아프고 뻣뻣해요. 오래 앉았다 일어날 때도 그렇고요.' },
+    { id: 'warmup', label: '워밍업 후 완화 양상 (건병증 특징)', keywords: ['풀리', '워밍업', '하다 보면', '몸이'],
+      answer: '처음엔 몸이 풀리면 괜찮았어요. 근데 요즘은 풀려도 완화되는 폭이 줄었고, 러닝 내내 아파요.' },
+    { id: 'rupture', label: '급성 파열 배제 (뚝 끊어진 느낌 없음)', keywords: ['뚝', '끊어', '터지', '갑자기'],
+      answer: '갑자기 뚝 끊어지는 느낌 같은 건 없었어요. 서서히 아파진 거예요.' },
+    { id: 'load', label: '부하 이력 (주 4회, 50km, 대회 준비)', keywords: ['얼마나 뛰', '몇 번', '몇 키로', '대회'],
+      answer: '주 4회, 주간 50킬로 정도 뛰어요. 두 달 뒤 풀코스 대회를 목표로 훈련 중이었고요. 러닝 앱 기록 보여드릴까요?' },
+    { id: 'shoes', label: '신발·훈련 환경 (노후 러닝화, 언덕)', keywords: ['신발', '러닝화', '언덕', '노면'],
+      answer: '쿠션 러닝화인데 600킬로 넘게 신어서 교체 시기가 지나긴 했어요. 최근에 언덕 코스 훈련을 추가했고요. 스트레칭은 잘 안 하는 편이에요.' },
+    { id: 'history', label: '과거 삽화 (2년 전 경미, 자연 회복)', keywords: ['예전', '전에도', '처음'],
+      answer: '2년 전에 같은 부위가 가볍게 아팠는데 그땐 2주 쉬니까 나았어요. 이번엔 쉬어도 잘 안 낫네요.' },
+    { id: 'meds', label: '약물력 — 퀴놀론계 항생제 확인 (없음)', keywords: ['약', '항생제', '복용'],
+      answer: '항생제요? 아뇨, 복용한 적 없어요. 지금 먹는 약도 없고요.' },
+    { id: 'goal', label: '목표 (2개월 후 대회 출전)', keywords: ['목표', '대회', '복귀', '언제까지'],
+      answer: '두 달 후 대회 출전이 목표예요. 훈련량을 어떻게 조절해야 하죠?' },
+  ],
+  requiredExams: ['a_palpation', 'arc_sign', 'thompson', 'heel_raise', 'a_arom', 'a_mmt', 'faam'],
+  relatedExams: ['pain_scale', 'a_prom', 'obs_gait', 'obs_swelling', 'balance_test', 'visa_a'],
+  examResults: {
+    obs_gait: '평지 보행 정상. 빠른 보행·제자리 뛰기 시 우측 push-off 회피 경향.',
+    obs_swelling: '우측 아킬레스건 중간부 방추형 비후(fusiform thickening) 관찰.',
+    a_palpation: '부착부 상방 4cm 지점 국소 압통 + 비후. 부착부 자체 압통은 경미. 열감 없음.',
+    arc_sign: '양성 — 족저굴곡/배굴 시 압통·비후 부위가 건과 함께 이동 (Royal London 양성).',
+    thompson: '음성 — 종아리 압박 시 정상 족저굴곡 (파열 배제).',
+    heel_raise: '한발 뒤꿈치 들기 우측 12회에서 통증(NRS 5)으로 중단, 좌측 25회. 반복 시 통증 증가.',
+    a_arom: '배굴 우측 5°(무릎 신전 시), 좌측 12° — 장딴지근 단축 동반.',
+    a_prom: '수동 배굴 끝범위 당김, 통증 경미.',
+    a_mmt: '족저굴곡근 지구력 저하(반복 heel raise 제한), 단회 근력은 5-/5.',
+    ant_drawer_a: '음성.', talar_tilt: '음성.',
+    balance_test: '한발 서기 안정적.',
+    faam: 'FAAM 스포츠 하위척도 55% (뚜렷한 저하).',
+    visa_a: 'VISA-A 52/100 — 건병증 특이 기능 저하 확인. 치료 전후 변화 추적 기준선으로 기록.',
+    pain_scale: 'NRS 4/10 (아침), 5/10 (러닝 중).',
+    obs_posture: '경도 회내발(pronated foot) 경향.', vital: '정상.', ottawa: '해당 없음 — 외상 없음.',
+  },
+  diagnosisOptions: [
+    { id: 'dx1', name: '아킬레스건병증 — 중간부 (midportion Achilles tendinopathy)' },
+    { id: 'dx2', name: '아킬레스건 부착부 건병증 (insertional)' },
+    { id: 'dx3', name: '아킬레스건 파열' },
+    { id: 'dx4', name: '종골 후방 점액낭염' },
+    { id: 'dx5', name: '족저근막염' },
+    { id: 'dx6', name: '경골 스트레스 골절' },
+  ],
+  correctDx: 'dx1', partialDx: ['dx2'],
+  dxExplanation: '중간부 아킬레스건병증이 정답. CPG 진단 소견: 무활동(수면·오래 앉기) 후의 국소 통증·경직이 움직이면 경감되고 활동 후 증가하는 양상 + 건 압통 + arc sign 양성 + Royal London 검사 양성 — 본 환자 모두 부합. 추가 근거: 훈련 부하 급증(주 35→55km + 언덕) 후 점진적 발병, 부착부 상방 2~6cm 국소 압통·방추형 비후, Thompson 음성(파열 배제), 반복 heel raise 시 통증·지구력 저하(12회 vs 25회). CPG 위험요인: 배굴 ROM 이상·거골하관절 가동성 이상·족저굴곡 근력 감소·발 회내 증가(본 환자 해당) + 외인성 요인(훈련 방법, 노후 장비 — 600km 러닝화). 비만·고혈압·고지혈증·당뇨도 연관 질환. 부착부 건병증은 압통 위치가 다름(부분점수). — Achilles Pain, Stiffness, and Muscle Power Deficits CPG.',
+  treatments: [
+    { id: 't1', name: '원심성(eccentric) 부하 프로그램 — 무릎 편 자세+굽힌 자세 heel drop (Alfredson: 1일 2회, 3×15회, 12주)', grade: 'A', recommended: true, note: 'CPG: 중간부 건병증의 통증 감소·기능 향상에 원심성 부하 프로그램 수행을 "고려하여야 한다" — 핵심 중재' },
+    { id: 't2', name: '부하 관리 교육 — 훈련량·언덕 훈련 조절, 통증 모니터링 기반 점진 증량, 러닝화 교체', grade: 'B', recommended: true, note: 'CPG가 훈련 방법·장비 결함을 외인성 위험요인으로 명시 — 완전 휴식이 아닌 부하 조절(통증 5/10 이내 규칙 등)' },
+    { id: 't3', name: '저출력 레이저 치료 (low-level laser)', grade: 'B', recommended: true, note: 'CPG: 통증·경직 감소를 위해 사용을 "고려하여야 한다" — 운동 프로그램에 보조' },
+    { id: 't4', name: '이온도입법(iontophoresis, 덱사메타손)', grade: 'B', recommended: true, note: 'CPG: 통증 감소·기능 향상 목적 고려하여야 한다 — 반응성 높은 시기 보조' },
+    { id: 't5', name: '장딴지근·가자미근 스트레칭', grade: 'C', recommended: true, note: 'CPG: 배굴 가동범위 제한을 나타내는 환자에 활용 가능 — 본 환자 배굴 5°(좌 12°)로 해당' },
+    { id: 't6', name: '연부조직 가동술 + 테이핑 (건 부담 경감 시도)', grade: 'C', recommended: true, note: 'CPG: 연부조직 가동술로 통증·가동성 개선, 테이핑으로 건 부하 감소 시도 가능' },
+    { id: 't7', name: '발 보조기 (러닝 시 통증 감소·발 운동학 교정)', grade: 'C', recommended: true, note: 'CPG: 달리기 시 통증 감소와 발목·발의 운동학적 특성 변경에 보조기 사용 가능 — 회내 경향에 부합' },
+    { id: 't8', name: '뒤꿈치 거상 패드(heel lift)', grade: 'C', recommended: false, note: 'CPG: 힐 리프트 포함 여부는 "모순되는 증거" 존재 — 일률 적용 근거 부족' },
+    { id: 't9', name: '야간 부목(night splint) 처방', grade: 'X', recommended: false, note: 'CPG: 야간부목은 원심성 운동에 비해 통증 감소 효과가 떨어진다 — 우선순위 아님(족저근막염과 혼동 주의)' },
+    { id: 't10', name: '완전 휴식 처방 (러닝 전면 금지, 부하 제거)', grade: 'X', recommended: false, note: '건은 부하에 적응하는 조직 — 완전 무부하는 회복 지연' },
+    { id: 't11', name: '건 내 스테로이드 주사 의뢰', grade: 'X', recommended: false, note: '건 내 스테로이드는 파열 위험 증가 — 비권고' },
+    { id: 't12', name: '통증 무시하고 대회 훈련량 유지 지시', grade: 'X', recommended: false, note: '부하 조절 없는 지속은 만성화·파열 위험' },
+  ],
+  cpgRef: 'Achilles Pain, Stiffness, and Muscle Power Deficits: Achilles Tendinitis (JOSPT CPG)',
+});
+
+PATIENTS.push({
+  id: 'p11',
+  name: '임태양', age: 19, sex: '남', job: '대학생 (농구 동아리)',
+  chiefComplaint: '농구하다 발목을 접질렸어요',
+  region: 'ankle',
+  colors: { blanket: 0x85c1e9, skin: 0xe8b98f, hair: 0x17130f },
+  persona: `[인적사항] 임태양, 19세 남성, 대학교 1학년, 농구 동아리(주 3회).
+[주호소] 3일 전 농구하다 점프 후 착지하며 오른쪽 발목을 안쪽으로 접질렸다. 바깥쪽 복사뼈 주변이 붓고 아프다.
+[현병력] 3일 전 리바운드 후 상대 발 위에 착지하며 발목이 안쪽으로 확 꺾임(내번). '뚝'하는 느낌. 당시 심한 통증으로 몇 분 앉아 있다가 절뚝이며 걸어 나옴(체중부하 가능했음). 당일 저녁 바깥쪽 복사뼈 주위가 붓고 다음날 멍이 퍼짐.
+[통증 양상] 바깥쪽 복사뼈 앞·아래 통증. NRS 5/10(걸을 때), 2/10(안정 시). 안쪽은 안 아픔. 뼈를 누르면 아픈 곳은 없고 복사뼈 앞쪽 인대 부위가 아픔.
+[악화 요인] 걷기(특히 방향 전환), 발을 안쪽으로 돌리는 동작, 계단.
+[완화 요인] 다리 올려놓기, 얼음찜질(집에서 몇 번 함).
+[체중부하] 절뚝이지만 네 걸음 이상 걸을 수 있음(오타와 규칙 참고사항).
+[적신호] 복사뼈·5중족골 기저부·주상골 압통 없음(뼈 통증 없음). 발가락 감각·혈행 정상.
+[과거력] 고등학교 때 같은 발목 염좌 1회(가볍게, 1주 만에 회복). 이번이 더 심함.
+[동반질환] 없음.
+[기능 제한] 농구 못 하는 중. 다음 달 동아리 대회 출전하고 싶음. 캠퍼스 걸어다니기 불편.
+[성격·말투] 씩씩한 대학생. 반말 섞인 존댓말("이거 금방 낫겠죠?"). 대회 출전 조급함.`,
+  keyHistory: [
+    { id: 'mechanism', label: '수상 기전 (착지 시 내번 손상)', keywords: ['어떻게', '다치', '접질', '순간', '착지'],
+      answer: '3일 전에 농구하다가 리바운드 뛰고 내려오면서 상대 발 위에 착지했는데, 발목이 안쪽으로 확 꺾였어요.' },
+    { id: 'weightbearing', label: '수상 직후 체중부하 가능 여부 (가능 — 오타와)', keywords: ['걸을 수', '걸었', '디딜', '체중'],
+      answer: '몇 분 앉아 있다가 절뚝이면서 걸어 나왔어요. 아프긴 했는데 걷긴 걸었어요.' },
+    { id: 'bone_pain', label: '뼈 압통 부위 확인 — 골절 선별', keywords: ['뼈', '복사뼈', '누르면', '어디가 아픈'],
+      answer: '뼈를 눌러서 아픈 데는 없는 것 같아요. 복사뼈 앞쪽에 인대 있는 데가 아파요.' },
+    { id: 'swelling', label: '부종·멍 경과 (당일 부종, 익일 반상출혈)', keywords: ['붓', '멍', '부종'],
+      answer: '그날 저녁부터 바깥 복사뼈 주위가 붓기 시작했고, 다음날엔 멍이 퍼졌어요.' },
+    { id: 'pop', label: '수상 시 파열감 확인', keywords: ['소리', '뚝', '느낌'],
+      answer: '꺾일 때 뚝 하는 느낌이 있었어요.' },
+    { id: 'location', label: '통증 위치 (외측 복사뼈 전하방 — ATFL)', keywords: ['어디', '부위', '위치', '바깥'],
+      answer: '바깥쪽 복사뼈 앞이랑 아래쪽이요. 안쪽은 안 아파요.' },
+    { id: 'history', label: '과거 염좌력 (동측 1회 — 재발 위험요인)', keywords: ['예전', '전에도', '처음'],
+      answer: '고등학교 때 같은 발목을 한 번 접질렸는데 그땐 가볍게 일주일 만에 나았어요. 이번이 더 심해요.' },
+    { id: 'selfcare', label: '자가 처치 확인 (냉찜질, 거상)', keywords: ['찜질', '얼음', '어떻게 했', '처치'],
+      answer: '집에서 얼음찜질 몇 번 하고, 누울 때 다리를 베개 위에 올려놨어요.' },
+    { id: 'redflag', label: '신경혈관 증상 선별 (감각·혈행 정상)', keywords: ['저리', '감각', '색', '차갑'],
+      answer: '발가락 감각은 정상이에요. 저리거나 차갑거나 색이 변하거나 하진 않아요.' },
+    { id: 'goal', label: '목표 (한 달 후 대회 복귀)', keywords: ['대회', '복귀', '언제', '농구'],
+      answer: '다음 달에 동아리 대회가 있거든요. 그때까지 나을 수 있죠? 농구 빨리 하고 싶어요.' },
+  ],
+  requiredExams: ['ottawa', 'a_palpation', 'ant_drawer_a', 'talar_tilt', 'a_arom', 'balance_test', 'faam'],
+  relatedExams: ['pain_scale', 'obs_swelling', 'obs_gait', 'a_mmt', 'a_prom', 'heel_raise', 'figure8', 'cait'],
+  examResults: {
+    obs_gait: '우측 입각기 단축의 경도 파행. 보조기구 없이 보행 가능.',
+    obs_swelling: '외측 복사뼈 전하방 중등도 부종 + 반상출혈(멍). 내측 정상.',
+    ottawa: '음성 — 외측·내측 복사뼈 후연, 5중족골 기저부, 주상골 압통 없음. 4보 체중부하 가능. X-ray 불필요.',
+    a_palpation: '전거비인대(ATFL) 부위 명확한 압통, 종비인대(CFL) 경미한 압통. 뼈 압통 없음. 아킬레스건 정상.',
+    ant_drawer_a: '양성 — 좌측 대비 전방 전위 증가, 끝느낌 다소 물렁. 통증 동반.',
+    talar_tilt: '경미한 양성 — 내번 시 이완 증가 의심(부종·방어로 판정 제한).',
+    thompson: '음성 — 아킬레스건 정상.',
+    a_arom: '배굴 5°(부종성 제한), 족저굴곡 30°, 내번 시 통증으로 제한.',
+    a_prom: '내번 수동 시 외측 통증 재현.',
+    a_mmt: '외번근(비골근) 4-/5 — 통증성 약화. 그 외 4+/5.',
+    heel_raise: '통증·부종으로 현 시점 수행 제한.',
+    balance_test: '우측 한발 서기 8초 미만(눈 뜨고) — 균형 뚜렷한 저하. 좌측 30초 이상.',
+    figure8: 'figure-of-8 둘레 우측 54.5cm, 좌측 52cm — 2.5cm 차이(중등도 부종). 경과 추적 기준선.',
+    cait: 'CAIT 우측 16/30 — 재발 시 만성 발목 불안정성 이행 위험. 균형 훈련 필요성 뒷받침.',
+    faam: 'FAAM 일상 62%, 스포츠 25%.',
+    pain_scale: 'NRS 5/10 (보행), 2/10 (안정).',
+    obs_posture: '특이소견 없음.', vital: '정상.', arc_sign: '해당 없음 — 건 압통 없음.',
+  },
+  diagnosisOptions: [
+    { id: 'dx1', name: '외측 발목염좌 2도 (ATFL±CFL 부분 손상)' },
+    { id: 'dx2', name: '외측 발목염좌 3도 (완전 파열)' },
+    { id: 'dx3', name: '외측 복사뼈 골절' },
+    { id: 'dx4', name: '높은 발목염좌 (원위경비인대결합 손상)' },
+    { id: 'dx5', name: '아킬레스건 파열' },
+    { id: 'dx6', name: '5중족골 기저부 골절' },
+  ],
+  correctDx: 'dx1', partialDx: ['dx2'],
+  dxExplanation: '외측 발목염좌 2도가 정답. 근거: 전형적 내번 수상 기전, ATFL·CFL 압통, 중등도 부종·반상출혈, 전방전위검사 양성(이완 증가하나 끝점 존재), 체중부하 가능, 오타와 규칙 음성(골절 배제 — CPG는 Ottawa·Bernese 규칙으로 방사선 검사 필요 여부를 판단하도록 명시). CPG 검사 권고: 부종(figure-of-8), 가동범위, 거골하 내번 가동성, 한발 균형의 객관적·재현 가능한 측정 + FAAM/LEFS 결과도구 + 만성 불안정성 선별에 CAIT. 급성기 이후에는 외측·대각선 동작과 방향전환을 보는 한발뛰기 검사로 활동 제한 평가. 3도는 완전 파열로 더 심한 불안정성·체중부하 불가가 특징(부분점수). — Ankle Stability and Movement Coordination Impairments: Ankle Ligament Sprains CPG.',
+  treatments: [
+    { id: 't1', name: '[급성/보호 단계] 외부 지지(브레이스) 착용 + 점진적 체중부하', grade: 'A', recommended: true, note: 'CPG: 보조기 유형은 중증도·치유 단계·통증·선호도로 결정. 중증 손상은 무릎 아래 준고정형 부목 — 본 환자(2도)는 브레이스/테이핑 적합' },
+    { id: 't2', name: '[급성/보호 단계] 도수치료 — 림프배출 마사지, 통증 없는 범위의 연부조직·관절 가동술, 전→후 거골 가동술', grade: 'A', recommended: true, note: 'CPG: 부종·통증 감소, 발 움직임 향상, 보행 정상화 목적으로 "사용하여야 한다" — 배굴 회복에 AP talar glide' },
+    { id: 't3', name: '[급성/보호 단계] 간헐적 냉치료 반복 + 압박·거상 교육', grade: 'B', recommended: true, note: 'CPG: 간헐적 아이스 반복 적용은 통증 감소·진통제 필요 감소·체중부하 기능 향상' },
+    { id: 't4', name: '[점진적 부하 단계] 치료적 운동 — ROM→근력(외번근)→체중부하 기능운동', grade: 'A', recommended: true, note: 'CPG: 급성기 이후 가동성·근력·협응·자세조절 향상 목적 — 비골근 4-/5 약화에 대응' },
+    { id: 't5', name: '[점진적 부하 단계] 불안정 지지면 한발 균형 훈련 (고유수용성·감각운동 훈련)', grade: 'A', recommended: true, note: 'CPG: 불안정한 지지면에서의 한발 균형 잡기와 기능적 체중지지 운동 — 재염좌 예방 핵심 (재발력 있는 본 환자에 특히 중요)' },
+    { id: 't6', name: '[복귀 단계] 균형+스포츠 관련 활동 훈련 → 기준 충족 후 단계적 대회 복귀', grade: 'B', recommended: true, note: 'CPG: 균형·스포츠 관련 훈련으로 운동선수 재발 위험 감소. 호핑·방향전환 검사 통과 후 복귀' },
+    { id: 't7', name: '박동성 단파투과열요법 (부종·보행 결함 감소 목적)', grade: 'C', recommended: true, note: 'CPG: 급성 염좌의 부종·보행 결함 감소에 활용 가능 — 보조적' },
+    { id: 't8', name: '치료용 초음파 적용', grade: 'X', recommended: false, note: 'CPG: 급성 발목 염좌 관리에 초음파를 "사용하지 않도록 한다" — 명시적 비권고' },
+    { id: 't9', name: '전기치료(전기자극) 적용', grade: 'C', recommended: false, note: 'CPG: 지지·반대 증거가 병존 — 우선순위 낮음' },
+    { id: 't10', name: '4주 석고 고정 + 목발 비체중부하', grade: 'X', recommended: false, note: '2도 염좌에 장기 고정은 비권고 — 조기 체중부하·기능적 치료가 우월' },
+    { id: 't11', name: '부종 있는 급성기에 온찜질 적용', grade: 'X', recommended: false, note: '급성 염증기 온열은 부종 악화 가능' },
+    { id: 't12', name: '통증 참고 다음 주 바로 대회 출전 허용', grade: 'X', recommended: false, note: '불충분한 회복 상태 복귀는 만성 발목 불안정성(CAIT 저하) 위험' },
+  ],
+  cpgRef: 'Ankle Stability and Movement Coordination Impairments: Ankle Ligament Sprains (JOSPT CPG)',
+});
+
+PATIENTS.push({
+  id: 'p12',
+  name: '서혜란', age: 48, sex: '여', job: '초등학교 교사',
+  chiefComplaint: '아침에 첫발 디딜 때 발뒤꿈치가 찢어질 듯 아파요',
+  region: 'foot',
+  colors: { blanket: 0xfadbd8, skin: 0xf1c8a8, hair: 0x4a3728 },
+  persona: `[인적사항] 서혜란, 48세 여성, 초등학교 교사(하루 6시간 이상 서서 수업). 체중 64kg, 키 158cm(경도 과체중, 최근 1년 새 4kg 증가).
+[주호소] 석 달 전부터 오른쪽 발뒤꿈치 안쪽 바닥이 아침에 일어나 첫발 디딜 때 찢어질 듯 아프다.
+[현병력] 약 3개월 전부터 서서히. 새 학기 시작하며 서 있는 시간이 늘고, 얇은 실내화를 신기 시작한 시기와 겹침. 처음엔 아침에만 아팠는데 요즘은 수업 중 오래 서 있으면 오후에도 아픔.
+[통증 양상] 오른쪽 발뒤꿈치 바닥 안쪽의 날카로운 통증. NRS 7/10(아침 첫발), 몇 분 걸으면 3/10으로 감소, 오래 서 있으면 다시 5/10. 저림·화끈거림 없음(신경 증상 없음).
+[악화 요인] 아침 첫발, 오래 앉았다 일어나 첫발, 장시간 서 있기, 맨발로 딱딱한 바닥 걷기.
+[완화 요인] 조금 걷다 보면 풀림, 앉아서 쉬기, 발바닥 마사지.
+[적신호] 야간통·발열·외상 없음. 양측성 아님(오른쪽만).
+[과거력] 발 부상 없음. 병원 첫 방문.
+[동반질환] 갑상선기능저하증(약 복용, 조절 양호).
+[신발·생활] 학교에서 얇고 딱딱한 실내화 착용. 운동은 거의 안 함. 최근 체중 증가.
+[기능 제한] 수업 중 서 있기 힘들어 자주 책상에 기댐. 퇴근 후 장보기 힘듦.
+[성격·말투] 친절하고 조곤조곤한 선생님 말투. 존댓말. 증상을 꼼꼼히 설명함.`,
+  keyHistory: [
+    { id: 'firststep', label: '아침 첫발 통증 (족저근막염 특징적 소견)', keywords: ['아침', '첫발', '일어나', '첫 걸음'],
+      answer: '아침에 일어나서 첫발을 디딜 때가 제일 심해요. 발뒤꿈치가 찢어질 듯이 아파요. 오래 앉았다가 일어나서 첫발 디딜 때도 그렇고요.' },
+    { id: 'location', label: '통증 위치 (종골 내측 결절부)', keywords: ['어디', '부위', '위치', '안쪽'],
+      answer: '오른쪽 발뒤꿈치 바닥이요. 그중에서도 안쪽이 콕 집어서 아파요.' },
+    { id: 'onset', label: '발병 배경 (3개월, 기립 시간 증가+신발 변화)', keywords: ['언제', '시작', '얼마나'],
+      answer: '석 달쯤 됐어요. 새 학기 시작하면서 서 있는 시간이 늘고, 얇은 실내화를 신기 시작한 때부터인 것 같아요.' },
+    { id: 'pattern', label: '통증 패턴 (첫발 심함→걷다 완화→장시간 기립 악화)', keywords: ['걷다 보면', '오후', '오래 서', '패턴'],
+      answer: '첫발이 제일 아프고 몇 분 걸으면 좀 풀려요. 그런데 수업 때문에 오래 서 있으면 오후에 다시 아파지더라고요.' },
+    { id: 'neuro', label: '신경 증상 배제 (저림·화끈거림 없음)', keywords: ['저리', '화끈', '감각', '전기'],
+      answer: '저리거나 화끈거리거나 전기 오는 느낌은 없어요. 그냥 날카롭게 아픈 거예요.' },
+    { id: 'shoes', label: '신발 확인 (얇고 딱딱한 실내화)', keywords: ['신발', '실내화', '구두', '뭐 신'],
+      answer: '학교에서는 얇고 딱딱한 실내화를 신어요. 그게 문제였을까요?' },
+    { id: 'weight', label: '체중 변화 (최근 4kg 증가 — 위험요인)', keywords: ['체중', '몸무게', '살'],
+      answer: '최근 1년 사이에 4킬로쯤 늘었어요.' },
+    { id: 'standing', label: '직업적 기립 시간 (하루 6시간+ — 위험요인)', keywords: ['서서', '직업', '일', '얼마나 서'],
+      answer: '초등학교 교사예요. 하루 6시간 넘게 서서 수업을 해요.' },
+    { id: 'redflag', label: '적신호 선별 (야간통·양측성·발열 없음)', keywords: ['밤에', '열', '양쪽', '왼쪽도'],
+      answer: '밤에 아파서 깨진 않아요. 열도 없고요. 왼쪽 발은 멀쩡하고 오른쪽만 그래요.' },
+    { id: 'comorbid', label: '동반질환·복용약 (갑상선저하증)', keywords: ['지병', '다른 병', '약', '갑상선'],
+      answer: '갑상선기능저하증이 있어서 약을 먹고 있어요. 조절은 잘 되고 있고요.' },
+  ],
+  requiredExams: ['f_palpation', 'windlass', 'gastroc_length', 'f_arom', 'navicular_drop', 'tinel_foot', 'faam_f'],
+  relatedExams: ['pain_scale', 'obs_gait', 'obs_posture', 'heel_raise_f', 'obs_swelling', 'fpi', 'bmi_check'],
+  examResults: {
+    obs_gait: '우측 뒤꿈치 접촉 회피 경향(첫 진료 아침이라 두드러짐), 전족부 부하 보행.',
+    obs_posture: '기립 시 경도 편평족(회내) 경향.',
+    f_palpation: '종골 내측 결절(족저근막 기시부) 국소 압통 명확. 발뒤꿈치 지방패드·아킬레스건 압통 없음.',
+    windlass: '양성 — 체중부하 상태 엄지발가락 신전 시 발뒤꿈치 통증 재현.',
+    tinel_foot: '음성 — 족근관 두드림 시 방사 증상 없음 (신경포착 배제).',
+    gastroc_length: '배굴 우측 3°(무릎 신전), 8°(무릎 굴곡) — 장딴지근 단축 뚜렷.',
+    f_arom: '엄지발가락 신전 45°(끝범위 발바닥 당김·통증). 발목 배굴 제한 동반.',
+    navicular_drop: '주상골 하강 12mm — 과회내 경향.',
+    fpi: 'Foot Posture Index +7 — 회내발(pronated foot). CPG 진단기준의 "비정상 FPI"에 해당.',
+    bmi_check: 'BMI 25.6kg/m² (경도 과체중, 최근 1년 4kg 증가) — 비운동인의 높은 BMI는 CPG 명시 위험요인.',
+    heel_raise_f: '수행 가능하나 반복 시 발바닥 불편감.',
+    faam_f: 'FAAM 일상 68%. FFI(발기능지수) 상승.',
+    pain_scale: 'NRS 7/10 (아침 첫발), 3~5/10 (일과 중).',
+    obs_swelling: '육안 부종 없음.', vital: '정상.',
+  },
+  diagnosisOptions: [
+    { id: 'dx1', name: '족저근막염 (뒤꿈치 통증 — plantar fasciitis)' },
+    { id: 'dx2', name: '족근관 증후군 (경골신경 포착)' },
+    { id: 'dx3', name: '종골 지방패드 위축' },
+    { id: 'dx4', name: '아킬레스건 부착부 건병증' },
+    { id: 'dx5', name: '종골 스트레스 골절' },
+    { id: 'dx6', name: 'S1 신경근병증에 의한 연관통' },
+  ],
+  correctDx: 'dx1', partialDx: [],
+  dxExplanation: '족저근막염이 정답. CPG 진단기준: ①무활동 후 첫걸음에 가장 뚜렷하고 장시간 체중부하로 악화되는 발바닥 안쪽 발꿈치 통증 ②최근 체중부하 활동 증가로 촉발 ③족저근막 근위 부착부 촉진 시 통증 ④windlass 검사 양성 ⑤족근관 검사 음성 ⑥발목 배굴 ROM 제한 ⑦비정상 Foot Posture Index ⑧비운동인의 높은 BMI — 본 환자 8개 항목 모두 부합. CPG 위험요인: 배굴 제한, 비운동인의 높은 BMI, 충격 흡수가 낮은 조건의 직업적 체중부하 활동(얇고 딱딱한 실내화로 6시간 기립). 감별: 척추관절염·지방패드 위축·근위 족저 섬유종을 고려하되 Tinel 음성·야간통 없음·단측성으로 배제적. — Heel Pain — Plantar Fasciitis: Revision 2014 CPG.',
+  treatments: [
+    { id: 't1', name: '족저근막 특이적 스트레칭 + 장딴지근/가자미근 스트레칭 (힐 패드 병행으로 효과 증대)', grade: 'A', recommended: true, note: 'CPG: 단기(1주~4개월) 통증 완화 — 족저근막 특이적 신장과 하퇴삼두근 신장을 함께, 발꿈치 패드로 효과를 높일 수 있음' },
+    { id: 't2', name: '도수치료 — 관절·연부조직 가동술 (거퇴관절 배굴 가동성, 장딴지 유연성 회복)', grade: 'A', recommended: true, note: 'CPG: 관련 하지 관절 가동성과 장딴지 유연성 부족을 치료하는 도수치료를 "사용하여야 한다"' },
+    { id: 't3', name: '회내 방지(antipronation) 테이핑 ± 탄력 테이프', grade: 'A', recommended: true, note: 'CPG: 즉각적(최대 3주) 통증 완화·기능 향상. 장딴지근·족저근막 탄력 테이핑은 단기(1주) 효과' },
+    { id: 't4', name: '발보조기(foot orthoses) — 기성/맞춤 안창으로 충격 완화 + 내측 세로아치 지지', grade: 'A', recommended: true, note: 'CPG: 단기(2주)~장기(1년) 효과. 회내 방지 테이핑에 반응한 환자에 특히 효과적 — 테이핑 후 반응 확인 순서 유효' },
+    { id: 't5', name: '야간 부목 (night splint) 1~3개월 처방', grade: 'A', recommended: true, note: 'CPG: 아침 첫걸음 통증을 호소하는 환자에게 1-3개월 야간부목 사용을 "지시하여야 한다" — 본 환자에 정확히 해당' },
+    { id: 't6', name: '신발 교육 — 로커바텀 신발+보조기 결합, 근무 중 신발 교대(shoe rotation) 착용', grade: 'C', recommended: true, note: 'CPG: 장시간 서서 일하는 환자에게 근무 주간 신발 교대 지시 가능 — 얇은 실내화 교체 포함' },
+    { id: 't7', name: '체중 감량 교육·상담 + 영양 협진 의뢰', grade: 'C', recommended: true, note: 'CPG: 최적 제지방체중 달성·유지 운동 전략 교육, 영양 문제는 적합한 의료진 소개' },
+    { id: 't8', name: '회내 조절 근육 강화·동작 훈련 (내재근·후경골근 등 신경근 재교육)', grade: 'C', recommended: true, note: 'CPG: 체중부하 중 회내를 조절하고 충격력을 감쇠하는 근육들의 강화·동작 훈련 지시 가능' },
+    { id: 't9', name: '이온도입법 (덱사메타손/아세트산) 2~4주 단기 보조', grade: 'C', recommended: true, note: 'CPG: 단기(2-4주) 통증 완화에 "사용할 수도 사용하지 않을 수도 있다" — 보조적' },
+    { id: 't10', name: '전기치료 양상 중심 프로그램 (도수·스트레칭·보조기 없이)', grade: 'X', recommended: false, note: 'CPG: 전기치료 양상이 아닌 도수치료·스트레칭·발보조기를 사용하여 중장기(1-6개월) 결과를 향상시켜야 한다' },
+    { id: 't11', name: '치료용 초음파 처방', grade: 'X', recommended: false, note: 'CPG: 초음파 사용은 "권장되지 않는다" — 명시적 비권고' },
+    { id: 't12', name: '유발점(trigger point) 드라이니들링', grade: 'X', recommended: false, note: 'CPG: 족저근막염에 유발점 드라이니들링은 "권장되지 않는다"' },
+    { id: 't13', name: '완전 휴식 + 보행 최소화 지시', grade: 'X', recommended: false, note: '직업적 요구 무시한 완전 휴식은 비현실적·불필요 — 부하 관리로 접근' },
+  ],
+  cpgRef: 'Heel Pain — Plantar Fasciitis: Revision 2014 (JOSPT CPG)',
+});

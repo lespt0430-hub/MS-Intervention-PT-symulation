@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>근골격계 물리치료 가상환자 시뮬레이션 — 광주보건대학교</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231e5f74'/%3E%3Cpath d='M14 7h4v7h7v4h-7v7h-4v-7H7v-4h7z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 3D 캔버스 -->
+<div id="canvas-wrap"></div>
+
+<!-- HUD -->
+<div class="hud" id="hud-crosshair"></div>
+<div class="hud" id="hud-progress">진료 완료 0 / 12</div>
+<div class="hud" id="hud-prompt"></div>
+<div class="hud" id="hud-hint"><span>화면을 클릭하면 이동 모드가 시작됩니다 (ESC로 해제) · WASD 이동 · 마우스 시점</span></div>
+<div class="hud" id="hud-toast"></div>
+<div class="hud" id="hud-perf">화질 —</div>
+<button id="btn-final">📋 종합 성적표 보기</button>
+
+<!-- 로딩 화면 (장면 생성 중) -->
+<div id="loading-screen">
+  <div class="load-box">
+    <div class="load-spin"></div>
+    <div id="loading-text">물리치료실을 준비하고 있습니다…</div>
+  </div>
+</div>
+
+<!-- 시작 화면 -->
+<div id="start-screen">
+  <div class="start-card">
+    <h1>🏥 근골격계 물리치료 가상환자 시뮬레이션</h1>
+    <div class="sub">광주보건대학교 물리치료학과 · JOSPT 임상진료지침(CPG) 기반 · 가상환자 12명</div>
+
+    <label>학생 이름 (학번 포함 가능)</label>
+    <input type="text" id="inp-name" placeholder="예: 202412345 홍길동">
+
+    <label>문진 방식</label>
+    <div class="mode-row">
+      <label class="mode-opt"><input type="radio" name="chatmode" value="offline" checked>
+        <b>내장 답변 모드</b><span>준비된 환자 답변 · API 키 불필요 · 무료</span></label>
+      <label class="mode-opt"><input type="radio" name="chatmode" value="ai">
+        <b>AI 문진 모드</b><span>Gemini AI 자유 대화 · 교수 모드에서 키 등록 필요</span></label>
+    </div>
+    <div id="mode-status"></div>
+
+    <label>화질</label>
+    <select id="inp-quality">
+      <option value="auto">자동 — 이 PC 사양에 맞춰 조절 (권장)</option>
+      <option value="low">낮음 — 사무용 내장 그래픽 (가장 안정적)</option>
+      <option value="medium">보통 — 면광원 조명 + 안티에일리어싱</option>
+      <option value="high">높음 — 외장 그래픽 (주변광 차폐 + 빛번짐)</option>
+    </select>
+    <div class="key-hint" id="quality-hint"></div>
+
+    <button id="btn-start">물리치료실 입장</button>
+    <button id="btn-reset">진료 기록 전체 초기화</button>
+    <div id="start-msg"></div>
+
+    <details id="prof-mode">
+      <summary>⚙ 교수 모드 — AI 연동 설정 (Gemini API)</summary>
+      <label>Gemini API 키</label>
+      <input type="password" id="inp-key" placeholder="AIza...">
+      <div class="key-hint"><a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>에서 무료 발급 · 이 컴퓨터에만 저장됩니다. 실습실 PC에 한 번 등록하면 모든 학생이 AI 문진 모드를 사용할 수 있습니다.</div>
+      <label>AI 모델</label>
+      <select id="inp-model">
+        <option value="gemini-flash-latest">Gemini Flash 최신 버전 (자동, 권장)</option>
+        <option value="gemini-pro-latest">Gemini Pro 최신 버전 (자동)</option>
+      </select>
+      <div class="key-hint">"저장 및 연결 테스트"를 누르면 이 키로 사용 가능한 모델 목록을 자동으로 불러옵니다.</div>
+      <div class="prof-btn-row">
+        <button id="btn-save-key">저장 및 연결 테스트</button>
+        <button id="btn-del-key">연동 해제</button>
+      </div>
+      <div id="prof-msg"></div>
+    </details>
+
+    <div class="controls-help">
+      <b>진행 방법</b><br>
+      ① <b>WASD</b>로 이동, <b>마우스</b>로 둘러보기 → 베드의 환자에게 다가가 <b>E</b>키로 진료 시작<br>
+      ② <b>문진</b>(자유 대화) → <b>이학적 검사</b> 선택 → <b>진단</b> → <b>치료계획</b> 수립 → 채점<br>
+      ③ 12명 모두 진료하면 종합 성적표가 열립니다
+    </div>
+  </div>
+</div>
+
+<!-- 진료 모달 -->
+<div id="consult-modal">
+  <div class="cm-window">
+    <div class="cm-header">
+      <h2 id="cm-title">환자</h2>
+      <button id="btn-close-consult">나가기 ✕</button>
+    </div>
+    <div class="cm-tabs">
+      <button class="cm-tab active" data-tab="chat">① 문진</button>
+      <button class="cm-tab" data-tab="exam">② 이학적 검사</button>
+      <button class="cm-tab" data-tab="dx">③ 진단</button>
+      <button class="cm-tab" data-tab="tx">④ 치료계획</button>
+      <button class="cm-tab" data-tab="result" style="display:none">📋 결과</button>
+    </div>
+    <div class="cm-body">
+      <div class="cm-pane" id="pane-chat" style="display:flex">
+        <div id="chat-box"></div>
+        <div class="chat-input-row">
+          <textarea id="chat-input" placeholder="환자에게 질문하세요. 예: 언제부터 아프셨어요? (Enter 전송)"></textarea>
+          <button id="chat-send">전송</button>
+        </div>
+      </div>
+      <div class="cm-pane" id="pane-exam">
+        <div id="exam-list"></div>
+        <div id="exam-log"></div>
+      </div>
+      <div class="cm-pane" id="pane-dx">
+        <div class="pane-desc">문진과 검사 결과를 종합하여 가장 가능성 높은 진단을 선택하세요.</div>
+        <div id="dx-list"></div>
+      </div>
+      <div class="cm-pane" id="pane-tx">
+        <div class="pane-desc">이 환자에게 적용할 중재를 모두 선택하세요. (CPG 권고 여부가 채점에 반영됩니다)</div>
+        <div id="tx-list"></div>
+      </div>
+      <div class="cm-pane" id="pane-result"></div>
+    </div>
+    <div class="cm-footer">
+      <button id="btn-submit">진료 완료 · 채점하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 종합 성적표 -->
+<div id="final-modal">
+  <div class="final-window" id="final-body"></div>
+</div>
+
+<!-- Three.js r185 + 후처리 애드온 (로컬 번들 — 외부 CDN에 의존하지 않는다).
+     window.THREE 와 window.TX(애드온)를 정의한다. 재생성 방법은 vendor/README.md 참고. -->
+<script src="vendor/three-lib.js"></script>
+<script src="render.js"></script>
+<script src="exams.js"></script>
+<script src="patients1.js"></script>
+<script src="patients2.js"></script>
+<script src="api.js"></script>
+<script src="game.js"></script>
+<script src="ui.js"></script>
+<script>
+// WebGL을 못 쓰는 PC에서 흰 화면만 보이는 일이 없도록 미리 확인한다
+(function () {
+  var ok = false;
+  try {
+    var cv = document.createElement('canvas');
+    ok = !!(window.WebGLRenderingContext && (cv.getContext('webgl2') || cv.getContext('webgl')));
+  } catch (e) { ok = false; }
+  if (ok && window.THREE) return;
+  window.addEventListener('DOMContentLoaded', function () {
+    var msg = document.getElementById('start-msg');
+    var btn = document.getElementById('btn-start');
+    if (!msg || !btn) return;
+    btn.disabled = true;
+    msg.innerHTML = !ok
+      ? '이 브라우저에서 <b>WebGL</b>을 사용할 수 없어 3D 화면을 열 수 없습니다.<br>크롬 또는 엣지 최신 버전에서 열고, 설정에서 “그래픽 가속 사용”을 켜 주세요.'
+      : '3D 엔진(vendor/three-lib.js)을 불러오지 못했습니다. 파일이 함께 복사되었는지 확인해 주세요.';
+  });
+})();
+</script>
+</body>
+</html>
