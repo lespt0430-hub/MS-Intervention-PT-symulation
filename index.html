@@ -99,6 +99,25 @@
         <button id="btn-del-key">연동 해제</button>
       </div>
       <div id="prof-msg"></div>
+
+      <hr class="prof-div">
+      <label>📊 학생 결과 조회 (교수 전용)</label>
+      <div class="key-hint" id="collect-status"></div>
+      <div class="prof-login">
+        <input type="text" id="inp-prof-id" placeholder="교수 아이디" autocomplete="off">
+        <input type="password" id="inp-prof-pw" placeholder="비밀번호">
+        <button id="btn-prof-login">결과 불러오기</button>
+      </div>
+      <div id="collect-msg"></div>
+      <div id="collect-result"></div>
+      <div class="prof-btn-row" id="collect-actions" style="display:none">
+        <button id="btn-xlsx">📥 엑셀(.xlsx) 다운로드</button>
+        <button id="btn-collect-refresh">새로고침</button>
+      </div>
+      <div class="key-hint">
+        설정 방법은 저장소의 <b>PROFESSOR_SETUP.md</b> 를 보세요. 수집처를 설정하지 않으면
+        결과는 각 학생 PC에만 저장됩니다.
+      </div>
     </details>
 
     <div class="controls-help">
@@ -160,8 +179,10 @@
 
 <!-- Three.js r185 + 후처리 애드온 (로컬 번들 — 외부 CDN에 의존하지 않는다).
      window.THREE 와 window.TX(애드온)를 정의한다. 재생성 방법은 vendor/README.md 참고. -->
+<script src="config.js"></script>
 <script src="vendor/three-lib.js"></script>
 <script src="render.js"></script>
+<script src="collect.js"></script>
 <script src="exams.js"></script>
 <script src="patients1.js"></script>
 <script src="patients2.js"></script>

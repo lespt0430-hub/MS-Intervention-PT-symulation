@@ -35,6 +35,15 @@ UI.showLoading = function (on, text) {
 
 // 자동 화질 조정이 등급을 내렸을 때 학생에게 조용히 알린다.
 // 갑자기 화면이 달라지면 고장으로 오해하기 때문이다.
+UI.toast = function (text, ms) {
+  const el = document.getElementById('hud-toast');
+  if (!el) return;
+  el.textContent = text;
+  el.style.display = 'block';
+  clearTimeout(UI._toastT);
+  UI._toastT = setTimeout(() => { el.style.display = 'none'; }, ms || 6000);
+};
+
 UI.notifyQuality = function (tier, fps) {
   const label = { low: '낮음', medium: '보통', high: '높음' }[tier] || tier;
   const el = document.getElementById('hud-toast');
@@ -187,10 +196,106 @@ UI.initStart = function () {
     UI.updateModeStatus();
   });
 
+  UI.bindCollect();
+
   document.getElementById('btn-reset').addEventListener('click', () => {
     if (confirm('모든 진료 기록을 초기화할까요? (교수 모드의 API 키 설정은 유지됩니다)')) {
       UI.state.records = {}; UI.save(); location.reload();
     }
+  });
+};
+
+// ── 교수 모드 · 학생 결과 조회 ───────────────────────────────
+// 비밀번호는 이 코드가 아니라 구글 Apps Script 쪽에 저장되어 그쪽에서 대조한다.
+// (정적 사이트라 소스가 공개되므로, 브라우저에서 비교하면 아무 의미가 없다)
+UI.bindCollect = function () {
+  const statusEl = document.getElementById('collect-status');
+  const msgEl = document.getElementById('collect-msg');
+  const resEl = document.getElementById('collect-result');
+  const actEl = document.getElementById('collect-actions');
+  const loginBtn = document.getElementById('btn-prof-login');
+  if (!loginBtn) return;
+
+  const showStatus = () => {
+    if (!window.COLLECT) return;
+    const pending = COLLECT.pendingCount();
+    if (!COLLECT.enabled()) {
+      statusEl.innerHTML = '수집처가 설정되지 않았습니다 — 결과는 각 PC에만 저장됩니다. ' +
+        '<b>config.js</b>의 <b>collectUrl</b>을 채우면 자동 수집이 켜집니다.';
+      return;
+    }
+    statusEl.innerHTML = '수집 켜짐 ✓' + (pending ? ' · 이 PC에 미전송 <b>' + pending + '건</b> 대기 중' : '');
+  };
+  showStatus();
+
+  // 접속하자마자 밀린 전송분을 올린다 (시험 중 인터넷이 잠깐 끊겼던 경우)
+  if (window.COLLECT && COLLECT.enabled()) COLLECT.flush().then(showStatus);
+
+  UI.collectRows = [];
+
+  const render = (rows) => {
+    UI.collectRows = rows;
+    if (!rows.length) {
+      resEl.innerHTML = '<div class="collect-empty">아직 제출된 결과가 없습니다.</div>';
+      actEl.style.display = 'none';
+      return;
+    }
+    // 학생별 요약 — 상세 전체는 엑셀로 받아 보는 편이 낫다
+    const byStudent = {};
+    rows.forEach((r) => {
+      const k = r.student || '(이름없음)';
+      if (!byStudent[k]) byStudent[k] = { n: 0, sum: 0, last: '' };
+      byStudent[k].n += 1;
+      byStudent[k].sum += Number(r.total) || 0;
+      if (!byStudent[k].last || r.submittedAt > byStudent[k].last) byStudent[k].last = r.submittedAt;
+    });
+    const names = Object.keys(byStudent).sort();
+    let html = '<div class="collect-sum">학생 <b>' + names.length + '명</b> · 제출 <b>' + rows.length + '건</b></div>' +
+      '<table class="collect-table"><thead><tr><th>학생</th><th>완료</th><th>평균</th><th>합계</th><th>최근 제출</th></tr></thead><tbody>';
+    names.forEach((n) => {
+      const s = byStudent[n];
+      html += '<tr><td>' + n + '</td><td>' + s.n + ' / ' + PATIENTS.length + '</td>' +
+        '<td>' + (s.sum / s.n).toFixed(1) + '</td><td>' + s.sum.toFixed(1) + '</td>' +
+        '<td>' + String(s.last).replace('T', ' ').slice(0, 16) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    resEl.innerHTML = html;
+    actEl.style.display = 'flex';
+  };
+
+  const load = async () => {
+    const id = document.getElementById('inp-prof-id').value.trim();
+    const pw = document.getElementById('inp-prof-pw').value;
+    if (!window.COLLECT || !COLLECT.enabled()) {
+      msgEl.className = 'err';
+      msgEl.textContent = '수집처가 설정되지 않았습니다. PROFESSOR_SETUP.md를 참고해 config.js를 채워 주세요.';
+      return;
+    }
+    if (!id || !pw) { msgEl.className = 'err'; msgEl.textContent = '아이디와 비밀번호를 입력하세요.'; return; }
+    msgEl.className = ''; msgEl.textContent = '불러오는 중…';
+    loginBtn.disabled = true;
+    try {
+      const rows = await COLLECT.fetchAll(id, pw);
+      msgEl.className = 'ok';
+      msgEl.textContent = '✓ ' + rows.length + '건 불러왔습니다.';
+      render(rows);
+    } catch (e) {
+      msgEl.className = 'err';
+      msgEl.textContent = '불러오기 실패: ' + e.message;
+      resEl.innerHTML = '';
+      actEl.style.display = 'none';
+    }
+    loginBtn.disabled = false;
+  };
+
+  loginBtn.addEventListener('click', load);
+  document.getElementById('btn-collect-refresh').addEventListener('click', load);
+  document.getElementById('inp-prof-pw').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') load();
+  });
+  document.getElementById('btn-xlsx').addEventListener('click', () => {
+    if (!UI.collectRows.length) return;
+    COLLECT.downloadXlsx(UI.collectRows);
   });
 };
 
@@ -390,6 +495,14 @@ UI.submit = async function () {
   UI.save();
   markBedDone(p.id);
   UI.updateProgress();
+  // 교수님 시트로 결과 전송 (설정되어 있을 때만).
+  // 채점 화면을 막지 않도록 기다리지 않는다. 실패하면 보관함에 쌓였다가
+  // 다음 제출·다음 접속 때 자동으로 다시 올라간다.
+  if (window.COLLECT && COLLECT.enabled()) {
+    COLLECT.submit(p, record, UI.state.studentName).then((r) => {
+      if (r && r.ok === false) UI.toast('결과 전송이 지연되고 있습니다 — 자동으로 다시 시도합니다 (대기 ' + r.queued + '건)');
+    });
+  }
 
   btn.disabled = false; btn.textContent = '진료 완료 · 채점하기';
   UI.busy = false;

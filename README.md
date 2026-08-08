@@ -87,8 +87,11 @@ python -m http.server 8000
 | `rooms/manual.js` | 도수치료실 — 복도 + 프라이빗 룸 4개 |
 | `rooms/electro.js` | 전기치료실 — 중앙 복도 + 커튼 베이 + 치료기 카트 |
 | `rooms/exercise.js` | 운동치료실 — 보행 트랙·천장 슬링·평행봉·매트베드·리포머 |
-| `ui.js` | 진료 UI·채점·리포트 |
+| `ui.js` | 진료 UI·채점·리포트·교수 모드 |
 | `api.js` | 문진 엔진 (내장 답변 모드 + Gemini API 연동) |
+| `collect.js` | 학생 결과 수집·교수 조회·엑셀(.xlsx) 내보내기 |
+| `config.js` | 실습실 설정 (결과 수집처 주소·분반명) |
+| `PROFESSOR_SETUP.md` | **교수용** — 학생 결과를 구글 시트로 모으는 설정 절차 |
 | `patients1.js` / `patients2.js` | 가상환자 12명 데이터 (CPG 기반, 내장 답변 포함) |
 | `exams.js` | 부위별 이학적 검사 라이브러리 |
 | `vendor/three-lib.js` | Three.js r185 + 후처리 애드온 로컬 번들 ([재생성 방법](vendor/README.md)) |

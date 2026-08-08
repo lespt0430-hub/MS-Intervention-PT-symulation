@@ -155,6 +155,24 @@ html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Malgun G
   #pad-interact { width: 100%; height: auto; font-size: 12px; padding: 9px 6px; }
 }
 
+/* ── 교수 모드 · 학생 결과 조회 ── */
+.prof-div { border: none; border-top: 1px solid #dfe6ec; margin: 16px 0 12px; }
+.prof-login { display: flex; gap: 6px; align-items: stretch; margin-bottom: 8px; flex-wrap: wrap; }
+.prof-login input { flex: 1 1 120px; margin: 0; }
+.prof-login button { flex: 0 0 auto; white-space: nowrap; }
+#collect-msg { font-size: 13px; margin: 6px 0; }
+#collect-msg.ok { color: #1e7a4d; }
+#collect-msg.err { color: #b03a2e; }
+.collect-sum { font-size: 13px; color: #34495e; margin: 8px 0 6px; }
+.collect-empty { font-size: 13px; color: #7f8c8d; padding: 10px 0; }
+.collect-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.collect-table th, .collect-table td {
+  border-bottom: 1px solid #e6ecf1; padding: 6px 8px; text-align: left;
+}
+.collect-table th { background: #f2f6f9; color: #2c5f7c; font-weight: bold; }
+.collect-table td:nth-child(n+2) { text-align: right; }
+.collect-table th:nth-child(n+2) { text-align: right; }
+
 /* 자동 화질 조정 알림 */
 #hud-toast {
   display: none; left: 50%; top: 74px; transform: translateX(-50%);
