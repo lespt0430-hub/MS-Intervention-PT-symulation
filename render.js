@@ -26,23 +26,28 @@ const RENDER = {
 // "올드해 보임"을 없애는 효과의 대부분이 여기서 나온다.
 // 등급에 따라 달라지는 것은 해상도·그림자·광원 종류·후처리뿐이다.
 RENDER.PRESETS = {
+  // ceilingCount: 실이 셋으로 나뉘어 최소 6개는 있어야 어느 방도 어둡지 않다.
   low: {
     pixelRatio: 1, shadow: 1024, shadowType: 'pcf',
-    ceiling: 'point', ceilingCount: 3, ceilingIntensity: 4.0,
+    ceiling: 'point', ceilingCount: 6, ceilingIntensity: 4.0,
     hemi: 0.16, sun: 0.62, envIntensity: 0.35,
     post: false, aniso: 4, reflect: 0,
   },
   medium: {
     pixelRatio: 1, shadow: 2048, shadowType: 'pcfsoft',
-    ceiling: 'area', ceilingCount: 3, ceilingIntensity: 4.5,
+    ceiling: 'area', ceilingCount: 6, ceilingIntensity: 4.0,
     hemi: 0.15, sun: 0.55, envIntensity: 0.40,
-    post: 'aa', aniso: 8, reflect: 0,
+    // 블룸까지만. GTAO·평면반사는 장면을 한 번 더 그리거나 픽셀당 비용이 커서
+    // 중간 사양에서 프레임이 반토막 난다.
+    post: 'bloom', aniso: 8, reflect: 0,
   },
   high: {
     pixelRatio: 1.5, shadow: 2048, shadowType: 'pcfsoft',
-    ceiling: 'area', ceilingCount: 5, ceilingIntensity: 4.2,
-    hemi: 0.14, sun: 0.55, envIntensity: 0.45,
-    post: 'full', aniso: 16, reflect: 0.58,
+    ceiling: 'area', ceilingCount: 10, ceilingIntensity: 3.8,
+    hemi: 0.13, sun: 0.55, envIntensity: 0.42,
+    // 반사는 0.58이면 바닥이 거울이 되어 통로가 하얗게 탄다. 0.34가
+    // 참고 도면의 '광택 있는 병원 바닥'에 가깝다.
+    post: 'full', aniso: 16, reflect: 0.34,
   },
 };
 
@@ -85,9 +90,14 @@ RENDER.createRenderer = function (container) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = q.shadowType === 'pcf' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  // Khronos PBR Neutral: 병원 흰색이 하늘색으로 틀어지지 않고 하이라이트가 깨끗하다.
-  renderer.toneMapping = THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = 0.95;
+  // ACES Filmic — 하이라이트 롤오프가 부드러워 조명 주변이 '사진처럼' 잡힌다.
+  // 다만 기본 노출(1.2)로는 명패·부스 번호가 하얗게 날아가 읽히지 않는다.
+  // 실측해 보고 0.78까지 낮춰야 글자가 살아남는다. 교육용이라 명패 가독성이
+  // 색감보다 우선이므로 노출은 이 값을 넘기지 않는다.
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // 0.78은 흰 바닥·흰 벽이 많은 이 방에서 하이라이트가 뭉쳐 사진이 '날아간' 느낌이 났다.
+  // 0.72로 내리면 바닥의 얼룩과 벽의 음영이 살아나면서 명패 가독성도 유지된다.
+  renderer.toneMappingExposure = 0.72;
   container.appendChild(renderer.domElement);
   RENDER.maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy(), q.aniso);
   return renderer;
@@ -113,8 +123,10 @@ RENDER.buildLights = function (scene, room) {
   const q = RENDER.q;
   RENDER.ceilingLights = [];
 
-  // 바닥 반사 + 하늘광 채움
-  const hemi = new THREE.HemisphereLight(0xeaf3fb, 0xdcd8d2, q.hemi);
+  // 바닥 반사 + 하늘광 채움.
+  // 아랫빛을 따뜻하게(리놀륨 바닥에서 튀어오르는 빛) 두면 위아래 색온도가 갈려
+  // 단조로운 흰 실내에 깊이가 생긴다.
+  const hemi = new THREE.HemisphereLight(0xe8f2fc, 0xd6c9b4, q.hemi);
   scene.add(hemi);
   RENDER.fill = hemi;
 
@@ -136,29 +148,44 @@ RENDER.buildLights = function (scene, room) {
   scene.add(sun);
   RENDER.sun = sun;
 
+  // 반대쪽 채움광 — 그림자를 만들지 않는 약한 방향광 하나를 반대편에서 준다.
+  // 이게 없으면 태양을 등진 면이 전부 같은 밝기로 눌려서 물체가 납작해 보인다.
+  // 그림자 계산이 없으므로 비용은 사실상 0이다.
+  const fill = new THREE.DirectionalLight(0xd8e8f6, q.sun * 0.32);
+  fill.position.set(-8, 5, -7);
+  scene.add(fill);
+  RENDER.fillSun = fill;
+
   RENDER._addCeilingLights(scene, room);
 };
 
+// 등기구 자리는 공간 모듈(rooms/kit.js)의 GAME.ZONE.lights가 정한다.
+// 벽으로 막힌 세 실을 각각 밝혀야 하므로 예전처럼 중앙 한 줄로는 안 된다.
+// 목록의 3번째 값은 우선순위(0=모든 등급, 1=보통 이상, 2=높음)이고,
+// 화질 등급이 낮을수록 우선순위가 높은 것부터 q.ceilingCount개만 켠다.
+// 우선순위 0인 자리만으로도 세 실이 모두 커버되도록 배치해 두었다.
 RENDER._addCeilingLights = function (scene, room) {
   const q = RENDER.q;
-  const step = q.ceilingCount === 5 ? 4 : 8;   // 5개면 x=-8..8 step4, 3개면 step8
+  const all = (window.GAME && GAME.ZONE && GAME.ZONE.lights) ? GAME.ZONE.lights : [[-8, 0], [0, 0], [8, 0]];
+  const sorted = all.slice().sort((a, b) => (a[2] || 0) - (b[2] || 0));
+  const list = sorted.slice(0, Math.min(q.ceilingCount, sorted.length));
   if (q.ceiling === 'area') TX.RectAreaLightUniformsLib.init();
 
-  for (let x = -8; x <= 8; x += step) {
+  list.forEach(([x, z]) => {
     let light;
     if (q.ceiling === 'area') {
       // 면광원: 형광등 패널의 넓고 부드러운 빛을 그대로 재현한다
       light = new THREE.RectAreaLight(0xf4f8ff, q.ceilingIntensity, 1.76, 0.5);
-      light.position.set(x, room.h - 0.06, 0);
-      light.lookAt(x, 0, 0);
+      light.position.set(x, room.h - 0.06, z);
+      light.lookAt(x, 0, z);
     } else {
       // 저사양: 점광원이 훨씬 싸다. decay를 물리값(2)보다 낮춰 낙차를 부드럽게.
       light = new THREE.PointLight(0xf4f8ff, q.ceilingIntensity, 16, 1.7);
-      light.position.set(x, room.h - 0.55, 0);
+      light.position.set(x, room.h - 0.55, z);
     }
     scene.add(light);
     RENDER.ceilingLights.push(light);
-  }
+  });
 };
 
 // ── 절차적 PBR: 캔버스 → 노멀맵 ──────────────────────────────
@@ -376,7 +403,9 @@ RENDER.buildFloorReflection = function (scene, room) {
       '  vec3 V = normalize( cameraPosition - vWorld );',
       // 바닥 법선은 +Y. 시선이 수평에 가까울수록(V.y가 0에 가까울수록) 반사가 세다
       '  float fres = pow( 1.0 - clamp( V.y, 0.0, 1.0 ), 4.0 );',
-      '  float a = strength * mix( 0.16, 1.0, fres );',
+      // 스치는 각도에서 반사를 100%까지 올리면 먼 바닥이 천장 형광등을 그대로
+      // 비춰서 통로가 하얗게 타 버린다. 상한을 0.62로 눌러 광택만 남긴다.
+      '  float a = strength * mix( 0.12, 0.62, fres );',
       '  vec4 base = texture2DProj( tDiffuse, vUv );',
       '  gl_FragColor = vec4( base.rgb * color, a );',
       '  #include <tonemapping_fragment>',
@@ -403,6 +432,23 @@ RENDER.buildFloorReflection = function (scene, room) {
   return refl;
 };
 
+// 운동재활실 벽거울. 바닥과 달리 프레넬을 쓰지 않는다 — 거울은 어느 각도에서
+// 보든 똑같이 비치는 게 맞고, 여기서 세기를 낮추면 유리가 뿌옇게 보인다.
+RENDER.wallMirrors = [];
+RENDER.buildWallMirror = function (scene, width, height, x, y, z, yaw) {
+  if (!RENDER.q.reflect || !window.TX || !TX.Reflector) return null;
+  const w = Math.max(256, Math.round(window.innerWidth * 0.5));
+  const h = Math.max(256, Math.round(window.innerHeight * 0.5));
+  const m = new TX.Reflector(new THREE.PlaneGeometry(width, height), {
+    textureWidth: w, textureHeight: h, clipBias: 0.004, color: 0xd6dee2,
+  });
+  m.position.set(x, y, z);
+  m.rotation.y = yaw === undefined ? Math.PI / 2 : yaw;   // 법선이 방 안쪽을 봐야 한다
+  scene.add(m);
+  RENDER.wallMirrors.push(m);
+  return m;
+};
+
 // ── 후처리 ───────────────────────────────────────────────────
 RENDER.buildComposer = function (renderer, scene, camera) {
   const q = RENDER.q;
@@ -413,21 +459,23 @@ RENDER.buildComposer = function (renderer, scene, camera) {
   composer.addPass(new TX.RenderPass(scene, camera));
 
   if (q.post === 'full') {
-    // GTAO: 접촉부에 실제 주변광 차폐를 넣는다 (외장 GPU 전용)
+    // GTAO: 접촉부에 실제 주변광 차폐를 넣는다 (외장 GPU 전용).
+    // 반경 0.35 · 표본 8은 커튼처럼 크고 얇은 면에서 자기 그림자가 얼룩덜룩하게
+    // 번졌다. 반경을 키우고 표본을 늘리면 얼룩이 넓고 부드러운 음영으로 바뀐다.
     const gtao = new TX.GTAOPass(scene, camera, w, h);
-    gtao.blendIntensity = 0.8;
+    gtao.blendIntensity = 0.5;
     gtao.updateGtaoMaterial({
-      radius: 0.35, distanceExponent: 1.4, thickness: 0.5,
-      scale: 1.0, samples: 8, screenSpaceRadius: false,
+      radius: 0.62, distanceExponent: 1.6, thickness: 1.0,
+      scale: 1.0, samples: 16, screenSpaceRadius: false,
     });
     composer.addPass(gtao);
     RENDER.gtao = gtao;
-
-    // 형광등 패널을 은은하게 번지게.
-    // 임계값은 톤매핑 前 선형 HDR 값 기준이다. 0.92로 두면 조명을 정면으로 받는
-    // 흰 명패·시트까지 광원으로 오인해 글자가 날아간다. 실제 발광체(패널
-    // emissiveIntensity 2.3)만 걸리도록 1 이상으로 올린다.
-    const bloom = new TX.UnrealBloomPass(new THREE.Vector2(w, h), 0.20, 0.5, 1.5);
+  }
+  if (q.post === 'full' || q.post === 'bloom') {
+    // 형광등 패널·창을 은은하게 번지게.
+    // 임계값은 톤매핑 前 선형 HDR 값 기준이다. 낮게 두면 조명을 정면으로 받는
+    // 흰 명패·시트까지 광원으로 오인해 글자가 날아간다.
+    const bloom = new TX.UnrealBloomPass(new THREE.Vector2(w, h), 0.15, 0.55, 1.25);
     composer.addPass(bloom);
     RENDER.bloom = bloom;
   }
@@ -487,6 +535,7 @@ RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
     sh.mapSize.set(q.shadow, q.shadow);
     RENDER.sun.intensity = q.sun;
   }
+  if (RENDER.fillSun) RENDER.fillSun.intensity = q.sun * 0.32;
   if (RENDER.fill) RENDER.fill.intensity = q.hemi;
   scene.environmentIntensity = q.envIntensity;
 
@@ -495,11 +544,26 @@ RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
   RENDER.ceilingLights = [];
   RENDER._addCeilingLights(scene, GAME.ROOM);
 
-  // 바닥 반사 — 장면을 한 번 더 그리는 비용이라 등급을 내릴 때 가장 먼저 끈다
-  if (RENDER.floorReflector && !q.reflect) {
-    scene.remove(RENDER.floorReflector);
-    if (RENDER.floorReflector.dispose) RENDER.floorReflector.dispose();
-    RENDER.floorReflector = null;
+  // 평면 반사 — 장면을 한 번 더 그리는 비용이라 등급을 내릴 때 가장 먼저 끈다.
+  // 거울은 없애면 벽에 구멍이 나므로 무광 유리 재질로 갈아끼운다.
+  if (!q.reflect) {
+    if (RENDER.floorReflector) {
+      scene.remove(RENDER.floorReflector);
+      if (RENDER.floorReflector.dispose) RENDER.floorReflector.dispose();
+      RENDER.floorReflector = null;
+    }
+    RENDER.wallMirrors.forEach((m) => {
+      // 반사를 끄면 금속면이 반사할 환경이 어두워 거울이 검게 죽는다.
+      // 밝은 유리면(약한 자체발광)으로 갈아끼워야 거울처럼 보인다.
+      const dull = new THREE.MeshStandardMaterial({
+        color: 0xcfdae1, metalness: 0.45, roughness: 0.10, envMapIntensity: 2.6,
+        emissive: 0x3d4b55, emissiveIntensity: 0.45,
+      });
+      if (m.dispose) m.dispose();
+      m.material = dull;
+      m.onBeforeRender = function () {};   // Reflector의 렌더 타깃 갱신 중단
+    });
+    RENDER.wallMirrors = [];
   }
 
   // 후처리 체인 재구성

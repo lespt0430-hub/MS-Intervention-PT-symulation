@@ -86,7 +86,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Malgun G
 }
 @keyframes pulse { 50% { transform: scale(1.06); } }
 #hud-prompt {
-  display: none; left: 50%; bottom: 12%; transform: translateX(-50%);
+  display: none; left: 50%; bottom: 16%; transform: translateX(-50%);
   background: rgba(0,0,0,.75); color: #fff; padding: 13px 24px; border-radius: 12px;
   font-size: 15.5px; white-space: nowrap; border: 1px solid rgba(255,255,255,.25);
 }
@@ -97,6 +97,63 @@ html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Malgun G
   inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5%;
 }
 #hud-hint span { background: rgba(0,0,0,.6); color: #dce8ef; padding: 10px 20px; border-radius: 10px; font-size: 14px; }
+
+/* ── 화면 조작판 (좌측 하단) ──
+   마우스·키보드를 못 쓰는 실습 환경에서도 클릭만으로 다닐 수 있어야 한다.
+   .hud가 pointer-events:none이므로 여기서 다시 켜 준다. */
+#screen-pad {
+  left: 18px; bottom: 18px; pointer-events: auto;
+  /* 폭을 명시한다 — 내용 크기에 맡기면 아래 진료 버튼의 width:100%가
+     기준 폭을 못 찾아 글자가 한 줄에 한 글자씩 세로로 쪼개진다 */
+  width: 202px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: rgba(12,28,42,.55); border: 1px solid rgba(255,255,255,.18);
+  border-radius: 14px; padding: 12px 13px 13px;
+  backdrop-filter: blur(3px);
+  user-select: none; -webkit-user-select: none; touch-action: none;
+}
+#screen-pad .pad-label {
+  color: #cfe0ec; font-size: 11px; letter-spacing: .04em;
+  margin-bottom: 5px; text-align: center; opacity: .85;
+}
+#screen-pad button {
+  pointer-events: auto; cursor: pointer; border: 1px solid rgba(255,255,255,.28);
+  background: rgba(255,255,255,.13); color: #f2f8fc;
+  border-radius: 10px; font-size: 19px; line-height: 1;
+  width: 46px; height: 46px; padding: 0;
+  transition: background .08s, transform .08s;
+}
+#screen-pad button:hover { background: rgba(255,255,255,.24); }
+#screen-pad button.on { background: #2c7ba6; transform: scale(.94); }
+/* 십자 배치: 위 / 좌·하·우 */
+.pad-grid {
+  display: grid; grid-template-columns: repeat(3, 46px);
+  grid-template-rows: repeat(2, 46px); gap: 6px; justify-content: center;
+}
+.pad-grid button:nth-child(1) { grid-column: 2; grid-row: 1; }
+.pad-grid button:nth-child(2) { grid-column: 1; grid-row: 2; }
+.pad-grid button:nth-child(3) { grid-column: 2; grid-row: 2; }
+.pad-grid button:nth-child(4) { grid-column: 3; grid-row: 2; }
+.pad-look { display: flex; gap: 6px; }
+#pad-interact {
+  width: 100%; height: auto; padding: 11px 8px; font-size: 13px; font-weight: bold;
+  white-space: nowrap;
+  border-radius: 11px; border: 1px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.10); color: #9fb4c4; cursor: not-allowed;
+}
+#pad-interact b {
+  background: rgba(255,255,255,.22); border-radius: 5px; padding: 1px 7px; margin-left: 5px;
+}
+/* 환자 앞에 섰을 때만 활성 */
+#pad-interact.ready { background: #1f7a4d; color: #fff; cursor: pointer; border-color: rgba(255,255,255,.45); }
+#pad-interact.ready:hover { background: #249059; }
+/* 화면이 낮으면 조작판을 줄인다 */
+@media (max-height: 700px) {
+  #screen-pad { width: 178px; padding: 9px 10px 10px; gap: 8px; }
+  #screen-pad button { width: 40px; height: 40px; font-size: 17px; }
+  .pad-grid { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(2, 40px); }
+  #pad-interact { width: 100%; height: auto; font-size: 12px; padding: 9px 6px; }
+}
 
 /* 자동 화질 조정 알림 */
 #hud-toast {

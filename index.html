@@ -16,9 +16,32 @@
 <div class="hud" id="hud-crosshair"></div>
 <div class="hud" id="hud-progress">진료 완료 0 / 12</div>
 <div class="hud" id="hud-prompt"></div>
-<div class="hud" id="hud-hint"><span>화면을 클릭하면 이동 모드가 시작됩니다 (ESC로 해제) · WASD 이동 · 마우스 시점</span></div>
+<div class="hud" id="hud-hint"><span>화면을 클릭하면 이동 모드가 시작됩니다 (ESC로 해제) · WASD 이동 · 마우스 시점 · 왼쪽 아래 버튼으로도 조작할 수 있습니다</span></div>
 <div class="hud" id="hud-toast"></div>
 <div class="hud" id="hud-perf">화질 —</div>
+
+<!-- 화면 조작판 — 마우스·키보드 없이 클릭(터치)만으로 이동·회전·진료 -->
+<div class="hud" id="screen-pad">
+  <div class="pad-block">
+    <div class="pad-label">이동</div>
+    <div class="pad-grid">
+      <button data-act="fwd" aria-label="앞으로">▲</button>
+      <button data-act="left" aria-label="왼쪽으로">◀</button>
+      <button data-act="back" aria-label="뒤로">▼</button>
+      <button data-act="right" aria-label="오른쪽으로">▶</button>
+    </div>
+  </div>
+  <div class="pad-block">
+    <div class="pad-label">둘러보기</div>
+    <div class="pad-look">
+      <button data-act="turnL" aria-label="왼쪽으로 돌기">↺</button>
+      <button data-act="lookU" aria-label="위 보기">↑</button>
+      <button data-act="lookD" aria-label="아래 보기">↓</button>
+      <button data-act="turnR" aria-label="오른쪽으로 돌기">↻</button>
+    </div>
+  </div>
+  <button id="pad-interact">환자 진료 시작 <b>E</b></button>
+</div>
 <button id="btn-final">📋 종합 성적표 보기</button>
 
 <!-- 로딩 화면 (장면 생성 중) -->
@@ -80,7 +103,8 @@
 
     <div class="controls-help">
       <b>진행 방법</b><br>
-      ① <b>WASD</b>로 이동, <b>마우스</b>로 둘러보기 → 베드의 환자에게 다가가 <b>E</b>키로 진료 시작<br>
+      ① <b>WASD</b>로 이동, <b>마우스</b>로 둘러보기 → 환자에게 다가가 <b>E</b>키로 진료 시작<br>
+      &nbsp;&nbsp;&nbsp;(마우스·키보드 없이 <b>화면 왼쪽 아래 버튼</b>만 눌러서 이동·회전·진료도 가능합니다)<br>
       ② <b>문진</b>(자유 대화) → <b>이학적 검사</b> 선택 → <b>진단</b> → <b>치료계획</b> 수립 → 채점<br>
       ③ 12명 모두 진료하면 종합 성적표가 열립니다
     </div>
@@ -143,6 +167,12 @@
 <script src="patients2.js"></script>
 <script src="api.js"></script>
 <script src="game.js"></script>
+<!-- 공간 모듈 — 도면 4장을 구역별로 나눠 짓는다 (game.js 뒤에 와야 GAME을 참조할 수 있다) -->
+<script src="rooms/kit.js"></script>
+<script src="rooms/layout.js"></script>
+<script src="rooms/manual.js"></script>
+<script src="rooms/electro.js"></script>
+<script src="rooms/exercise.js"></script>
 <script src="ui.js"></script>
 <script>
 // WebGL을 못 쓰는 PC에서 흰 화면만 보이는 일이 없도록 미리 확인한다
