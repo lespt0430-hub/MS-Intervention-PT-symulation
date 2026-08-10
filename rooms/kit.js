@@ -360,17 +360,17 @@ KIT.bed = function (opt) {
 
   // 매트리스 — 등판/좌판 2단으로 나누면 치료대처럼 보인다
   const mat = KIT.leather(o.color);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(W, 0.13, L * 0.42), mat);
+  const back = new THREE.Mesh(KIT.rbox(W, 0.13, L * 0.42, 0.021), mat);
   back.position.set(0, H + 0.005, -(L / 2 - L * 0.21));
   back.castShadow = true; back.receiveShadow = true;
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(W, 0.13, L * 0.58 - 0.02), mat);
+  const seat = new THREE.Mesh(KIT.rbox(W, 0.13, L * 0.58 - 0.02, 0.021), mat);
   seat.position.set(0, H, (L / 2 - (L * 0.58 - 0.02) / 2));
   seat.castShadow = true; seat.receiveShadow = true;
   g.add(back, seat);
 
   // 베개 (머리쪽) — 도면의 베개도 같은 남색 계열이다
   const headZ = -(L / 2 - 0.30);
-  const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.10, 0.34),
+  const pillow = new THREE.Mesh(KIT.rbox(0.52, 0.10, 0.34, 0.03),
     KIT.std(o.pillow === undefined ? 0x3b4c6b : o.pillow, { roughness: 0.6 }));
   pillow.position.set(0, H + 0.115, headZ - 0.06);
   pillow.castShadow = true;
@@ -387,6 +387,22 @@ KIT.bed = function (opt) {
   return { group: g, H, headZ, W, L };
 };
 
+// 모서리를 굴린 상자.
+//
+// 실제 의료기기·가구는 모서리가 둥글다(다치지 않게, 그리고 사출·판금 공정상
+// 각이 안 나온다). BoxGeometry로 만들면 칼같이 각져서 종이상자로 보이는데,
+// 모서리에 하이라이트가 한 줄 생기는 것만으로 '만들어진 물건'처럼 읽힌다.
+//
+// 반지름은 물체 최소변의 1/6을 넘지 않게 자른다 — 넘으면 상자가 아니라
+// 알약 모양이 된다. 분할은 2면 충분하다(3 이상은 삼각형만 늘고 차이가 없다).
+KIT.rbox = function (w, h, d, r, seg) {
+  const rad = Math.min(r === undefined ? 0.02 : r, Math.min(w, h, d) / 6);
+  if (!window.TX || !TX.RoundedBoxGeometry || rad <= 0.001) {
+    return new THREE.BoxGeometry(w, h, d);
+  }
+  return new TX.RoundedBoxGeometry(w, h, d, seg || 2, rad);
+};
+
 // ── 이동식 전기치료기 카트 ───────────────────────────────────
 // 전기치료실 도면의 베드 옆마다 서 있는 흰 기기 + 바구니 달린 카트.
 KIT.etCart = function (x, z, yaw) {
@@ -394,7 +410,7 @@ KIT.etCart = function (x, z, yaw) {
   const body = KIT.std(0xf2f5f7, { roughness: 0.35, metalness: 0.08, envMapIntensity: 1.1 });
   const pole = KIT.steel(0xb4bec4);
 
-  const box = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.26, 0.30), body);
+  const box = new THREE.Mesh(KIT.rbox(0.40, 0.26, 0.30, 0.022), body);
   box.position.y = 0.94;
   box.castShadow = true;
   g.add(box);
@@ -418,10 +434,10 @@ KIT.etCart = function (x, z, yaw) {
     wheel.position.set(px, 0.03, pz);
     g.add(wheel);
   });
-  const tray = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.03, 0.30), KIT.steel(0xd4dade));
+  const tray = new THREE.Mesh(KIT.rbox(0.40, 0.03, 0.30, 0.005), KIT.steel(0xd4dade));
   tray.position.y = 0.40;
   g.add(tray);
-  const wire = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.14, 0.24), KIT.std(0xdfe4e8, { roughness: 0.7 }));
+  const wire = new THREE.Mesh(KIT.rbox(0.34, 0.14, 0.24, 0.018), KIT.std(0xdfe4e8, { roughness: 0.7 }));
   wire.position.y = 0.48;
   g.add(wire);
   // 전극 케이블 — 기기에서 베드 쪽으로 늘어진다
@@ -460,11 +476,11 @@ KIT.stool = function (x, z) {
 KIT.cabinet = function (x, z, yaw, w, h, d) {
   const W = w || 0.9, H = h || 0.8, D = d || 0.42;
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), KIT.wood());
+  const body = new THREE.Mesh(KIT.rbox(W, H, D, 0.018), KIT.wood());
   body.position.y = H / 2;
   body.castShadow = true; body.receiveShadow = true;
   g.add(body);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(W + 0.04, 0.03, D + 0.04), KIT.std(0xe8e2d6, { roughness: 0.45 }));
+  const top = new THREE.Mesh(KIT.rbox(W + 0.04, 0.03, D + 0.04, 0.006), KIT.std(0xe8e2d6, { roughness: 0.45 }));
   top.position.y = H + 0.015;
   g.add(top);
   const nDoor = W > 1.2 ? 3 : 2;
