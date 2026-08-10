@@ -11,3 +11,6 @@ desktop.ini
 *.jpeg
 *.png
 *.webp
+
+# 번들 재생성용 임시 폴더 (npm install 결과)
+.build/

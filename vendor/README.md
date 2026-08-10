@@ -21,7 +21,9 @@ GitHub Pages(또는 로컬 폴더)에서 함께 제공되므로 의존하는 외
 | `UnrealBloomPass` | 형광등 패널 빛번짐 (높음 화질 전용) |
 | `RoomEnvironment` | 절차적 실내 환경맵. HDRI 파일을 받지 않고 금속·유리 반사를 만든다 |
 | `RectAreaLightUniformsLib` | 면광원(형광등 패널) 사용 전 초기화 필요 |
-| `Reflector` | 바닥 평면 반사 — 광택 에폭시 바닥에 천장·장비가 비친다 (높음 화질 전용) |
+| `Reflector` | 평면 반사 — 운동재활실 벽거울 (높음 화질 전용). 바닥에는 더 이상 쓰지 않는다 |
+| `GLTFLoader` | 리깅된 인체 모델(.glb) 불러오기 |
+| `SkeletonUtils` | `clone()` — 모델 하나를 환자 여러 명으로 복제 (지오메트리 공유, 스켈레톤만 분리) |
 
 ## 다시 만드는 방법
 
@@ -45,11 +47,15 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+// SkeletonUtils 는 개별 함수를 내보내므로 네임스페이스로 받아야 한다
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 window.THREE = THREE;
 window.TX = {
   EffectComposer, RenderPass, OutputPass, SMAAPass, GTAOPass,
   UnrealBloomPass, RoomEnvironment, RectAreaLightUniformsLib, Reflector,
+  GLTFLoader, SkeletonUtils,
 };
 ```
 
@@ -60,7 +66,10 @@ npx esbuild three-entry.js --bundle --format=iife --minify \
   --target=es2019 --legal-comments=none --outfile=three-lib.js
 ```
 
-나온 `three-lib.js`를 이 폴더에 덮어씁니다. (약 1.0MB, gzip 전송 시 약 250KB)
+나온 `three-lib.js`를 이 폴더에 덮어씁니다. (약 1.1MB, gzip 전송 시 약 270KB)
+
+> DRACO·Meshopt 디코더는 넣지 않았습니다. 압축된 glb를 열려면 별도 wasm 파일이
+> 필요해 "외부 의존 하나도 없음" 원칙이 깨집니다. 모델은 압축하지 않은 glb를 씁니다.
 
 > **주의** — three는 메이저 리비전마다 API를 바꿉니다. 버전을 올린 뒤에는
 > 반드시 `render.js`의 `createRenderer`(색공간·톤매핑), `buildEnvironment`
