@@ -297,6 +297,23 @@ UI.bindCollect = function () {
     if (!UI.collectRows.length) return;
     COLLECT.downloadXlsx(UI.collectRows);
   });
+
+  // 수집처를 안 쓰거나 인터넷이 막힌 실습실에서도 결과를 회수할 수 있어야 한다.
+  // 이 PC 에 남아 있는 기록만 엑셀로 떨군다 (학생 PC 를 돌며 받는 용도).
+  const localBtn = document.getElementById('btn-xlsx-local');
+  if (localBtn) localBtn.addEventListener('click', () => {
+    const rows = COLLECT.localRows();
+    if (!rows.length) {
+      msgEl.className = 'err';
+      msgEl.textContent = '이 컴퓨터에 저장된 진료 기록이 없습니다.';
+      return;
+    }
+    const who = (UI.state.studentName || '이PC').replace(/[\\/:*?"<>|]/g, '_');
+    COLLECT.downloadXlsx(rows,
+      '가상환자시뮬레이션_' + who + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    msgEl.className = 'ok';
+    msgEl.textContent = '✓ 이 PC 기록 ' + rows.length + '건을 엑셀로 저장했습니다.';
+  });
 };
 
 UI.updateProgress = function () {

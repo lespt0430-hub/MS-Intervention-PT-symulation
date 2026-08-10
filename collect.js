@@ -110,18 +110,35 @@ COLLECT.submit = async function (patient, record, studentName) {
   }
 };
 
-// 보관함 재전송 — 페이지를 열 때와 제출 성공 직후에 호출한다
+// 보관함 재전송 — 페이지를 열 때와 제출 성공 직후에 호출한다.
+//
+// 한 건이라도 실패하면 거기서 멈춘다. 학교 방화벽이 구글을 막아 응답이 아예
+// 안 오는 상황에서 12건을 순서대로 15초씩 기다리면 3분 동안 붙잡혀 있게 된다.
+// 어차피 같은 서버라 첫 건이 안 되면 나머지도 안 된다 — 남겨 두고 다음 기회
+// (다음 제출·다음 접속)에 다시 시도하는 편이 낫다.
+COLLECT.FLUSH_TIMEOUT = 8000;   // 배경 작업이라 제출(15초)보다 짧게 본다
+COLLECT._flushing = false;
+
 COLLECT.flush = async function () {
   if (!COLLECT.enabled()) return;
+  if (COLLECT._flushing) return;     // 접속 직후와 제출 직후가 겹쳐 두 번 올리는 것 방지
   const box = COLLECT.outbox();
   if (!box.length) return;
-  const left = [];
-  for (const row of box) {
-    try { await COLLECT.call({ action: 'submit', row }); }
-    catch (e) { left.push(row); }
+  COLLECT._flushing = true;
+  let sent = 0;
+  try {
+    for (const row of box) {
+      try { await COLLECT.call({ action: 'submit', row }, COLLECT.FLUSH_TIMEOUT); }
+      catch (e) { break; }
+      sent += 1;
+    }
+    // 보낸 만큼만 덜어낸다. 그 사이 새로 쌓인 실패분은 건드리지 않는다.
+    const now = COLLECT.outbox();
+    COLLECT.setOutbox(now.slice(sent));
+  } finally {
+    COLLECT._flushing = false;
   }
-  COLLECT.setOutbox(left);
-  return { sent: box.length - left.length, left: left.length };
+  return { sent, left: COLLECT.pendingCount() };
 };
 
 COLLECT.pendingCount = function () { return COLLECT.outbox().length; };

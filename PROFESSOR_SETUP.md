@@ -57,19 +57,30 @@ function json_(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// 값이 비어 있어도 appendRow 가 실패하지 않게 다듬는다
+function num_(v) { return (typeof v === 'number' && isFinite(v)) ? v : ''; }
+
 function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
 
     if (req.action === 'submit') {
       const r = req.row || {};
-      sheet_().appendRow([
-        r.submittedAt || new Date().toISOString(), r.className || '', r.student || '',
-        r.patientId || '', r.patientName || '', r.condition || '',
-        r.histScore, r.examScore, r.dxScore, r.txScore, r.total,
-        r.dxCorrect || '', r.dxChosen || '', r.txChosen || '',
-        r.examCount, r.examMissed, r.chatTurns, r.clientId || '',
-      ]);
+      // 한 반이 동시에 채점을 끝내면 doPost 가 여러 개 동시에 돈다.
+      // 잠그지 않으면 서로 같은 줄에 써서 결과가 사라진다 (실제로 재현됨).
+      const lock = LockService.getScriptLock();
+      lock.waitLock(30000);
+      try {
+        sheet_().appendRow([
+          r.submittedAt || new Date().toISOString(), r.className || '', r.student || '',
+          r.patientId || '', r.patientName || '', r.condition || '',
+          num_(r.histScore), num_(r.examScore), num_(r.dxScore), num_(r.txScore), num_(r.total),
+          r.dxCorrect || '', r.dxChosen || '', r.txChosen || '',
+          num_(r.examCount), num_(r.examMissed), num_(r.chatTurns), r.clientId || '',
+        ]);
+      } finally {
+        lock.releaseLock();
+      }
       return json_({ ok: true });
     }
 
@@ -161,6 +172,19 @@ git push
 4. **📥 엑셀(.xlsx) 다운로드** → 환자별 상세 점수까지 전부 들어 있습니다
 
 구글 시트를 직접 열어서 봐도 됩니다 (파일 → 다운로드 → Microsoft Excel).
+
+수집처를 아예 안 쓰거나 실습실 인터넷이 구글을 막고 있다면, 각 학생 PC 에서
+**💾 이 PC 기록만 엑셀로 받기** 를 눌러 그 컴퓨터에 남은 결과만 따로 받을 수
+있습니다. 이건 인터넷이 없어도 됩니다.
+
+---
+
+## 이미 배포해 두신 분께
+
+`LockService` 로 감싸는 부분이 나중에 추가됐습니다. 이게 없으면 **한 반이 동시에
+채점을 끝낼 때 결과가 사라집니다** (12건 중 1건만 남는 것을 재현했습니다).
+위 스크립트를 다시 통째로 붙여넣고, **배포 → 배포 관리 → 편집 → 버전 '새 버전'
+→ 배포** 까지 해 주세요. 웹 앱 주소는 그대로라 `config.js` 는 안 고쳐도 됩니다.
 
 ---
 
