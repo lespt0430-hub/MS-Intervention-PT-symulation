@@ -20,6 +20,9 @@ const GAME = {
   // 목표 환자를 지나쳤다. 절반으로 낮추고, 한 프레임에 들어오는 이동량도
   // 제한해 마우스가 튈 때 시야가 통째로 돌아가는 일을 막는다.
   mouseSens: 0.0014,
+  // 손가락은 마우스만큼 멀리 못 움직인다. 같은 감도면 화면을 한 바퀴 돌리는 데
+  // 여러 번 쓸어야 해서 답답하다 — 두 배 조금 넘게 잡는다.
+  touchSens: 0.0032,
   turn: 0,        // 화면 버튼 좌우 회전 (-1 왼쪽 / +1 오른쪽)
   look: 0,        // 화면 버튼 상하 시선 (+1 위 / -1 아래)
   turnSpeed: 1.5, // rad/s
@@ -453,8 +456,14 @@ function buildTherapist(stance, skin, hair) {
 // ── 조작 ──
 function bindControls() {
   const dom = GAME.renderer.domElement;
+  // 손가락으로 만진 직후에는 포인터 잠금을 걸지 않는다. 휴대폰에는 잠금이
+  // 없어서 실패할 뿐 아니라, 화면을 밀어 둘러보다 손을 떼면 click 이 같이
+  // 발생해 매번 거부된 요청이 콘솔에 쌓인다.
+  dom.addEventListener('pointerdown', (e) => { GAME.lastTouch = e.pointerType === 'touch'; });
   dom.addEventListener('click', () => {
-    if (!UI.isModalOpen()) dom.requestPointerLock();
+    if (UI.isModalOpen() || GAME.lastTouch) return;
+    const p = dom.requestPointerLock();
+    if (p && p.catch) p.catch(() => { /* 잠금을 못 걸어도 버튼으로 조작할 수 있다 */ });
   });
   document.addEventListener('pointerlockchange', () => {
     GAME.locked = document.pointerLockElement === dom;
@@ -480,6 +489,7 @@ function bindControls() {
   window.addEventListener('resize', () => RENDER.setSize(GAME.renderer, GAME.camera));
 
   bindScreenPad();
+  bindDragLook(dom);
 
   // F3 — 교수용 성능 표시 (적용된 화질 등급 / 실측 FPS)
   document.addEventListener('keydown', (e) => {
@@ -490,12 +500,46 @@ function bindControls() {
   });
 }
 
+// ── 화면을 밀어서 둘러보기 (휴대폰) ──────────────────────────
+// 휴대폰에는 마우스 포인터 잠금이 없어서 시점을 돌릴 방법이 버튼밖에 없었다.
+// 화면을 손가락으로 미는 게 훨씬 빠르고, 요즘 사람들이 3D 화면에서 기대하는
+// 방식이기도 하다. 버튼도 그대로 두어 둘 중 편한 쪽을 쓰게 한다.
+//
+// 손가락(touch)일 때만 동작시킨다. PC에서 마우스 끌기까지 시점을 돌리면
+// 포인터 잠금과 겹쳐 화면이 두 배로 돌아간다.
+function bindDragLook(dom) {
+  let id = null, lx = 0, ly = 0;
+
+  dom.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch' || UI.isModalOpen()) return;
+    id = e.pointerId; lx = e.clientX; ly = e.clientY;
+    if (dom.setPointerCapture) { try { dom.setPointerCapture(id); } catch (err) { /* 무시 */ } }
+  });
+
+  dom.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== id) return;
+    e.preventDefault();
+    // 한 번에 튀는 양을 제한한다 — 손가락을 화면 밖으로 뺐다가 다시 넣으면
+    // 좌표가 크게 건너뛰어 화면이 통째로 돌아가 버린다.
+    const cap = (v) => Math.max(-120, Math.min(120, v));
+    GAME.yaw -= cap(e.clientX - lx) * GAME.touchSens;
+    GAME.pitch -= cap(e.clientY - ly) * GAME.touchSens;
+    GAME.pitch = Math.max(-1.2, Math.min(1.2, GAME.pitch));
+    lx = e.clientX; ly = e.clientY;
+  });
+
+  const end = (e) => { if (e.pointerId === id) id = null; };
+  dom.addEventListener('pointerup', end);
+  dom.addEventListener('pointercancel', end);
+}
+
 // ── 화면 조작판 (마우스·키보드를 못 쓰는 환경용) ──────────────
 // 터치스크린·트랙패드만 있는 PC에서도 클릭만으로 이동·회전·진료가 되어야 한다.
 // 버튼은 누르고 있는 동안 계속 눌린 것으로 처리한다(키보드와 같은 방식).
 function bindScreenPad() {
-  const pad = document.getElementById('screen-pad');
-  if (!pad) return;
+  // 조작판이 좌(이동)·우(둘러보기) 둘로 나뉘어 있다
+  const pads = Array.from(document.querySelectorAll('.screen-pad'));
+  if (!pads.length) return;
 
   const apply = (act, on) => {
     switch (act) {
@@ -510,7 +554,7 @@ function bindScreenPad() {
     }
   };
 
-  pad.querySelectorAll('[data-act]').forEach((btn) => {
+  pads.forEach((pad) => pad.querySelectorAll('[data-act]').forEach((btn) => {
     const act = btn.getAttribute('data-act');
     const press = (e) => {
       e.preventDefault();
@@ -531,7 +575,7 @@ function bindScreenPad() {
     btn.addEventListener('pointercancel', release);
     btn.addEventListener('pointerleave', release);
     btn.addEventListener('contextmenu', (e) => e.preventDefault());
-  });
+  }));
 
   const eBtn = document.getElementById('pad-interact');
   if (eBtn) {
@@ -548,8 +592,7 @@ function bindScreenPad() {
 function releaseScreenPad() {
   GAME.turn = 0; GAME.look = 0;
   ['KeyW', 'KeyA', 'KeyS', 'KeyD'].forEach((k) => { GAME.keys[k] = false; });
-  const pad = document.getElementById('screen-pad');
-  if (pad) pad.querySelectorAll('.on').forEach((b) => b.classList.remove('on'));
+  document.querySelectorAll('.screen-pad .on').forEach((b) => b.classList.remove('on'));
 }
 
 function movePlayer(dt) {

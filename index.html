@@ -16,29 +16,30 @@
 <div class="hud" id="hud-crosshair"></div>
 <div class="hud" id="hud-progress">진료 완료 0 / 12</div>
 <div class="hud" id="hud-prompt"></div>
-<div class="hud" id="hud-hint"><span>화면을 클릭하면 이동 모드가 시작됩니다 (ESC로 해제) · WASD 이동 · 마우스 시점 · 왼쪽 아래 버튼으로도 조작할 수 있습니다</span></div>
+<div class="hud" id="hud-hint"><span>PC: 화면을 클릭하면 이동 모드 시작 (ESC로 해제) · WASD 이동 · 마우스 시점<br>휴대폰: 화면을 손가락으로 밀어 둘러보기 · 왼쪽 아래 버튼으로 이동 · 오른쪽 아래 버튼으로 시점</span></div>
 <div class="hud" id="hud-toast"></div>
 <div class="hud" id="hud-perf">화질 —</div>
 
 <!-- 화면 조작판 — 마우스·키보드 없이 클릭(터치)만으로 이동·회전·진료 -->
-<div class="hud" id="screen-pad">
-  <div class="pad-block">
-    <div class="pad-label">이동</div>
-    <div class="pad-grid">
-      <button data-act="fwd" aria-label="앞으로">▲</button>
-      <button data-act="left" aria-label="왼쪽으로">◀</button>
-      <button data-act="back" aria-label="뒤로">▼</button>
-      <button data-act="right" aria-label="오른쪽으로">▶</button>
-    </div>
+<!-- 조작판을 좌우로 나눈다. 한쪽에 모아 두면 휴대폰에서 한 손으로 이동과
+     회전을 같이 해야 해서 손가락이 엉킨다. 왼손=이동, 오른손=둘러보기가
+     휴대폰에서 익숙한 배치다. -->
+<div class="hud screen-pad" id="pad-move">
+  <div class="pad-label">이동</div>
+  <div class="pad-grid">
+    <button data-act="fwd" aria-label="앞으로">▲</button>
+    <button data-act="left" aria-label="왼쪽으로">◀</button>
+    <button data-act="back" aria-label="뒤로">▼</button>
+    <button data-act="right" aria-label="오른쪽으로">▶</button>
   </div>
-  <div class="pad-block">
-    <div class="pad-label">둘러보기</div>
-    <div class="pad-look">
-      <button data-act="turnL" aria-label="왼쪽으로 돌기">↺</button>
-      <button data-act="lookU" aria-label="위 보기">↑</button>
-      <button data-act="lookD" aria-label="아래 보기">↓</button>
-      <button data-act="turnR" aria-label="오른쪽으로 돌기">↻</button>
-    </div>
+</div>
+<div class="hud screen-pad" id="pad-look">
+  <div class="pad-label">둘러보기</div>
+  <div class="pad-look-grid">
+    <button data-act="turnL" aria-label="왼쪽으로 돌기">↺</button>
+    <button data-act="lookU" aria-label="위 보기">↑</button>
+    <button data-act="lookD" aria-label="아래 보기">↓</button>
+    <button data-act="turnR" aria-label="오른쪽으로 돌기">↻</button>
   </div>
   <button id="pad-interact">환자 진료 시작 <b>E</b></button>
 </div>
@@ -150,7 +151,8 @@
     <div class="controls-help">
       <b>진행 방법</b><br>
       ① <b>WASD</b>로 이동, <b>마우스</b>로 둘러보기 → 환자에게 다가가 <b>E</b>키로 진료 시작<br>
-      &nbsp;&nbsp;&nbsp;(마우스·키보드 없이 <b>화면 왼쪽 아래 버튼</b>만 눌러서 이동·회전·진료도 가능합니다)<br>
+      &nbsp;&nbsp;&nbsp;휴대폰·태블릿은 <b>화면을 밀어</b> 둘러보고, <b>왼쪽 아래</b> 버튼으로 이동,
+      <b>오른쪽 아래</b> 버튼으로 시점·진료를 조작합니다<br>
       ② <b>문진</b>(자유 대화) → <b>이학적 검사</b> 선택 → <b>진단</b> → <b>치료계획</b> 수립 → 채점<br>
       ③ 12명 모두 진료하면 종합 성적표가 열립니다
     </div>

@@ -32,7 +32,9 @@ html, body {
 }
 
 #canvas-wrap { position: fixed; inset: 0; }
-#canvas-wrap canvas { display: block; }
+/* touch-action:none 이 있어야 손가락으로 화면을 밀 때 브라우저가 페이지를
+   스크롤하거나 확대하지 않고 우리에게 좌표를 넘겨준다 (휴대폰 시점 회전) */
+#canvas-wrap canvas { display: block; touch-action: none; }
 
 /* ── 시작 화면 ── */
 #start-screen {
@@ -175,36 +177,47 @@ html, body {
 #hud-hint { inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5%; }
 #hud-hint span {
   background: rgba(1,36,72,.72); color: #e6eef7; padding: 10px 20px;
-  border-radius: var(--r); font-size: 14px;
+  border-radius: var(--r); font-size: 14px; text-align: center; line-height: 1.6;
+  max-width: 92vw;
+}
+/* 휴대폰에서는 조작판이 화면 아래 양쪽 구석을 차지한다. 안내 문구를 그대로
+   두면 조작판 뒤에 깔려 글자가 잘린 채 겹쳐 보인다 — 조작판 위로 올린다. */
+@media (max-width: 560px), (max-height: 560px) {
+  #hud-hint { padding-bottom: 172px; }
+  #hud-hint span { font-size: 11.5px; padding: 8px 12px; max-width: 94vw; }
 }
 
-/* ── 화면 조작판 (좌측 하단) ──
-   마우스·키보드를 못 쓰는 실습 환경에서도 클릭만으로 다닐 수 있어야 한다.
-   .hud가 pointer-events:none이므로 여기서 다시 켜 준다. */
-#screen-pad {
-  left: 18px; bottom: 18px; pointer-events: auto;
-  /* 폭을 명시한다 — 내용 크기에 맡기면 아래 진료 버튼의 width:100%가
-     기준 폭을 못 찾아 글자가 한 줄에 한 글자씩 세로로 쪼개진다 */
-  width: 202px;
+/* ── 화면 조작판 ──
+   마우스·키보드를 못 쓰는 실습 환경, 그리고 휴대폰에서도 다닐 수 있어야 한다.
+   .hud가 pointer-events:none이므로 여기서 다시 켜 준다.
+
+   좌우로 나눈 이유 — 한쪽에 모아 두면 휴대폰에서 한 손으로 이동과 회전을
+   같이 해야 해서 손가락이 엉킨다. 왼손=이동, 오른손=둘러보기. */
+.screen-pad {
+  bottom: 18px; pointer-events: auto;
   display: flex; flex-direction: column; gap: 10px;
   background: rgba(1,28,56,.6); border: 1px solid rgba(255,255,255,.18);
   border-radius: var(--r-lg); padding: 12px 13px 13px;
   backdrop-filter: blur(3px);
   user-select: none; -webkit-user-select: none; touch-action: none;
 }
-#screen-pad .pad-label {
+#pad-move { left: 18px; }
+/* 폭을 명시한다 — 내용 크기에 맡기면 진료 버튼의 width:100%가 기준 폭을
+   못 찾아 글자가 한 줄에 한 글자씩 세로로 쪼개진다 */
+#pad-look { right: 18px; width: 202px; }
+.screen-pad .pad-label {
   color: #c9dcf0; font-size: 11px; letter-spacing: .04em;
   margin-bottom: 5px; text-align: center; opacity: .85;
 }
-#screen-pad button {
+.screen-pad button {
   pointer-events: auto; cursor: pointer; border: 1px solid rgba(255,255,255,.28);
   background: rgba(255,255,255,.13); color: #f2f8fc;
   border-radius: var(--r); font-size: 19px; line-height: 1;
   width: 46px; height: 46px; padding: 0;
   transition: background .08s, transform .08s;
 }
-#screen-pad button:hover { background: rgba(255,255,255,.24); }
-#screen-pad button.on { background: var(--blue); transform: scale(.94); }
+.screen-pad button:hover { background: rgba(255,255,255,.24); }
+.screen-pad button.on { background: var(--blue); transform: scale(.94); }
 /* 십자 배치: 위 / 좌·하·우 */
 .pad-grid {
   display: grid; grid-template-columns: repeat(3, 46px);
@@ -214,7 +227,7 @@ html, body {
 .pad-grid button:nth-child(2) { grid-column: 1; grid-row: 2; }
 .pad-grid button:nth-child(3) { grid-column: 2; grid-row: 2; }
 .pad-grid button:nth-child(4) { grid-column: 3; grid-row: 2; }
-.pad-look { display: flex; gap: 6px; }
+.pad-look-grid { display: flex; gap: 6px; justify-content: center; }
 #pad-interact {
   width: 100%; height: auto; padding: 11px 8px; font-size: 13px; font-weight: bold;
   white-space: nowrap;
@@ -227,12 +240,16 @@ html, body {
 /* 환자 앞에 섰을 때만 활성 */
 #pad-interact.ready { background: var(--green); color: #fff; cursor: pointer; border-color: rgba(255,255,255,.45); }
 #pad-interact.ready:hover { background: #239a57; }
-/* 화면이 낮으면 조작판을 줄인다 */
-@media (max-height: 700px) {
-  #screen-pad { width: 178px; padding: 9px 10px 10px; gap: 8px; }
-  #screen-pad button { width: 40px; height: 40px; font-size: 17px; }
-  .pad-grid { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(2, 40px); }
+/* 화면이 낮거나 좁으면 조작판을 줄인다 (휴대폰 가로·세로 모두) */
+@media (max-height: 700px), (max-width: 560px) {
+  .screen-pad { padding: 9px 10px 10px; gap: 8px; bottom: 12px; }
+  #pad-move { left: 12px; }
+  #pad-look { right: 12px; width: 170px; }
+  .screen-pad button { width: 42px; height: 42px; font-size: 17px; }
+  .pad-grid { grid-template-columns: repeat(3, 42px); grid-template-rows: repeat(2, 42px); }
   #pad-interact { width: 100%; height: auto; font-size: 12px; padding: 9px 6px; }
+  /* 키보드 안내(E 표시)는 휴대폰에서 뜻이 없다 */
+  #pad-interact b { display: none; }
 }
 
 /* ── 교수 모드 · 학생 결과 조회 ── */
