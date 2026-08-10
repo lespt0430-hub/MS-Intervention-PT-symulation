@@ -24,6 +24,7 @@ GitHub Pages(또는 로컬 폴더)에서 함께 제공되므로 의존하는 외
 | `Reflector` | 평면 반사 — 운동재활실 벽거울 (높음 화질 전용). 바닥에는 더 이상 쓰지 않는다 |
 | `GLTFLoader` | 리깅된 인체 모델(.glb) 불러오기 |
 | `SkeletonUtils` | `clone()` — 모델 하나를 환자 여러 명으로 복제 (지오메트리 공유, 스켈레톤만 분리) |
+| `RoundedBoxGeometry` | 모서리를 굴린 상자 — 치료기 카트·수납장·베드 매트 (`KIT.rbox`) |
 
 ## 다시 만드는 방법
 
@@ -50,12 +51,13 @@ import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // SkeletonUtils 는 개별 함수를 내보내므로 네임스페이스로 받아야 한다
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 window.THREE = THREE;
 window.TX = {
   EffectComposer, RenderPass, OutputPass, SMAAPass, GTAOPass,
   UnrealBloomPass, RoomEnvironment, RectAreaLightUniformsLib, Reflector,
-  GLTFLoader, SkeletonUtils,
+  GLTFLoader, SkeletonUtils, RoundedBoxGeometry,
 };
 ```
 
