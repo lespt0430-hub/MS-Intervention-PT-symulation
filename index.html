@@ -54,9 +54,18 @@
 
 <!-- 시작 화면 -->
 <div id="start-screen">
+  <!-- 대학 홈페이지처럼 상단에 남색 표제 띠를 둔다. 실습 도구가 학교 시스템의
+       일부로 보이면 학생이 처음 들어왔을 때 덜 낯설다. -->
+  <header class="gh-bar">
+    <div class="gh-bar-in">
+      <span class="gh-mark">GHU</span>
+      <span class="gh-name">광주보건대학교</span>
+      <span class="gh-dept">물리치료학과</span>
+    </div>
+  </header>
   <div class="start-card">
-    <h1>🏥 근골격계 물리치료 가상환자 시뮬레이션</h1>
-    <div class="sub">광주보건대학교 물리치료학과 · JOSPT 임상진료지침(CPG) 기반 · 가상환자 12명</div>
+    <h1>근골격계 물리치료 가상환자 시뮬레이션</h1>
+    <div class="sub">JOSPT 임상진료지침(CPG) 기반 · 가상환자 12명</div>
 
     <label>분반</label>
     <input type="text" id="inp-class" placeholder="예: 물리치료중재론 A반" autocomplete="off">
