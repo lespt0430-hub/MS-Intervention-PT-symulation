@@ -21,6 +21,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Malgun G
   width: 100%; padding: 11px 13px; border: 1.5px solid #c8d6e0; border-radius: 9px; font-size: 14px;
 }
 .start-card input:focus, .start-card select:focus { outline: none; border-color: #2c8c99; }
+/* 학번·이름은 짧아서 한 줄에 나란히 둔다 — 세로로 쌓으면 시작 화면이 길어져
+   입장 버튼이 화면 밖으로 밀린다 */
+.start-card .id-row { display: flex; gap: 10px; }
+.start-card .id-row > div { flex: 1; min-width: 0; }
+.start-card .id-row label { margin-top: 14px; }
 .key-hint { font-size: 11.5px; color: #8496a5; margin-top: 4px; }
 .key-hint a { color: #2c8c99; }
 #btn-start {

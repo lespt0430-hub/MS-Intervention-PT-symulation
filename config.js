@@ -10,6 +10,9 @@ window.PTSIM_CONFIG = {
   // 구글 Apps Script 웹 앱 주소 (…/exec 로 끝납니다)
   collectUrl: 'https://script.google.com/macros/s/AKfycbwscYCGJIVbtQ2go6QcCdnCqzn4w9D8QR04bEgtsZn6eQ79ArdowQ7FFbQGXXC1v4M/exec',
 
-  // 결과 시트에 함께 기록할 분반 이름 (예: '2025-1 물리치료중재론 A반')
+  // 분반 기본값. 학생이 입장할 때 분반 칸에 미리 채워져 나옵니다.
+  // (학생이 직접 고쳐 넣을 수도 있습니다. 비워 두면 학생이 매번 입력합니다.)
+  // 여기 적어 두면 표기가 통일되어 엑셀에서 분반별로 묶기 좋습니다.
+  // 예: '2026-2 물리치료중재론 A반'
   className: '',
 };

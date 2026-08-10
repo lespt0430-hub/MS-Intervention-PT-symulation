@@ -170,6 +170,8 @@ async function main() {
 
   // 시작 화면 건너뛰기
   await cdp.eval(`(()=>{
+    document.getElementById('inp-class').value = '점검용 분반';
+    document.getElementById('inp-sid').value = '00000000';
     document.getElementById('inp-name').value = '캡처';
     const q = document.getElementById('inp-quality'); if (q) q.value = ${JSON.stringify(QUALITY)};
     document.querySelector('input[name="chatmode"][value="offline"]').checked = true;

@@ -64,6 +64,9 @@ function loadCollect(env = {}) {
   return { COLLECT: window.COLLECT, window, localStorage, saved, blobs };
 }
 
+// 학생 정보 — 분반·학번·이름을 따로 받는다
+const WHO = { className: '2026-2 물리치료중재론 A반', studentId: '20251234', studentName: '홍길동' };
+
 // ── 시험용 환자·기록 (한글·특수문자·제어문자를 일부러 섞는다) ──
 const patient = {
   id: 'P07',
@@ -100,18 +103,19 @@ const run = async () => {
     const mock = createMockAppsScript();
     const url = await mock.start();
     const { COLLECT, window } = loadCollect();
-    window.PTSIM_CONFIG = { collectUrl: url, className: '2026-2 물리치료중재론 A반' };
+    window.PTSIM_CONFIG = { collectUrl: url };
 
-    const r = await COLLECT.submit(patient, record, '20251234 홍길동');
+    const r = await COLLECT.submit(patient, record, WHO);
     check('제출이 성공으로 돌아온다', r.ok === true, JSON.stringify(r));
     check('시트에 한 줄 쌓인다', mock.state.rows.length === 1);
     check('사전요청(OPTIONS)이 한 번도 가지 않는다', mock.state.preflights === 0,
       '사전요청 ' + mock.state.preflights + '회 — 실제 Apps Script 라면 CORS 로 전송 실패');
 
     const row = mock.state.rows[0] || {};
-    check('학생·분반·환자가 제대로 실린다',
-      row.student === '20251234 홍길동' && row.className === '2026-2 물리치료중재론 A반' && row.patientId === 'P07',
-      JSON.stringify(row).slice(0, 160));
+    check('분반·학번·이름이 각각 따로 실린다',
+      row.className === '2026-2 물리치료중재론 A반' && row.studentId === '20251234'
+      && row.student === '홍길동' && row.patientId === 'P07',
+      JSON.stringify(row).slice(0, 180));
     check('총점 32, 진단정답 O', row.total === 32 && row.dxCorrect === 'O', `total=${row.total} dxCorrect=${row.dxCorrect}`);
     check('누락 필수검사 1건(ex-empty)', row.examMissed === 1, String(row.examMissed));
     check('문진 질문수 2', row.chatTurns === 2, String(row.chatTurns));
@@ -128,9 +132,9 @@ const run = async () => {
     const { COLLECT, window } = loadCollect();
     window.PTSIM_CONFIG = { collectUrl: url };
 
-    const r1 = await COLLECT.submit(patient, record, '20251234 홍길동');
+    const r1 = await COLLECT.submit(patient, record, WHO);
     check('실패가 사용자에게 보고된다', r1.ok === false && r1.queued === 1, JSON.stringify(r1));
-    await COLLECT.submit({ ...patient, id: 'P08' }, record, '20251234 홍길동');
+    await COLLECT.submit({ ...patient, id: 'P08' }, record, WHO);
     check('실패분이 보관함에 쌓인다', COLLECT.pendingCount() === 2, String(COLLECT.pendingCount()));
 
     mock.state.fail = null;                      // 인터넷 복구
@@ -150,7 +154,7 @@ const run = async () => {
     window.PTSIM_CONFIG = { collectUrl: url };
 
     // 12명 환자를 오프라인으로 다 본 뒤 접속한 상황
-    const box = Array.from({ length: 12 }, (_, i) => COLLECT.buildRow({ ...patient, id: 'P' + i }, record, '학생'));
+    const box = Array.from({ length: 12 }, (_, i) => COLLECT.buildRow({ ...patient, id: 'P' + i }, record, WHO));
     localStorage.setItem('ptsim_outbox', JSON.stringify(box));
 
     const t0 = Date.now();
@@ -181,7 +185,7 @@ const run = async () => {
       const { COLLECT, window } = loadCollect();
       window.PTSIM_CONFIG = { collectUrl: bareUrl };
       await Promise.all(Array.from({ length: 12 }, (_, i) =>
-        COLLECT.submit({ ...patient, id: 'P' + i }, record, '학생' + i)));
+        COLLECT.submit({ ...patient, id: 'P' + i }, record, { ...WHO, studentId: '2025' + i, studentName: '학생' + i })));
     }
     const bareLanded = bare.state.rows.filter(Boolean).length;
     check('잠금이 없으면 결과가 실제로 사라진다 (LockService 가 필요한 근거)',
@@ -195,7 +199,7 @@ const run = async () => {
     const { COLLECT, window } = loadCollect();
     window.PTSIM_CONFIG = { collectUrl: url };
     await Promise.all(Array.from({ length: 12 }, (_, i) =>
-      COLLECT.submit({ ...patient, id: 'P' + i }, record, '학생' + i)));
+      COLLECT.submit({ ...patient, id: 'P' + i }, record, { ...WHO, studentId: '2025' + i, studentName: '학생' + i })));
     const landed = mock.state.rows.filter(Boolean).length;
     check('LockService 를 쓰면 12건이 모두 남는다', landed === 12, `${landed}/12`);
     await mock.stop();
@@ -208,7 +212,7 @@ const run = async () => {
     const url = await mock.start();
     const { COLLECT, window } = loadCollect();
     window.PTSIM_CONFIG = { collectUrl: url, className: 'A반' };
-    for (let i = 0; i < 3; i++) await COLLECT.submit({ ...patient, id: 'P' + i }, record, '학생' + i);
+    for (let i = 0; i < 3; i++) await COLLECT.submit({ ...patient, id: 'P' + i }, record, { ...WHO, studentId: '2025' + i, studentName: '학생' + i });
 
     let rejected = false;
     try { await COLLECT.fetchAll(PROF_ID, '틀린비밀번호'); }
@@ -239,7 +243,9 @@ const run = async () => {
     const PATIENTS = [patient, { ...patient, id: 'P08', name: '이순신' }];
     const UI = {
       state: {
-        studentName: '20251234 홍길동',
+        className: '2026-2 물리치료중재론 A반',
+        studentId: '20251234',
+        studentName: '홍길동',
         records: { P07: record, P08: record },
       },
     };
@@ -249,7 +255,9 @@ const run = async () => {
 
     const rows = COLLECT.localRows();
     check('이 PC 기록 2건을 뽑아낸다', rows.length === 2, String(rows.length));
-    check('학생 이름이 실린다', rows[0].student === '20251234 홍길동', rows[0].student);
+    check('분반·학번·이름이 실린다',
+      rows[0].className === '2026-2 물리치료중재론 A반' && rows[0].studentId === '20251234'
+      && rows[0].student === '홍길동', JSON.stringify(rows[0]).slice(0, 120));
 
     COLLECT.downloadXlsx(rows, '이PC.xlsx');
     check('내려받기가 실행된다', saved.length === 1 && saved[0].name === '이PC.xlsx',

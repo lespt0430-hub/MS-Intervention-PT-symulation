@@ -61,7 +61,11 @@ COLLECT.call = async function (payload, timeoutMs) {
 // ── 학생 제출 ────────────────────────────────────────────────
 // 환자 한 명을 채점할 때마다 한 줄씩 보낸다. 시험 도중 인터넷이 끊겨도
 // 이미 보낸 앞부분은 남고, 실패분은 보관함에 쌓아 두었다가 다시 시도한다.
-COLLECT.buildRow = function (patient, record, studentName) {
+// who = { className, studentId, studentName }
+// 예전에는 이름 한 덩어리만 받아 "202412345 홍길동"처럼 들어갔다. 그러면
+// 엑셀에서 학번으로 정렬하거나 분반별로 나누는 게 안 된다 — 셋으로 나눠 받는다.
+COLLECT.buildRow = function (patient, record, who) {
+  const w = (typeof who === 'string') ? { studentName: who } : (who || {});
   const s = record.scores || {};
   const dxOpt = (patient.diagnosisOptions || []).find((d) => d.id === record.dx);
   const txNames = (record.tx || []).map((id) => {
@@ -71,8 +75,10 @@ COLLECT.buildRow = function (patient, record, studentName) {
   const missed = (patient.requiredExams || []).filter((id) => !(record.performed || []).includes(id));
   return {
     submittedAt: record.when || new Date().toISOString(),
-    className: COLLECT.cfg().className || '',
-    student: studentName || '',
+    // 분반은 학생이 입력한 값을 우선한다. 비어 있을 때만 config.js 값을 쓴다.
+    className: w.className || COLLECT.cfg().className || '',
+    studentId: w.studentId || '',
+    student: w.studentName || '',
     clientId: COLLECT.clientId(),
     patientId: patient.id,
     patientName: patient.name,
@@ -95,9 +101,9 @@ COLLECT.setOutbox = function (rows) {
   localStorage.setItem(COLLECT.OUTBOX, JSON.stringify(rows.slice(-200)));
 };
 
-COLLECT.submit = async function (patient, record, studentName) {
+COLLECT.submit = async function (patient, record, who) {
   if (!COLLECT.enabled()) return { skipped: true };
-  const row = COLLECT.buildRow(patient, record, studentName);
+  const row = COLLECT.buildRow(patient, record, who);
   try {
     await COLLECT.call({ action: 'submit', row });
     COLLECT.flush();          // 밀려 있던 것도 같이 올린다
@@ -271,7 +277,8 @@ COLLECT.toXlsx = function (header, rows, sheetName) {
 COLLECT.HEADER = [
   { key: 'submittedAt', label: '제출시각' },
   { key: 'className', label: '분반' },
-  { key: 'student', label: '학생(학번·이름)' },
+  { key: 'studentId', label: '학번' },
+  { key: 'student', label: '이름' },
   { key: 'patientId', label: '환자번호' },
   { key: 'patientName', label: '환자명' },
   { key: 'condition', label: '주호소' },
@@ -307,10 +314,14 @@ COLLECT.downloadXlsx = function (rows, filename) {
 // 이 PC에 남아 있는 기록만으로 엑셀 만들기 (수집 서버를 안 쓸 때의 대비책)
 COLLECT.localRows = function () {
   if (!window.UI || !UI.state) return [];
+  const who = {
+    className: UI.state.className, studentId: UI.state.studentId,
+    studentName: UI.state.studentName,
+  };
   return Object.keys(UI.state.records || {}).map((pid) => {
     const p = PATIENTS.find((x) => x.id === pid);
     if (!p) return null;
-    return COLLECT.buildRow(p, UI.state.records[pid], UI.state.studentName);
+    return COLLECT.buildRow(p, UI.state.records[pid], who);
   }).filter(Boolean);
 };
 

@@ -58,8 +58,19 @@
     <h1>🏥 근골격계 물리치료 가상환자 시뮬레이션</h1>
     <div class="sub">광주보건대학교 물리치료학과 · JOSPT 임상진료지침(CPG) 기반 · 가상환자 12명</div>
 
-    <label>학생 이름 (학번 포함 가능)</label>
-    <input type="text" id="inp-name" placeholder="예: 202412345 홍길동">
+    <label>분반</label>
+    <input type="text" id="inp-class" placeholder="예: 물리치료중재론 A반" autocomplete="off">
+
+    <div class="id-row">
+      <div>
+        <label>학번</label>
+        <input type="text" id="inp-sid" placeholder="예: 202412345" inputmode="numeric" autocomplete="off">
+      </div>
+      <div>
+        <label>이름</label>
+        <input type="text" id="inp-name" placeholder="예: 홍길동" autocomplete="off">
+      </div>
+    </div>
 
     <label>문진 방식</label>
     <div class="mode-row">

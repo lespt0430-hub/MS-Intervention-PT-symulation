@@ -11,7 +11,9 @@ const UI = {
 };
 
 // ── 상태 저장 ──
-function defaultState() { return { studentName: '', records: {} }; }
+// 분반·학번·이름을 따로 받는다. 예전에는 "202412345 홍길동"처럼 한 칸에
+// 몰아 받아서 엑셀에서 학번만 골라 정렬하거나 분반별로 나누는 게 안 됐다.
+function defaultState() { return { className: '', studentId: '', studentName: '', records: {} }; }
 // 저장 키 v2 — 12명 체제 개편으로 환자 번호가 바뀌어 구버전(10명) 기록과 분리
 UI.load = function () {
   try { UI.state = JSON.parse(localStorage.getItem('ptsim_state_v2')) || defaultState(); }
@@ -73,9 +75,17 @@ UI.updateModeStatus = function () {
 UI.initStart = function () {
   UI.load();
   const nameEl = document.getElementById('inp-name');
+  const classEl = document.getElementById('inp-class');
+  const sidEl = document.getElementById('inp-sid');
   const keyEl = document.getElementById('inp-key');
   const modelEl = document.getElementById('inp-model');
   nameEl.value = UI.state.studentName || '';
+  sidEl.value = UI.state.studentId || '';
+  // 분반은 한 실습실에서 모두 같으므로, 교수님이 config.js에 적어 두었으면
+  // 그 값을 채워 준다. 학생이 매번 타이핑하면 표기가 제각각이 되어
+  // 엑셀에서 분반별로 묶이지 않는다.
+  classEl.value = UI.state.className
+    || ((window.PTSIM_CONFIG && PTSIM_CONFIG.className) || '');
   keyEl.value = getApiKey();
   modelEl.value = getModel();
   if (modelEl.value !== getModel()) { // 저장된 모델이 기본 옵션에 없으면 추가
@@ -114,9 +124,14 @@ UI.initStart = function () {
   // 학생 입장
   document.getElementById('btn-start').addEventListener('click', () => {
     const name = nameEl.value.trim();
+    const sid = sidEl.value.trim();
+    const cls = classEl.value.trim();
     const msg = document.getElementById('start-msg');
     const mode = document.querySelector('input[name="chatmode"]:checked').value;
-    if (!name) { msg.textContent = '이름을 입력하세요.'; return; }
+    // 셋 다 있어야 한다. 하나라도 비면 교수님이 결과를 누구 것인지 못 가린다.
+    if (!cls) { msg.className = 'err'; msg.textContent = '분반을 입력하세요.'; classEl.focus(); return; }
+    if (!sid) { msg.className = 'err'; msg.textContent = '학번을 입력하세요.'; sidEl.focus(); return; }
+    if (!name) { msg.className = 'err'; msg.textContent = '이름을 입력하세요.'; nameEl.focus(); return; }
     if (mode === 'ai' && !hasApiKey()) {
       msg.textContent = 'AI 문진 모드는 교수 모드에서 Gemini API 키를 등록해야 사용할 수 있습니다.';
       document.getElementById('prof-mode').open = true;
@@ -124,7 +139,10 @@ UI.initStart = function () {
     }
     if (!window.THREE) { msg.textContent = '3D 엔진을 아직 불러오는 중입니다. 잠시 후 다시 눌러 주세요.'; return; }
 
-    UI.state.studentName = name; UI.save();
+    UI.state.studentName = name;
+    UI.state.studentId = sid;
+    UI.state.className = cls;
+    UI.save();
     localStorage.setItem('ptsim_mode', mode);
     const qEl = document.getElementById('inp-quality');
     GAME.qualityPref = qEl ? qEl.value : 'auto';
@@ -240,21 +258,28 @@ UI.bindCollect = function () {
       actEl.style.display = 'none';
       return;
     }
-    // 학생별 요약 — 상세 전체는 엑셀로 받아 보는 편이 낫다
+    // 학생별 요약 — 상세 전체는 엑셀로 받아 보는 편이 낫다.
+    // 동명이인이 있을 수 있으므로 학번을 열쇠로 묶는다.
     const byStudent = {};
     rows.forEach((r) => {
-      const k = r.student || '(이름없음)';
-      if (!byStudent[k]) byStudent[k] = { n: 0, sum: 0, last: '' };
+      const k = (r.studentId || '') + ' ' + (r.student || '');
+      if (!byStudent[k]) {
+        byStudent[k] = { cls: r.className || '', sid: r.studentId || '', name: r.student || '(이름없음)',
+          n: 0, sum: 0, last: '' };
+      }
       byStudent[k].n += 1;
       byStudent[k].sum += Number(r.total) || 0;
       if (!byStudent[k].last || r.submittedAt > byStudent[k].last) byStudent[k].last = r.submittedAt;
     });
-    const names = Object.keys(byStudent).sort();
-    let html = '<div class="collect-sum">학생 <b>' + names.length + '명</b> · 제출 <b>' + rows.length + '건</b></div>' +
-      '<table class="collect-table"><thead><tr><th>학생</th><th>완료</th><th>평균</th><th>합계</th><th>최근 제출</th></tr></thead><tbody>';
-    names.forEach((n) => {
-      const s = byStudent[n];
-      html += '<tr><td>' + n + '</td><td>' + s.n + ' / ' + PATIENTS.length + '</td>' +
+    // 분반 → 학번 순으로 정렬해야 교수님이 출석부와 나란히 놓고 볼 수 있다
+    const list = Object.values(byStudent).sort((a, b) =>
+      (a.cls || '').localeCompare(b.cls || '') || String(a.sid).localeCompare(String(b.sid)));
+    let html = '<div class="collect-sum">학생 <b>' + list.length + '명</b> · 제출 <b>' + rows.length + '건</b></div>' +
+      '<table class="collect-table"><thead><tr><th>분반</th><th>학번</th><th>이름</th>' +
+      '<th>완료</th><th>평균</th><th>합계</th><th>최근 제출</th></tr></thead><tbody>';
+    list.forEach((s) => {
+      html += '<tr><td>' + s.cls + '</td><td>' + s.sid + '</td><td>' + s.name + '</td>' +
+        '<td>' + s.n + ' / ' + PATIENTS.length + '</td>' +
         '<td>' + (s.sum / s.n).toFixed(1) + '</td><td>' + s.sum.toFixed(1) + '</td>' +
         '<td>' + String(s.last).replace('T', ' ').slice(0, 16) + '</td></tr>';
     });
@@ -314,6 +339,14 @@ UI.bindCollect = function () {
     msgEl.className = 'ok';
     msgEl.textContent = '✓ 이 PC 기록 ' + rows.length + '건을 엑셀로 저장했습니다.';
   });
+};
+
+// 학생 표기 — "분반 · 학번 이름". 성적표·파일이름이 제각각이면 교수님이
+// 회수할 때 누구 것인지 맞춰 보기 어렵다.
+UI.studentLabel = function () {
+  const st = UI.state || {};
+  const idName = [st.studentId, st.studentName].filter(Boolean).join(' ');
+  return [st.className, idName].filter(Boolean).join(' · ') || '(미입력)';
 };
 
 UI.updateProgress = function () {
@@ -516,7 +549,11 @@ UI.submit = async function () {
   // 채점 화면을 막지 않도록 기다리지 않는다. 실패하면 보관함에 쌓였다가
   // 다음 제출·다음 접속 때 자동으로 다시 올라간다.
   if (window.COLLECT && COLLECT.enabled()) {
-    COLLECT.submit(p, record, UI.state.studentName).then((r) => {
+    COLLECT.submit(p, record, {
+      className: UI.state.className,
+      studentId: UI.state.studentId,
+      studentName: UI.state.studentName,
+    }).then((r) => {
       if (r && r.ok === false) UI.toast('결과 전송이 지연되고 있습니다 — 자동으로 다시 시도합니다 (대기 ' + r.queued + '건)');
     });
   }
@@ -609,7 +646,7 @@ UI.showFinal = function () {
   const avg = round1(total / PATIENTS.length);
   const grade = avg >= 36 ? 'A' : avg >= 32 ? 'B' : avg >= 28 ? 'C' : avg >= 24 ? 'D' : 'F';
   document.getElementById('final-body').innerHTML =
-    '<h2>종합 성적표</h2><p class="final-student">' + UI.state.studentName + ' · ' + new Date().toLocaleDateString('ko-KR') + '</p>' +
+    '<h2>종합 성적표</h2><p class="final-student">' + UI.studentLabel() + ' · ' + new Date().toLocaleDateString('ko-KR') + '</p>' +
     '<table class="final-table"><tr><th>베드</th><th>환자</th><th>질환(CPG)</th><th>문진</th><th>검사</th><th>진단</th><th>치료</th><th>총점/40</th></tr>' +
     rows + '</table>' +
     '<div class="final-total">평균 <b>' + avg + '</b> / 40점 — 등급 <b class="final-grade">' + grade + '</b></div>' +
@@ -640,7 +677,9 @@ UI.downloadReport = function () {
   const blob = new Blob(['﻿' + txt], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = '가상환자시뮬레이션_결과_' + UI.state.studentName + '.txt';
+  a.download = '가상환자시뮬레이션_결과_'
+    + ([UI.state.studentId, UI.state.studentName].filter(Boolean).join('_') || '결과')
+      .replace(/[\/:*?"<>|]/g, '_') + '.txt';
   a.click();
 };
 

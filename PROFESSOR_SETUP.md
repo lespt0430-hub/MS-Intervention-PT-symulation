@@ -33,85 +33,83 @@ GitHub Pages는 파일만 보내주는 곳이라 데이터를 저장할 서버�
    복사하셔도 됩니다)
 
 ```javascript
-// 가상환자시뮬레이션 — 결과 수집기
-// 아래 두 줄만 교수님이 쓰실 값으로 바꾸세요.
-const PROF_ID = 'prof';            // 교수 아이디
-const PROF_PW = '여기에_비밀번호';   // 교수 비밀번호 (학생에게 알려주지 마세요)
-
-const SHEET_NAME = '결과';
-const HEADER = ['제출시각', '분반', '학생', '환자번호', '환자명', '주호소',
-  '문진(10)', '검사(10)', '진단(10)', '치료(10)', '총점(40)',
-  '진단정답', '선택한 진단', '선택한 치료', '시행검사수', '누락필수검사',
-  '문진질문수', 'PC식별자'];
-
+var PROF_ID = 'lespt0430';
+var PROF_PW = 'CHANGE_ME';
+var SHEET_NAME = '결과';
+var HEADER = ['제출시각', '분반', '학번', '이름', '환자번호', '환자명', '주호소', '문진(10)', '검사(10)', '진단(10)', '치료(10)', '총점(40)', '진단정답', '선택한 진단', '선택한 치료', '시행검사수', '누락필수검사', '문진질문수', 'PC식별자'];
+var KEYS = ['submittedAt', 'className', 'studentId', 'student', 'patientId', 'patientName', 'condition', 'histScore', 'examScore', 'dxScore', 'txScore', 'total', 'dxCorrect', 'dxChosen', 'txChosen', 'examCount', 'examMissed', 'chatTurns', 'clientId'];
 function sheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(SHEET_NAME);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
+    sh = ss.insertSheet(SHEET_NAME);
+    sh.appendRow(HEADER);
+    sh.setFrozenRows(1);
+    return sh;
+  }
+  if (sh.getMaxColumns() < HEADER.length) {
+    sh.insertColumnsAfter(sh.getMaxColumns(), HEADER.length - sh.getMaxColumns());
+  }
+  var head = sh.getRange(1, 1, 1, HEADER.length).getValues()[0];
+  var same = true;
+  for (var i = 0; i < HEADER.length; i++) {
+    if (String(head[i]).trim() !== HEADER[i]) { same = false; break; }
+  }
+  if (!same) {
+    var stamp = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyyMMdd_HHmm');
+    sh.setName(SHEET_NAME + '_이전_' + stamp);
     sh = ss.insertSheet(SHEET_NAME);
     sh.appendRow(HEADER);
     sh.setFrozenRows(1);
   }
   return sh;
 }
-
 function json_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
-
-// 값이 비어 있어도 appendRow 가 실패하지 않게 다듬는다
-function num_(v) { return (typeof v === 'number' && isFinite(v)) ? v : ''; }
-
+function num_(v) {
+  return (typeof v === 'number' && isFinite(v)) ? v : '';
+}
 function doPost(e) {
   try {
-    const req = JSON.parse(e.postData.contents);
-
+    var req = JSON.parse(e.postData.contents);
     if (req.action === 'submit') {
-      const r = req.row || {};
-      // 한 반이 동시에 채점을 끝내면 doPost 가 여러 개 동시에 돈다.
-      // 잠그지 않으면 서로 같은 줄에 써서 결과가 사라진다 (실제로 재현됨).
-      const lock = LockService.getScriptLock();
+      var r = req.row || {};
+      var lock = LockService.getScriptLock();
       lock.waitLock(30000);
       try {
         sheet_().appendRow([
-          r.submittedAt || new Date().toISOString(), r.className || '', r.student || '',
+          r.submittedAt || new Date().toISOString(), r.className || '',
+          r.studentId || '', r.student || '',
           r.patientId || '', r.patientName || '', r.condition || '',
           num_(r.histScore), num_(r.examScore), num_(r.dxScore), num_(r.txScore), num_(r.total),
           r.dxCorrect || '', r.dxChosen || '', r.txChosen || '',
-          num_(r.examCount), num_(r.examMissed), num_(r.chatTurns), r.clientId || '',
+          num_(r.examCount), num_(r.examMissed), num_(r.chatTurns), r.clientId || ''
         ]);
       } finally {
         lock.releaseLock();
       }
       return json_({ ok: true });
     }
-
     if (req.action === 'list') {
       if (req.user !== PROF_ID || req.pw !== PROF_PW) {
         return json_({ ok: false, error: '아이디 또는 비밀번호가 맞지 않습니다.' });
       }
-      const values = sheet_().getDataRange().getValues();
-      const keys = ['submittedAt', 'className', 'student', 'patientId', 'patientName',
-        'condition', 'histScore', 'examScore', 'dxScore', 'txScore', 'total',
-        'dxCorrect', 'dxChosen', 'txChosen', 'examCount', 'examMissed',
-        'chatTurns', 'clientId'];
-      const rows = values.slice(1).map(function (v) {
-        const o = {};
-        keys.forEach(function (k, i) {
-          o[k] = (v[i] instanceof Date) ? v[i].toISOString() : v[i];
-        });
+      var values = sheet_().getDataRange().getValues();
+      var rows = values.slice(1).map(function (v) {
+        var o = {};
+        for (var i = 0; i < KEYS.length; i++) {
+          o[KEYS[i]] = (v[i] instanceof Date) ? v[i].toISOString() : v[i];
+        }
         return o;
       });
       return json_({ ok: true, rows: rows });
     }
-
     return json_({ ok: false, error: '알 수 없는 요청입니다.' });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
 }
-
 function doGet() {
   return json_({ ok: true, msg: '가상환자시뮬레이션 수집기가 동작 중입니다.' });
 }
@@ -182,12 +180,23 @@ git push
 
 ---
 
-## 이미 배포해 두신 분께
+## 이미 배포해 두신 분께 — 다시 붙여넣어야 합니다
 
-`LockService` 로 감싸는 부분이 나중에 추가됐습니다. 이게 없으면 **한 반이 동시에
-채점을 끝낼 때 결과가 사라집니다** (12건 중 1건만 남는 것을 재현했습니다).
-위 스크립트를 다시 통째로 붙여넣고, **배포 → 배포 관리 → 편집 → 버전 '새 버전'
-→ 배포** 까지 해 주세요. 웹 앱 주소는 그대로라 `config.js` 는 안 고쳐도 됩니다.
+스크립트가 두 번 바뀌었습니다.
+
+1. **`LockService`** — 이게 없으면 한 반이 동시에 채점을 끝낼 때 결과가
+   사라집니다 (12건 중 1건만 남는 것을 재현했습니다).
+2. **학번 열 추가** — 예전에는 `학생(학번·이름)` 한 칸이었는데 **`분반` ·
+   `학번` · `이름` 세 칸**으로 나뉘었습니다. 학생이 입장할 때 셋을 따로
+   입력하므로, 엑셀에서 학번으로 정렬하거나 분반별로 나눌 수 있습니다.
+
+위 스크립트를 다시 통째로 붙여넣고, **배포 → 배포 관리 → ✏ 편집 → 버전
+'새 버전' → 배포** 까지 해 주세요. 웹 앱 주소는 그대로라 `config.js` 는
+안 고쳐도 됩니다.
+
+> **기존 시트는 그대로 둡니다.** 열 구성이 바뀌었으므로 스크립트가 옛 `결과`
+> 시트를 `결과_이전_20260810_1530` 처럼 이름만 바꿔 남겨 두고, 새 열로 된
+> `결과` 시트를 새로 만듭니다. 지우지 않으니 예전 데이터는 그대로 있습니다.
 
 ---
 

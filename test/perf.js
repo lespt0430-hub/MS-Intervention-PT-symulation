@@ -85,7 +85,9 @@ async function main() {
   await cdp.send('Page.navigate', { url: `http://127.0.0.1:${port}/` });
   await sleep(3500);
 
-  await cdp.eval(`(()=>{document.getElementById('inp-name').value='측정';
+  await cdp.eval(`(()=>{document.getElementById('inp-class').value='점검용 분반';
+    document.getElementById('inp-sid').value='00000000';
+    document.getElementById('inp-name').value='측정';
     const q=document.getElementById('inp-quality'); if(q) q.value=${JSON.stringify(QUALITY)};
     document.querySelector('input[name="chatmode"][value="offline"]').checked=true;
     document.getElementById('btn-start').click(); return 1;})()`);
