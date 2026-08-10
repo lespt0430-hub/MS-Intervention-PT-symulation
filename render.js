@@ -25,29 +25,35 @@ const RENDER = {
 // PBR 맵·환경광·색관리는 모든 등급에 적용한다 — 런타임 비용이 거의 없고
 // "올드해 보임"을 없애는 효과의 대부분이 여기서 나온다.
 // 등급에 따라 달라지는 것은 해상도·그림자·광원 종류·후처리뿐이다.
+// 조명 방침을 바꿨다 — 예전에는 천장 등기구 6~10개가 방을 밝히고 환경광은
+// 거들기만 했다. 광원 하나하나가 모든 픽셀에 계산되므로 그게 곧 프레임 저하였고,
+// 광원이 점점이 박혀 있으니 밝은 얼룩과 어두운 구석이 번갈아 생겨
+// 오래된 게임 화면처럼 보였다.
+//
+// 지금은 반대다. 밝고 고른 스튜디오 환경광(IBL)이 조명의 대부분을 맡는다.
+// 환경광은 광원 수와 무관하게 큐브맵 조회 한 번이라 사실상 공짜이고,
+// 사방에서 오는 빛이라 그림자 경계가 부드럽다. 직접광은 형태를 잡아 줄
+// 만큼만 약하게 남긴다. 가벼워지면서 동시에 부드러워진다.
 RENDER.PRESETS = {
-  // ceilingCount: 실이 셋으로 나뉘어 최소 6개는 있어야 어느 방도 어둡지 않다.
   low: {
-    pixelRatio: 1, shadow: 1024, shadowType: 'pcf',
-    ceiling: 'point', ceilingCount: 6, ceilingIntensity: 4.0,
-    hemi: 0.16, sun: 0.62, envIntensity: 0.35,
+    pixelRatio: 1, shadow: 1024,
+    ceilingCount: 3, ceilingIntensity: 1.8,
+    hemi: 0.26, sun: 0.34, envIntensity: 0.68,
     post: false, aniso: 4, reflect: 0,
   },
   medium: {
-    pixelRatio: 1, shadow: 2048, shadowType: 'pcfsoft',
-    ceiling: 'area', ceilingCount: 6, ceilingIntensity: 4.0,
-    hemi: 0.15, sun: 0.55, envIntensity: 0.40,
-    // 블룸까지만. GTAO·평면반사는 장면을 한 번 더 그리거나 픽셀당 비용이 커서
-    // 중간 사양에서 프레임이 반토막 난다.
-    post: 'bloom', aniso: 8, reflect: 0,
+    pixelRatio: 1, shadow: 1536,
+    ceilingCount: 5, ceilingIntensity: 1.7,
+    hemi: 0.25, sun: 0.36, envIntensity: 0.72,
+    post: false, aniso: 8, reflect: 0,
   },
   high: {
-    pixelRatio: 1.5, shadow: 2048, shadowType: 'pcfsoft',
-    ceiling: 'area', ceilingCount: 10, ceilingIntensity: 3.8,
-    hemi: 0.13, sun: 0.55, envIntensity: 0.42,
-    // 반사는 0.58이면 바닥이 거울이 되어 통로가 하얗게 탄다. 0.34가
-    // 참고 도면의 '광택 있는 병원 바닥'에 가깝다.
-    post: 'full', aniso: 16, reflect: 0.34,
+    pixelRatio: 1.25, shadow: 2048,
+    ceilingCount: 7, ceilingIntensity: 1.6,
+    hemi: 0.24, sun: 0.38, envIntensity: 0.75,
+    // 평면 반사(Reflector)는 장면을 통째로 한 번 더 그린다. 바닥에까지 쓰면
+    // 그리는 양이 두 배가 된다 — 운동재활실 벽거울 하나에만 허용한다.
+    post: 'bloom', aniso: 16, reflect: 0.9,
   },
 };
 
@@ -88,31 +94,79 @@ RENDER.createRenderer = function (container) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.pixelRatio));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = q.shadowType === 'pcf' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+  // r185에서 PCFSoftShadowMap은 폐지되어 내부적으로 PCF로 되돌아간다
+  // (콘솔에 경고만 남고 효과는 없었다). 처음부터 PCF로 지정한다.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   // ACES Filmic — 하이라이트 롤오프가 부드러워 조명 주변이 '사진처럼' 잡힌다.
-  // 다만 기본 노출(1.2)로는 명패·부스 번호가 하얗게 날아가 읽히지 않는다.
-  // 실측해 보고 0.78까지 낮춰야 글자가 살아남는다. 교육용이라 명패 가독성이
-  // 색감보다 우선이므로 노출은 이 값을 넘기지 않는다.
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  // 0.78은 흰 바닥·흰 벽이 많은 이 방에서 하이라이트가 뭉쳐 사진이 '날아간' 느낌이 났다.
-  // 0.72로 내리면 바닥의 얼룩과 벽의 음영이 살아나면서 명패 가독성도 유지된다.
-  renderer.toneMappingExposure = 0.72;
+  // 직접광을 줄이고 환경광으로 옮긴 뒤로는 예전 노출(0.72)이면 방 전체가
+  // 어둡게 가라앉는다. 광원이 점점이 박혀 있지 않으니 노출을 올려도
+  // 예전처럼 특정 지점만 하얗게 타지 않는다.
+  renderer.toneMappingExposure = 0.85;
   container.appendChild(renderer.domElement);
   RENDER.maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy(), q.aniso);
   return renderer;
 };
 
 // ── 환경광 (실내 IBL) ────────────────────────────────────────
-// RoomEnvironment는 three에 내장된 절차적 실내 환경이라 다운로드가 0바이트다.
-// HDRI 파일(2~8MB)을 받지 않고도 금속·유리·거울이 살아난다.
+// 조명의 대부분을 여기서 만든다. 한 번 구워 두면 광원 개수와 무관하게
+// 큐브맵 조회 한 번으로 끝나므로, 등기구를 여러 개 켜는 것과 달리 공짜에 가깝다.
+//
+// three 내장 RoomEnvironment는 어둡고 잿빛이라 '흐린 날 사무실' 톤이 된다.
+// 자동차 비주얼라이저 같은 화면은 넓은 소프트박스가 위에서 고르게 떨어지고
+// 좌우에서 서로 다른 색온도가 채워 주는 스튜디오 조명이다 — 그걸 직접 짓는다.
+RENDER._studioEnvScene = function () {
+  const scene = new THREE.Scene();
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  box.deleteAttribute('uv');    // PMREM에는 UV가 필요 없다
+
+  // 바깥 껍데기 — 사방에서 되돌아오는 은은한 반사광
+  const shell = new THREE.Mesh(box, new THREE.MeshStandardMaterial({
+    color: 0xeceae6, roughness: 1, metalness: 0, side: THREE.BackSide,
+  }));
+  shell.scale.set(34, 11, 34);
+  scene.add(shell);
+
+  // 발광 패널. 색을 1보다 크게 주면 그만큼 밝은 광원이 된다
+  // (three의 Color는 0~1로 잘리지 않는 실수값이다).
+  const panel = (r, g, b, sx, sy, sz, x, y, z) => {
+    const m = new THREE.MeshBasicMaterial();
+    m.color.setRGB(r, g, b);
+    const mesh = new THREE.Mesh(box, m);
+    mesh.scale.set(sx, sy, sz);
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+  };
+
+  // 밝기 값은 실측으로 잡았다. 처음에 천장을 3.4로 두었더니 벽·바닥·시트가
+  // 전부 하얗게 타서 커튼 주름도 명패 글자도 사라졌다 — 이 방은 흰 면이
+  // 대부분이라 환경광이 조금만 세도 통째로 날아간다.
+  //
+  // 천장 전체를 덮는 대형 소프트박스 — 그림자를 부드럽게 만드는 주역
+  panel(1.70, 1.70, 1.75, 30, 0.4, 30, 0, 5.2, 0);
+  // 창 쪽(-x)에서 들어오는 시원한 낮빛
+  panel(1.30, 1.45, 1.70, 0.4, 6, 22, -15, 2.0, 0);
+  // 반대편(+x)은 벽에서 되돌아오는 따뜻한 반사광 — 좌우 색온도가 갈려야
+  // 물체에 입체감이 생긴다. 양쪽을 같은 색으로 두면 평평해 보인다.
+  panel(1.10, 0.95, 0.80, 0.4, 5, 20, 15, 1.6, 0);
+  // 앞뒤로도 약하게 채워 어느 방향을 봐도 어두운 면이 생기지 않게
+  panel(0.75, 0.75, 0.80, 20, 4, 0.4, 0, 1.8, -15);
+  panel(0.75, 0.75, 0.80, 20, 4, 0.4, 0, 1.8, 15);
+
+  return scene;
+};
+
 RENDER.buildEnvironment = function (renderer, scene) {
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const envScene = new TX.RoomEnvironment();
+  const envScene = RENDER._studioEnvScene();
   RENDER._envRT = pmrem.fromScene(envScene, 0.04);
   scene.environment = RENDER._envRT.texture;
   scene.environmentIntensity = RENDER.q.envIntensity;
-  envScene.dispose();
+  envScene.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) o.material.dispose();
+  });
   pmrem.dispose();
 };
 
@@ -148,13 +202,9 @@ RENDER.buildLights = function (scene, room) {
   scene.add(sun);
   RENDER.sun = sun;
 
-  // 반대쪽 채움광 — 그림자를 만들지 않는 약한 방향광 하나를 반대편에서 준다.
-  // 이게 없으면 태양을 등진 면이 전부 같은 밝기로 눌려서 물체가 납작해 보인다.
-  // 그림자 계산이 없으므로 비용은 사실상 0이다.
-  const fill = new THREE.DirectionalLight(0xd8e8f6, q.sun * 0.32);
-  fill.position.set(-8, 5, -7);
-  scene.add(fill);
-  RENDER.fillSun = fill;
+  // 예전에 있던 반대쪽 채움광은 뺐다. 스튜디오 환경광이 사방에서 들어오므로
+  // 태양을 등진 면도 이미 채워진다 — 광원 하나를 줄인 만큼 그냥 빨라진다.
+  RENDER.fillSun = null;
 
   RENDER._addCeilingLights(scene, room);
 };
@@ -169,20 +219,17 @@ RENDER._addCeilingLights = function (scene, room) {
   const all = (window.GAME && GAME.ZONE && GAME.ZONE.lights) ? GAME.ZONE.lights : [[-8, 0], [0, 0], [8, 0]];
   const sorted = all.slice().sort((a, b) => (a[2] || 0) - (b[2] || 0));
   const list = sorted.slice(0, Math.min(q.ceilingCount, sorted.length));
-  if (q.ceiling === 'area') TX.RectAreaLightUniformsLib.init();
 
+  // 면광원(RectAreaLight)은 뺐다. 픽셀마다 LTC 적분을 도는 비싼 광원이라
+  // 몇 개만 켜도 프레임이 눈에 띄게 떨어지는데, 밝고 고른 환경광을 깐 지금은
+  // 눈에 보이는 차이가 거의 없다. 등기구는 '그 자리가 조금 더 밝다'는
+  // 신호만 주면 충분하다.
+  //
+  // 감쇠(decay)를 물리값 2보다 낮춰 낙차를 완만하게 두면, 광원 수가 적어도
+  // 빛이 넓게 퍼져 바닥에 밝은 점이 도드라지지 않는다.
   list.forEach(([x, z]) => {
-    let light;
-    if (q.ceiling === 'area') {
-      // 면광원: 형광등 패널의 넓고 부드러운 빛을 그대로 재현한다
-      light = new THREE.RectAreaLight(0xf4f8ff, q.ceilingIntensity, 1.76, 0.5);
-      light.position.set(x, room.h - 0.06, z);
-      light.lookAt(x, 0, z);
-    } else {
-      // 저사양: 점광원이 훨씬 싸다. decay를 물리값(2)보다 낮춰 낙차를 부드럽게.
-      light = new THREE.PointLight(0xf4f8ff, q.ceilingIntensity, 16, 1.7);
-      light.position.set(x, room.h - 0.55, z);
-    }
+    const light = new THREE.PointLight(0xf6f9ff, q.ceilingIntensity, 22, 1.35);
+    light.position.set(x, room.h - 0.55, z);
     scene.add(light);
     RENDER.ceilingLights.push(light);
   });
@@ -369,8 +416,19 @@ RENDER.aoDecal = function (scene, cx, cz, hw, hd, y) {
 //  1) 알파로 흐리게 얹어 바닥 재질(얼룩·이음선)이 비쳐 보이게 한다
 //  2) 프레넬 — 바닥을 비스듬히 볼수록 반사가 강해진다. 실제 광택면의 성질이고,
 //     이게 없으면 발밑까지 똑같이 비쳐서 물웅덩이처럼 보인다.
+// 바닥 평면반사는 없앴다.
+//
+// Reflector는 반사면마다 장면을 통째로 한 번 더 그린다. 26×19m 바닥 전체에
+// 걸면 매 프레임 그리는 양이 두 배가 되고, 그게 '너무 무거워서 버벅인다'의
+// 가장 큰 원인이었다. 얻는 것은 바닥에 흐릿하게 비치는 형상뿐이다.
+//
+// 대신 바닥 재질의 거칠기를 낮춰 환경광이 비치게 했다(rooms/layout.js).
+// 밝은 스튜디오 환경광이 깔려 있으면 그것만으로 '광택 있는 병원 바닥'이 되고,
+// 비용은 픽셀당 큐브맵 조회 한 번이라 사실상 0이다.
 RENDER.floorReflector = null;
-RENDER.buildFloorReflection = function (scene, room) {
+RENDER.buildFloorReflection = function () { return null; };
+
+RENDER._legacyFloorReflection = function (scene, room) {
   const strength = RENDER.q.reflect || 0;
   if (!strength || !window.TX || !TX.Reflector) return null;
 
@@ -458,24 +516,14 @@ RENDER.buildComposer = function (renderer, scene, camera) {
   const composer = new TX.EffectComposer(renderer);
   composer.addPass(new TX.RenderPass(scene, camera));
 
-  if (q.post === 'full') {
-    // GTAO: 접촉부에 실제 주변광 차폐를 넣는다 (외장 GPU 전용).
-    // 반경 0.35 · 표본 8은 커튼처럼 크고 얇은 면에서 자기 그림자가 얼룩덜룩하게
-    // 번졌다. 반경을 키우고 표본을 늘리면 얼룩이 넓고 부드러운 음영으로 바뀐다.
-    const gtao = new TX.GTAOPass(scene, camera, w, h);
-    gtao.blendIntensity = 0.5;
-    gtao.updateGtaoMaterial({
-      radius: 0.62, distanceExponent: 1.6, thickness: 1.0,
-      scale: 1.0, samples: 16, screenSpaceRadius: false,
-    });
-    composer.addPass(gtao);
-    RENDER.gtao = gtao;
-  }
-  if (q.post === 'full' || q.post === 'bloom') {
+  // GTAO는 뺐다. 픽셀마다 표본 16개를 도는 비싼 패스인데, 이미 접촉면마다
+  // 구워 둔 그림자 데칼(RENDER.aoDecal)이 같은 역할을 공짜로 하고 있었다.
+  // 둘을 겹쳐 놓으니 가구 밑이 필요 이상으로 시커멓기까지 했다.
+  if (q.post === 'bloom') {
     // 형광등 패널·창을 은은하게 번지게.
     // 임계값은 톤매핑 前 선형 HDR 값 기준이다. 낮게 두면 조명을 정면으로 받는
     // 흰 명패·시트까지 광원으로 오인해 글자가 날아간다.
-    const bloom = new TX.UnrealBloomPass(new THREE.Vector2(w, h), 0.15, 0.55, 1.25);
+    const bloom = new TX.UnrealBloomPass(new THREE.Vector2(w, h), 0.12, 0.6, 1.4);
     composer.addPass(bloom);
     RENDER.bloom = bloom;
   }
@@ -527,7 +575,6 @@ RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
   const q = RENDER.q = RENDER.PRESETS[tier];
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.pixelRatio));
-  renderer.shadowMap.type = q.shadowType === 'pcf' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
   if (RENDER.sun) {
     const sh = RENDER.sun.shadow;
@@ -535,7 +582,6 @@ RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
     sh.mapSize.set(q.shadow, q.shadow);
     RENDER.sun.intensity = q.sun;
   }
-  if (RENDER.fillSun) RENDER.fillSun.intensity = q.sun * 0.32;
   if (RENDER.fill) RENDER.fill.intensity = q.hemi;
   scene.environmentIntensity = q.envIntensity;
 

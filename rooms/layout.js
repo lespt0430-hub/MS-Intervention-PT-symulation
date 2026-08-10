@@ -117,6 +117,12 @@ function buildCeiling(w, d, h) {
       rough: { base: 0.95, dark: 1.0 }, envMapIntensity: 0.5,
       height: (g, S) => ceilDraw(g, S, true) }
   );
+  // 천장은 색상값 자체는 밝은데(#f4f7f8) 아래를 향한 면이라 빛을 거의 못 받아
+  // 화면에서는 잿빛으로 죽어 있었다 — 방 전체가 무겁게 눌려 보이던 원인이다.
+  // 실제 흡음 천장은 아래 등기구가 쏘아 올린 빛을 되받아 꽤 밝다.
+  // 그 되받은 빛을 약한 자체발광으로 대신한다 (광원을 늘리지 않으니 공짜다).
+  ceilMat.emissive = new THREE.Color(0xdfe7ec);
+  ceilMat.emissiveIntensity = 0.34;
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ceilMat);
   ceil.rotation.x = Math.PI / 2; ceil.position.y = h;
   GAME.scene.add(ceil);
@@ -130,19 +136,19 @@ function buildShell(w, d, h) {
   const WALL_TILE = 4;
   const bandTop = 512 * (1 - 1.1 / h);
   const wallDraw = (g, W, H, dark) => {
-    g.fillStyle = dark ? '#8a8a8a' : '#f1eee7'; g.fillRect(0, 0, W, H);
+    g.fillStyle = dark ? '#8a8a8a' : '#f3f2ee'; g.fillRect(0, 0, W, H);
     for (let i = 0; i < 2600; i++) {
       const a = Math.random() * (dark ? 0.5 : 0.3);
-      g.fillStyle = dark ? 'rgba(120,120,120,' + a + ')' : 'rgba(214,208,194,' + a + ')';
+      g.fillStyle = dark ? 'rgba(120,120,120,' + a + ')' : 'rgba(210,212,206,' + a + ')';
       g.fillRect(Math.random() * W, Math.random() * bandTop, 2.2, 2.2);
     }
-    g.fillStyle = dark ? '#8f8f8f' : '#dfd2b6'; g.fillRect(0, bandTop, W, H - bandTop);
+    g.fillStyle = dark ? '#8f8f8f' : '#dce1da'; g.fillRect(0, bandTop, W, H - bandTop);
     for (let x = 0; x < W; x += 128) {
-      g.strokeStyle = dark ? '#303030' : 'rgba(176,158,120,0.5)';
+      g.strokeStyle = dark ? '#303030' : 'rgba(150,162,150,0.45)';
       g.lineWidth = dark ? 3 : 2;
       g.beginPath(); g.moveTo(x, bandTop + 10); g.lineTo(x, H - 8); g.stroke();
     }
-    g.fillStyle = dark ? '#d8d8d8' : '#c2ae87'; g.fillRect(0, bandTop - 8, W, 11);
+    g.fillStyle = dark ? '#d8d8d8' : '#b6bfb6'; g.fillRect(0, bandTop - 8, W, 11);
     if (dark) return;
     const lo = g.createLinearGradient(0, H, 0, H - H * 0.12);
     lo.addColorStop(0, 'rgba(38,52,62,0.42)'); lo.addColorStop(1, 'rgba(38,52,62,0)');
@@ -178,7 +184,7 @@ function buildShell(w, d, h) {
   mkWall(d, w / 2, 0, -Math.PI / 2, wallMatShort);
 
   // 걸레받이
-  const skirtMat = KIT.std(0xa8967a, { roughness: 0.45, metalness: 0.05 });
+  const skirtMat = KIT.std(0x97a196, { roughness: 0.45, metalness: 0.05 });
   [[w, 0, -d / 2 + 0.02, 0], [w, 0, d / 2 - 0.02, Math.PI],
    [d, -w / 2 + 0.02, 0, Math.PI / 2], [d, w / 2 - 0.02, 0, -Math.PI / 2]].forEach(([ww, x, z, ry]) => {
     const sk = new THREE.Mesh(new THREE.PlaneGeometry(ww, 0.15), skirtMat);

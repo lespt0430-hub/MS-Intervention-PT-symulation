@@ -173,23 +173,30 @@ function curtainMaterial(widthMeters, heightMeters) {
   // 주름(굵은 세로 결) + 직조(가는 격자)를 겹쳐 그린다.
   // 색상맵의 명암만으로는 평면이지만, 같은 패턴을 노멀맵으로 만들면
   // 빛의 방향에 따라 주름이 살아 움직인다.
+  // 색을 크림베이지에서 세이지(연회색빛 초록)로 바꿨다. 커튼은 이 방에서
+  // 가장 넓은 면인데 베이지 일색이면 방 전체가 누렇게 묵어 보인다 —
+  // '올드해 보인다'의 가장 큰 원인이었다. 세이지는 요즘 재활병원이 실제로
+  // 많이 쓰는 색이고, 남색 베드·원목 간판과도 부딪히지 않는다.
+  //
+  // 주름 골도 완만하게 폈다. 예전 값(normalStrength 1.8)은 골이 너무 깊어
+  // 천이 아니라 골판지로 보였다.
   const draw = (g, S, dark) => {
-    g.fillStyle = dark ? '#808080' : '#efe6d6';
+    g.fillStyle = dark ? '#808080' : '#e4e9e2';
     g.fillRect(0, 0, S, S);
     for (let x = 0; x < S; x++) {           // 주름: 부드러운 사인 음영
       const f = Math.sin((x / S) * Math.PI * 2 * 5);
       if (dark) {
-        const v = Math.round(128 + f * 34);
+        const v = Math.round(128 + f * 24);
         g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
       } else {
-        g.fillStyle = 'rgba(122,110,92,' + (0.13 - f * 0.10) + ')';
+        g.fillStyle = 'rgba(96,116,102,' + (0.12 - f * 0.085) + ')';
       }
       g.fillRect(x, 0, 1, S);
     }
     for (let i = 0; i < S; i += 4) {        // 직조 결 — 아주 약하게
-      g.fillStyle = dark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.08)';
+      g.fillStyle = dark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)';
       g.fillRect(0, i, S, 1);
-      g.fillStyle = dark ? 'rgba(0,0,0,0.035)' : 'rgba(150,134,110,0.05)';
+      g.fillStyle = dark ? 'rgba(0,0,0,0.03)' : 'rgba(118,132,120,0.05)';
       g.fillRect(0, i + 2, S, 1);
     }
   };
@@ -199,13 +206,13 @@ function curtainMaterial(widthMeters, heightMeters) {
     {
       // 주름 폭·직조 결의 실치수를 커튼 크기와 무관하게 유지한다.
       size: [256, 256], repeat: [widthMeters / 1.2, H / 1.5],
-      normalStrength: 1.8, normalScale: 0.8,
-      rough: { base: 0.95, dark: 0.99 }, envMapIntensity: 0.45,
+      normalStrength: 1.15, normalScale: 0.55,
+      rough: { base: 0.92, dark: 0.98 }, envMapIntensity: 0.6,
       side: THREE.DoubleSide,
       // 실제 프라이버시 커튼은 폴리에스터 메시라 빛을 조금 통과시킨다.
       // 완전 불투명하면 베이 안이 새까매져 커튼이 콘크리트 칸막이로 보인다.
       transparent: true, opacity: 0.93, depthWrite: true,
-      color: 0xf6efe2,
+      color: 0xeaefe8,
       height: (g, S) => draw(g, S, true),
     }
   );
@@ -253,14 +260,14 @@ KIT.wallRun = function (opt) {
     // 이게 없으면 실내 벽만 아무 결이 없는 흰 판이라 방이 미완성으로 보인다.
     if (opt.skirt !== false) {
       const sk = new THREE.Mesh(new THREE.BoxGeometry(sx + 0.02, 0.14, sz + 0.02),
-        KIT.cache('skirt', () => KIT.std(0xa8967a, { roughness: 0.5, metalness: 0.05 })));
+        KIT.cache('skirt', () => KIT.std(0x97a196, { roughness: 0.5, metalness: 0.05 })));
       sk.position.set(m.position.x, 0.07, m.position.z);
       GAME.scene.add(sk);
 
       const wsX = axisX ? sx : t + 0.04;
       const wsZ = axisX ? t + 0.04 : sz;
       const ws = new THREE.Mesh(new THREE.BoxGeometry(wsX, 0.96, wsZ),
-        KIT.cache('wainscot', () => KIT.std(0xdfd2b6, { roughness: 0.55, envMapIntensity: 0.8 })));
+        KIT.cache('wainscot', () => KIT.std(0xdce1da, { roughness: 0.55, envMapIntensity: 0.8 })));
       ws.position.set(m.position.x, 0.62, m.position.z);
       ws.receiveShadow = true;
       GAME.scene.add(ws);
@@ -268,7 +275,7 @@ KIT.wallRun = function (opt) {
       const capX = axisX ? sx : t + 0.09;
       const capZ = axisX ? t + 0.09 : sz;
       const cap = new THREE.Mesh(new THREE.BoxGeometry(capX, 0.05, capZ),
-        KIT.cache('wainCap', () => KIT.std(0xc2ae87, { roughness: 0.45, envMapIntensity: 0.9 })));
+        KIT.cache('wainCap', () => KIT.std(0xb6bfb6, { roughness: 0.45, envMapIntensity: 0.9 })));
       cap.position.set(m.position.x, 1.12, m.position.z);
       GAME.scene.add(cap);
     }

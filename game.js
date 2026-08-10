@@ -126,17 +126,34 @@ function buildPatientFigure(patient, opts) {
   fig.add(body);
 
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // 팔다리 한 마디. 원기둥이 아니라 캡슐(양끝이 둥근 막대)로 만든다.
+  //
+  // 원기둥은 끝이 납작하게 잘려서, 관절마다 원판 모서리가 실루엣에 드러난다.
+  // 그게 인형을 뻣뻣하고 조립식으로 보이게 하던 원인이었다. 캡슐로 두면
+  // 끝이 반구라 이웃 마디와 매끄럽게 이어진다.
+  //
+  // 원통부 길이는 (전체길이 - r). 반구가 양 끝에서 r/2씩 삐져나와 이웃 마디와
+  // 겹치므로 관절에 틈이 생기지 않는다.
+  //
+  // 처음엔 (전체길이 - 2r)로 잡아 총 길이를 정확히 맞췄는데, 그러면 마디 끝이
+  // 관절점에 딱 멈춰서 팔꿈치·무릎마다 틈이 벌어져 조립식 인형으로 보였다.
+  // 반대로 (전체길이)로 두면 마디마다 r씩 늘어나 팔다리가 40%씩 길어진다.
+  // r 하나만 빼는 지금 값이 관절은 메우면서 비율은 거의 유지한다.
   const seg = (a, b, r, mat, parent) => {
     const dir = new THREE.Vector3().subVectors(b, a);
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, dir.length(), 14), mat);
+    const len = dir.length();
+    const m = new THREE.Mesh(
+      new THREE.CapsuleGeometry(r, Math.max(0.004, len - r), 3, 12), mat);
     m.position.copy(a).addScaledVector(dir, 0.5);
     m.quaternion.setFromUnitVectors(V(0, 1, 0), dir.normalize());
     m.castShadow = true;
     (parent || body).add(m);
     return m;
   };
+  // 구 분할을 20×16에서 14×10으로 낮췄다. 손·관절처럼 화면에서 몇 픽셀밖에
+  // 안 되는 것에 640삼각형씩 쓰고 있었다 — 눈에 띄는 차이 없이 절반 이하로 준다.
   const ball = (p, r, mat, parent) => {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 16), mat);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat);
     m.position.copy(p); m.castShadow = true;
     (parent || body).add(m);
     return m;
@@ -150,7 +167,7 @@ function buildPatientFigure(patient, opts) {
   // 몸통·골반처럼 모서리가 없어야 하는 부위. 구 하나를 눌러 타원체로 쓴다
   // (직육면체로 두면 아무리 재질이 좋아도 사람이 아니라 상자로 읽힌다).
   const ellip = (p, rx, ry, rz, mat, parent) => {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 16), mat);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), mat);
     m.scale.set(rx, ry, rz);
     m.position.copy(p); m.castShadow = true;
     (parent || body).add(m);
@@ -158,8 +175,12 @@ function buildPatientFigure(patient, opts) {
   };
 
   // 머리·얼굴
+  // 머리만은 분할을 높게 유지한다. 진료 중 얼굴을 가까이서 보게 되는데
+  // 여기가 각지면 나머지를 아무리 다듬어도 인형처럼 보인다.
   const headC = V(0, 0.15, 0);
-  ball(headC, 0.11, M.skin);
+  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.11, 26, 20), M.skin);
+  headMesh.position.copy(headC); headMesh.castShadow = true;
+  body.add(headMesh);
   const hair = new THREE.Mesh(new THREE.SphereGeometry(0.115, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.55), M.hair);
   hair.position.copy(headC);
   // 머리카락은 정수리(-z)를 중심으로 뒤통수·옆머리까지 덮고 얼굴(+y)만 비운다.
