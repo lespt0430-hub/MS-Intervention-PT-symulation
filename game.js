@@ -97,6 +97,25 @@ const STANCES = {
   handson: { legR: { hip: 0.10 }, legL: { hip: -0.10 }, armR: 'reach', armL: 'reach' },
 };
 
+// 환자복 원단 — 국내 병원 환자복의 연한 하늘색 세로 줄무늬.
+// 단색으로 두면 옷이 아니라 색칠한 플라스틱으로 보인다. 줄무늬가 있어야
+// 천으로 읽히고, 세로줄이라 몸의 굴곡을 따라 휘어 입체감도 같이 산다.
+// 환자 12명이 같은 원단을 쓰므로 한 번만 만들어 돌려 쓴다.
+let GOWN_TEX = null;
+function patientGownTexture() {
+  if (GOWN_TEX) return GOWN_TEX;
+  const cv = document.createElement('canvas');
+  cv.width = 128; cv.height = 16;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#e7eef3'; g.fillRect(0, 0, 128, 16);
+  for (let x = 0; x < 128; x += 16) {
+    g.fillStyle = 'rgba(122,158,184,0.42)'; g.fillRect(x, 0, 3, 16);
+    g.fillStyle = 'rgba(122,158,184,0.16)'; g.fillRect(x + 6, 0, 1.5, 16);
+  }
+  GOWN_TEX = RENDER.colorTex(cv, 3, 1);   // 몸통을 세 바퀴 도는 간격
+  return GOWN_TEX;
+}
+
 function buildPatientFigure(patient, opts) {
   const o = opts || {};
   const col = patient.colors || {};
@@ -107,6 +126,17 @@ function buildPatientFigure(patient, opts) {
     shirt: new THREE.MeshStandardMaterial({ color: col.blanket || 0xa8c8e0, roughness: 0.92, envMapIntensity: 0.5 }),
     pants: new THREE.MeshStandardMaterial({ color: col.pants || 0x8195a6, roughness: 0.92, envMapIntensity: 0.5 }),
     white: new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9, envMapIntensity: 0.5 }),
+    // 옷 — 환자는 환자복, 치료사는 남색 스크럽. 회전면 한 장이라 안쪽 면도
+    // 보이므로 DoubleSide 여야 목둘레·밑단이 뚫려 보이지 않는다.
+    gown: o.badge
+      ? new THREE.MeshStandardMaterial({
+          color: col.blanket || 0x415d87, roughness: 0.86,
+          envMapIntensity: 0.55, side: THREE.DoubleSide,
+        })
+      : new THREE.MeshStandardMaterial({
+          color: 0xdbe6ee, map: patientGownTexture(), roughness: 0.94,
+          envMapIntensity: 0.5, side: THREE.DoubleSide,
+        }),
     // 얼음팩 — 반투명하고 젖은 표면
     ice: new THREE.MeshStandardMaterial({ color: 0xbfe3f5, roughness: 0.12, metalness: 0.05, envMapIntensity: 1.4, transparent: true, opacity: 0.86 }),
     // 담요는 반원통 껍질이라 안쪽 면도 보인다 → DoubleSide
@@ -217,17 +247,81 @@ function buildPatientFigure(patient, opts) {
         map: makeTextCanvas([o.badge], 256, 96, { bg: '#f4f7fa', color: '#1f3350', fontSize: 46 }),
         roughness: 0.5, side: THREE.DoubleSide,
       }));
-    badge.position.set(-0.105, 0.196, 0.345);
+    // 옷을 입히면서 가슴 표면이 바깥으로 밀렸다 — 예전 y(0.196)로 두면
+    // 명찰이 스크럽 안에 묻힌다. 옷 단면(반지름 0.250 × 납작계수 0.52)의
+    // 표면에 맞춰 올린다.
+    badge.position.set(-0.105, 0.234, 0.345);
     badge.rotation.x = -Math.PI / 2;      // 판의 앞면이 가슴 바깥(+y)을 본다
     body.add(badge);
   }
 
-  // 목·몸통·골반·어깨
-  seg(V(0, 0.13, 0.06), V(0, 0.115, 0.20), 0.05, M.skin);
-  ellip(V(0, 0.105, 0.44), 0.215, 0.100, 0.28, M.shirt);   // 흉곽
-  ellip(V(0, 0.095, 0.82), 0.185, 0.085, 0.17, M.pants);   // 골반
-  ball(V(0.21, 0.12, 0.26), 0.065, M.shirt);
-  ball(V(-0.21, 0.12, 0.26), 0.065, M.shirt);
+  // ── 몸통 ──
+  // 예전에는 흉곽 타원체 + 골반 타원체 + 어깨 공 2개, 넷을 따로 놓았다.
+  // 그래서 허리에 이음매가 지고 어깨가 얹어 놓은 공처럼 보였다 — 사람이
+  // 아니라 눈사람으로 읽히던 가장 큰 원인이다.
+  //
+  // 목 아래부터 사타구니까지를 회전면(lathe) 하나로 뽑는다. 옆선이 끊기지
+  // 않고 어깨→가슴→허리→엉덩이가 한 덩어리로 이어진다.
+  //
+  // 리그 규약: z가 머리(0)에서 발(+) 방향, y가 배 쪽. 그래서 회전축을
+  // +Y에서 +Z로 눕히고(rotation.x), 단면을 눌러 앞뒤로 납작하게 만든다
+  // (사람 몸통은 원기둥이 아니라 좌우로 넓은 타원 단면이다).
+  const lathe = (profile, mat, flat, yCenter, seg2) => {
+    const pts = profile.map(([r, z]) => new THREE.Vector2(r, z));
+    const m = new THREE.Mesh(new THREE.LatheGeometry(pts, seg2 || 20), mat);
+    m.rotation.x = Math.PI / 2;        // 회전축 +Y → +Z (머리→발)
+    m.scale.set(1, 1, flat);           // 로컬 z(회전 뒤 월드 y)를 눌러 납작하게
+    m.position.set(0, yCenter === undefined ? 0.10 : yCenter, 0);
+    m.castShadow = true;
+    body.add(m);
+    return m;
+  };
+
+  seg(V(0, 0.13, 0.06), V(0, 0.115, 0.20), 0.05, M.skin);   // 목
+  // 옷깃 아래로는 옷이 항상 몸보다 굵어야 한다. 처음에 몸통이 더 굵은 구간이
+  // 생겨서 어깨·쇄골이 옷 밖으로 뚫고 나왔고, 화면에서는 '민소매 원피스를 입은
+  // 것'처럼 보였다. 아래 두 단면은 같은 z에서 옷 > 몸이 되도록 맞춰 둔 값이다.
+  lathe([
+    [0.105, 0.165],                      // 목 아래 (여기부터 옷깃 위 — 맨살로 보이는 게 맞다)
+    [0.145, 0.215],
+    [0.192, 0.262],                      // 어깨 — 팔이 붙는 높이
+    [0.215, 0.300],
+    [0.222, 0.400],                      // 가슴
+    [0.205, 0.520],
+    [0.183, 0.640],                      // 허리
+    [0.196, 0.780],
+    [0.198, 0.880],                      // 엉덩이
+    [0.175, 0.960],
+    [0.120, 1.000],
+  ], M.skin, 0.52);
+
+  // ── 옷 ──
+  // 몸통 위에 한 장짜리 옷을 덧씌운다. 이게 이음매가 남아 있을 만한 자리
+  // (어깨·허리·고관절)를 통째로 덮어 버린다. 실제로도 환자는 환자복을,
+  // 치료사는 스크럽을 입고 있으니 현실감과 구조가 같은 방향이다.
+  // 치료사 상의는 엉덩이 위에서 끝나고 통이 곧다(스크럽).
+  // 환자복은 조금 더 길고 밑단이 살짝 퍼진다.
+  const staff = !!o.badge;
+  lathe(staff ? [
+    [0.162, 0.215],                      // 목둘레 — 몸통(0.145)보다 굵게 잡아야 덮인다
+    [0.205, 0.245],
+    [0.238, 0.275],                      // 어깨
+    [0.246, 0.320],
+    [0.248, 0.460],                      // 가슴
+    [0.236, 0.620],                      // 허리
+    [0.243, 0.800],
+    [0.244, 0.920],                      // 밑단 — 곧게 떨어뜨린다
+  ] : [
+    [0.162, 0.215],
+    [0.205, 0.245],
+    [0.238, 0.275],
+    [0.246, 0.320],
+    [0.250, 0.460],
+    [0.235, 0.620],
+    [0.248, 0.800],
+    [0.260, 0.960],
+    [0.265, 1.060],                      // 환자복 밑단 — 살짝 퍼짐
+  ], M.gown, 0.52, 0.10, 24);
 
   // 다리 (고관절 굴곡 hip / 무릎 굴곡 knee / 벌림 abd, 라디안)
   const joints = {};
@@ -271,7 +365,12 @@ function buildPatientFigure(patient, opts) {
   };
   [[pose.armR, 1], [pose.armL, -1]].forEach(([kind, s]) => {
     const a = armTargets(kind, s);
-    seg(a.S, a.elbow, 0.05, M.shirt);
+    // 위팔은 맨살로 두고 어깨 쪽 절반만 소매로 덮는다. 예전에는 위팔 전체가
+    // 옷 색이라 팔이 몸통에서 떨어져 나온 별개의 막대로 보였다 —
+    // 소매 끝에서 팔이 나오는 형태여야 몸에 붙어 있는 팔로 읽힌다.
+    seg(a.S, a.elbow, 0.048, M.skin);
+    const sleeveEnd = a.S.clone().lerp(a.elbow, 0.46);
+    seg(a.S.clone().lerp(a.elbow, -0.10), sleeveEnd, 0.058, M.gown);
     seg(a.elbow, a.hand, 0.042, M.skin);
     ball(a.hand, 0.05, M.skin);
   });
