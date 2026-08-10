@@ -8,7 +8,7 @@
 
 window.PTSIM_CONFIG = {
   // 구글 Apps Script 웹 앱 주소 (…/exec 로 끝납니다)
-  collectUrl: '',
+  collectUrl: 'https://script.google.com/macros/s/AKfycbwscYCGJIVbtQ2go6QcCdnCqzn4w9D8QR04bEgtsZn6eQ79ArdowQ7FFbQGXXC1v4M/exec',
 
   // 결과 시트에 함께 기록할 분반 이름 (예: '2025-1 물리치료중재론 A반')
   className: '',
