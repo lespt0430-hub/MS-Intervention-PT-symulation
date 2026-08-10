@@ -92,6 +92,7 @@ python -m http.server 8000
 | `collect.js` | 학생 결과 수집·교수 조회·엑셀(.xlsx) 내보내기 |
 | `config.js` | 실습실 설정 (결과 수집처 주소·분반명) |
 | `PROFESSOR_SETUP.md` | **교수용** — 학생 결과를 구글 시트로 모으는 설정 절차 |
+| `apps-script/Code.gs` | 구글 Apps Script 편집기에 붙여넣을 수집기 코드 |
 | `test/collect.test.js` | 결과 수집·조회·엑셀 점검 (`node test/collect.test.js`) |
 | `patients1.js` / `patients2.js` | 가상환자 12명 데이터 (CPG 기반, 내장 답변 포함) |
 | `exams.js` | 부위별 이학적 검사 라이브러리 |

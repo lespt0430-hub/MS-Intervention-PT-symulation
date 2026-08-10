@@ -259,6 +259,25 @@ const run = async () => {
     check('이 파일도 ZIP(xlsx) 이다', buf[0] === 0x50 && buf[1] === 0x4B);
   }
 
+  // 8. 붙여넣을 스크립트가 문서와 같은지 ──────────────────────
+  // apps-script/Code.gs 는 교수님이 그대로 복사해 붙여넣는 파일이고,
+  // PROFESSOR_SETUP.md 에도 같은 코드가 실려 있다. 둘이 어긋나면
+  // 문서를 보고 붙여넣은 사람과 파일을 받아 간 사람이 다른 코드를 쓰게 된다.
+  section('8. apps-script/Code.gs 와 PROFESSOR_SETUP.md 가 같은가');
+  {
+    // 줄바꿈(CRLF/LF)은 윈도우·git 설정에 따라 갈리므로 맞춰 놓고 비교한다
+    const norm = (s) => s.replace(/\r\n/g, '\n').trim();
+    const gs = norm(fs.readFileSync(path.join(root, 'apps-script/Code.gs'), 'utf8'));
+    const md = norm(fs.readFileSync(path.join(root, 'PROFESSOR_SETUP.md'), 'utf8'));
+    const block = (md.match(/```javascript\n([\s\S]*?)\n```/) || [])[1];
+    check('문서에 스크립트 블록이 있다', !!block);
+    check('두 곳의 코드가 정확히 같다', block && block.trim() === gs,
+      '문서를 고쳤으면 apps-script/Code.gs 도 같이 고쳐야 한다');
+    check('LockService 로 감싸져 있다', /LockService\.getScriptLock/.test(gs),
+      '동시 제출 시 결과가 사라진다');
+    check('doPost·doGet 이 모두 있다', /function doPost/.test(gs) && /function doGet/.test(gs));
+  }
+
   // ── 마무리 ────────────────────────────────────────────────
   console.log('\n' + '─'.repeat(60));
   console.log(`통과 ${pass}건 · 실패 ${fails.length}건`);
