@@ -13,6 +13,9 @@ const GAME = {
   player: { x: 0, z: -8.4, speed: 3.2 },   // 출입문 안쪽 — 정면이 전기치료실 중앙 복도
   beds: [], // {patient, group, checkSprite, cx, cz, hw, hd}
   obstacles: [], // 벽·장비 충돌 박스 {cx, cz, hw, hd}
+  // 매 프레임 갱신이 필요한 것 (dt) => void. 지금은 수치료실 물결뿐이다 —
+  // 텍스처 오프셋만 밀면 되므로 비용이 사실상 없다.
+  tickers: [],
   nearPatient: null,
   locked: false,
   lastT: 0,
@@ -54,6 +57,7 @@ function initGame() {
   buildManualRoom();      // 도수치료실 (프라이빗 룸 4개)
   buildElectroRoom();     // 전기치료실 (중앙 복도 + 커튼 베이)
   buildExerciseRoom();    // 운동치료실 (트랙·슬링·기구)
+  buildHydroRoom();       // 수치료실 (보행 풀 · 전신 풀)
   buildContactShadows();
   // 반사는 방·장비가 모두 들어온 뒤에 붙인다 (비칠 대상이 있어야 한다)
   RENDER.buildFloorReflection(c.scene, c.ROOM);
@@ -666,6 +670,7 @@ function animate() {
       GAME.pitch = Math.max(-1.2, Math.min(1.2, GAME.pitch));
     }
     movePlayer(dt);
+    GAME.tickers.forEach((f) => f(dt));
   }
   GAME.camera.position.set(GAME.player.x, 1.6, GAME.player.z);
   GAME.camera.rotation.order = 'YXZ';

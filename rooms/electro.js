@@ -4,6 +4,7 @@
 //   · 가운데를 복도가 관통하고 양옆으로 치료 베드가 줄지어 선다
 //   · 베이와 베이 사이는 천장 레일에 걸린 크림색 커튼으로 나뉜다
 //   · 베드마다 이동식 전기치료기 카트가 한 대씩 붙는다
+//   · 두 베이는 특수치료 베이다 — 체외충격파(ESWT)와 고출력 레이저(HILT)
 //   · 복도 앞쪽(출입문 쪽)은 접수 데스크가 있는 대기 구역이다
 
 function buildElectroRoom() {
@@ -13,11 +14,12 @@ function buildElectroRoom() {
 
   // ── 베이 8칸 (좌 4 · 우 4) ──
   // 배정: 누워서 전기·한랭 치료를 받는 환자. 도면처럼 발끝이 복도를 향한다.
+  // device: 그 베이에 붙는 기기. 'laser'·'eswt' 는 전기치료기 카트를 대신한다.
   const roster = {
-    'L0': PATIENTS[2],    // p3 손목터널증후군
-    'L2': PATIENTS[7],    // p8 ACL 재건 후
-    'R1': PATIENTS[5],    // p6 고관절 골관절염
-    'R3': PATIENTS[10],   // p11 발목 염좌
+    'L0': { p: PATIENTS[2] },                   // p3 손목터널증후군
+    'L2': { p: PATIENTS[7], device: 'laser' },  // p8 ACL 재건 후 — 무릎에 고출력 레이저
+    'R1': { p: PATIENTS[5] },                   // p6 고관절 골관절염
+    'R3': { p: PATIENTS[10], device: 'eswt' },  // p11 발목 염좌 — 발목에 체외충격파
   };
   let num = 1;
   ['L', 'R'].forEach((col) => {
@@ -25,8 +27,8 @@ function buildElectroRoom() {
     const yaw = col === 'L' ? Math.PI / 2 : -Math.PI / 2;   // 발끝이 복도(중앙)를 향한다
     const aisleSide = col === 'L' ? 1 : -1;                 // 복도가 있는 x 방향
     E.bayZ.forEach((cz, i) => {
-      const patient = roster[col + i];
-      buildElectroBay(patient, patient ? num++ : 0, bx, cz, yaw, aisleSide);
+      const r = roster[col + i] || {};
+      buildElectroBay(r.p, r.p ? num++ : 0, bx, cz, yaw, aisleSide, r.device);
     });
   });
 
@@ -45,7 +47,18 @@ function buildElectroRoom() {
   // 도면처럼 환자 곁에서 전극을 붙이거나 상태를 확인한다.
   KIT.therapist(E.bankL + 0.30, E.bayZ[0] + 1.00, Math.PI, 'handson');
   KIT.therapist(E.bankR - 0.30, E.bayZ[1] - 1.00, 0, 'handson');
-  KIT.therapist(E.bankL + 0.20, E.bayZ[2] - 1.00, 0, 'handson');
+  KIT.therapist(E.bankL + 0.20, E.bayZ[2] - 1.00, 0, 'handson');   // 레이저 베이
+  // 체외충격파 베이 — 발끝(복도) 쪽에 서서 발목에 핸드피스를 댄다
+  KIT.therapist(E.bankR - 1.30, E.bayZ[3], Math.PI / 2, 'handson');
+
+  // 특수치료 안내 — 복도에서 어느 베이가 무엇인지 읽힌다
+  const spec = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.60),
+    printedMat(makeTextCanvas(['특수치료 베이', '③ 고출력 레이저  ④ 체외충격파'], 512, 200,
+      { bg: '#22506b', color: '#ffffff', fontSize: 54 }),
+      { roughness: 0.35, envMapIntensity: 1.1 }));
+  spec.position.set(Z.divM + 0.11, 2.05, E.bayZ[2]);
+  spec.rotation.y = Math.PI / 2;
+  s.add(spec);
 
   // ── 접수·대기 구역 (출입문 쪽) ──
   buildElectroFront();
@@ -93,7 +106,8 @@ function buildElectroRoom() {
 }
 
 // 베이 한 칸. patient가 없으면 정돈된 빈 베드만 놓는다.
-function buildElectroBay(patient, num, bx, cz, yaw, aisleSide) {
+// device 를 주면 전기치료기 카트 대신 그 기기를 붙인다.
+function buildElectroBay(patient, num, bx, cz, yaw, aisleSide, device) {
   const s = GAME.scene;
   const bed = KIT.bed({ w: 0.88, l: 2.05, h: 0.64 });
   const g = bed.group;
@@ -124,8 +138,17 @@ function buildElectroBay(patient, num, bx, cz, yaw, aisleSide) {
       0, 0.94, 1.32, 0, 0.54);
   }
 
-  // 전기치료기 카트 — 복도 쪽 발치 옆
-  KIT.etCart(bx + aisleSide * 0.95, cz + 0.72, aisleSide > 0 ? -Math.PI / 2 : Math.PI / 2);
+  // 기기 — 기본은 이동식 전기치료기 카트, 특수치료 베이는 그 자리를 대신 쓴다.
+  // 관절 암이 달린 기기는 시술 방향(로컬 +z)이 베드를 향해야 하므로
+  // 베드 옆(+z 쪽)에 세우고 yaw 를 π 로 돌려 팔이 베드 위로 넘어오게 한다.
+  if (device === 'laser') {
+    KIT.laserUnit(bx + aisleSide * 0.55, cz + 0.86, Math.PI);
+  } else if (device === 'eswt') {
+    // 충격파는 발목·발에 대므로 발치(복도) 쪽으로 물려 세운다
+    KIT.eswtUnit(bx + aisleSide * 0.80, cz + 0.75, Math.PI);
+  } else {
+    KIT.etCart(bx + aisleSide * 0.95, cz + 0.72, aisleSide > 0 ? -Math.PI / 2 : Math.PI / 2);
+  }
 }
 
 // ── 접수 데스크 · 대기 구역 ──────────────────────────────────

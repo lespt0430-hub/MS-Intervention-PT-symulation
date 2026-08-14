@@ -47,10 +47,26 @@ GAME.ZONE = {
   },
 
   // 운동치료실 — 바닥 보행 트랙 + 천장 슬링 트랙
+  // 안쪽 끝(+z)을 잘라 수치료실을 냈으므로 실의 뒤끝은 hydro.wallZ 다.
   exercise: {
     entryZ: -5.20,      // 전기치료실에서 들어오는 개구부 z
-    track: { w: 6.4, d: 8.4, r: 2.4, cx: 8.30, cz: 1.90 },
+    track: { w: 6.4, d: 6.6, r: 2.2, cx: 8.50, cz: -1.10 },
     mirrorZ: 0.60,      // 우측 외벽 대형 거울 중심 z
+  },
+
+  // 수치료실 — 운동치료실 안쪽 끝을 가로벽으로 막아 만든 풀 룸
+  //   · 보행 풀(1인풀 수중 트레드밀) — 충남대병원 '보행 풀 치료 프로그램'
+  //   · 전신 풀 — 바닥을 도려내 앉힌 수조. 할리윅·바트라가츠·왓수용
+  hydro: {
+    wallZ: 3.30,        // 운동치료실 | 수치료실 경계 벽 z
+    entryX: 5.40,       // 개구부 중심 x
+    entryW: 2.20,
+    // 보행 풀 — 앞면(-z)이 아크릴 관찰창이라 문으로 들어서면 정면으로 보인다
+    // h = 수조 전체 높이, deck = 수조 안쪽 바닥(트레드밀이 깔리는 면) 높이.
+    // 수면이 환자의 명치에 오려면 안쪽 바닥은 낮고 벽은 높아야 한다.
+    gait: { cx: 5.90, cz: 6.30, w: 2.40, d: 1.90, h: 1.68, deck: 0.16 },
+    // 전신 풀 — 바닥에 뚫는 구멍(수면 테두리) 기준 치수
+    pool: { cx: 10.30, cz: 6.55, w: 3.60, d: 4.00, depth: 1.25 },
   },
 
   // 천장 등기구 자리 [x, z, 우선순위]. 벽으로 막힌 세 실을 각각 밝혀야 하므로
@@ -61,8 +77,9 @@ GAME.ZONE = {
     [-5.25, -3.20, 2], [-5.25, 4.20, 2],                                        // 도수 복도
     [-2.75, -1.00, 0], [-2.75, 4.20, 1], [2.75, -1.00, 1], [2.75, 4.20, 0],     // 전기 양 열
     [0, -7.60, 2], [0, 6.60, 2],                                                // 전기 복도 앞뒤
-    [5.60, -4.60, 0], [10.80, -4.60, 1], [5.60, 2.00, 1], [10.80, 2.00, 0],     // 운동 4구역
-    [8.30, 7.60, 2],
+    [5.60, -4.60, 0], [10.80, -4.60, 1], [5.60, 1.40, 1], [10.80, 1.40, 0],     // 운동 4구역
+    [8.30, -8.20, 2],
+    [5.90, 6.30, 0], [10.60, 6.40, 1],                                          // 수치료실 (풀 2기)
   ],
 };
 
@@ -453,6 +470,216 @@ KIT.etCart = function (x, z, yaw) {
   g.rotation.y = yaw || 0;
   GAME.scene.add(g);
   KIT.solid(x, z, 0.28, 0.24);
+  return g;
+};
+
+// ── 관절 암 (체외충격파·레이저 치료기 공용) ──────────────────
+// 두 기기 모두 본체 뒤에서 기둥이 올라가고, 거기서 두 마디가 꺾여 나와
+// 끝에 시술 헤드가 달린다. 마디를 직접 좌표로 이어 붙인다.
+// pts는 로컬 좌표 배열이고, 반환값은 마지막 점(헤드가 붙을 자리)이다.
+KIT.armLinkage = function (parent, pts, r, mat) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = new THREE.Vector3().fromArray(pts[i]);
+    const b = new THREE.Vector3().fromArray(pts[i + 1]);
+    const dir = new THREE.Vector3().subVectors(b, a);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r, r, dir.length(), 10), mat);
+    seg.position.copy(a).addScaledVector(dir, 0.5);
+    seg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    seg.castShadow = true;
+    parent.add(seg);
+    // 관절 — 마디 사이를 공으로 메운다. 없으면 꺾인 자리가 잘려 보인다.
+    if (i > 0) {
+      const j = new THREE.Mesh(new THREE.SphereGeometry(r * 1.5, 10, 8), mat);
+      j.position.copy(a);
+      parent.add(j);
+    }
+  }
+  return new THREE.Vector3().fromArray(pts[pts.length - 1]);
+};
+
+// 바퀴 달린 흰 트롤리 본체 — 두 치료기의 공통 뼈대.
+// (h = 몸통 높이. 캐스터 0.06 위에 얹힌다)
+KIT._trolley = function (g, w, h, d, label) {
+  const shell = KIT.std(0xf3f6f8, { roughness: 0.30, metalness: 0.10, envMapIntensity: 1.2 });
+  const dark = KIT.std(0x39434a, { roughness: 0.35, metalness: 0.2 });
+  const body = new THREE.Mesh(KIT.rbox(w, h, d, 0.03), shell);
+  body.position.y = 0.09 + h / 2;
+  body.castShadow = true;
+  g.add(body);
+  // 허리 띠 — 흰 상자 하나로 두면 냉장고처럼 보인다
+  const belt = new THREE.Mesh(KIT.rbox(w + 0.008, 0.05, d + 0.008, 0.01), dark);
+  belt.position.y = 0.09 + h * 0.42;
+  g.add(belt);
+  // 바퀴 4개
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+    const caster = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), dark);
+    caster.rotation.z = Math.PI / 2;
+    caster.position.set(sx * (w / 2 - 0.07), 0.045, sz * (d / 2 - 0.07));
+    g.add(caster);
+  });
+  if (label) {
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.78, w * 0.78 * 0.28),
+      printedMat(makeTextCanvas([label], 512, 144, { bg: '#1f2b33', color: '#dfeaf1', fontSize: 62 }),
+        { roughness: 0.45, envMapIntensity: 1.0 }));
+    plate.position.set(0, 0.09 + h * 0.20, d / 2 + 0.006);
+    g.add(plate);
+  }
+  return { shell, dark };
+};
+
+// ── 체외충격파 치료기 (ESWT) ─────────────────────────────────
+// 흰 트롤리 + 경사 터치스크린 + 관절 암 끝의 핸드피스(어플리케이터).
+// 로컬 규약: 시술 방향이 +z. 핸드피스가 그쪽으로 뻗는다.
+KIT.eswtUnit = function (x, z, yaw) {
+  const g = new THREE.Group();
+  const { shell, dark } = KIT._trolley(g, 0.46, 0.82, 0.50, '체외충격파 ESWT');
+  const chrome = KIT.steel(0xc6cfd5);
+
+  // 경사 터치스크린
+  const panel = new THREE.Mesh(KIT.rbox(0.44, 0.32, 0.05, 0.012), dark);
+  panel.position.set(0, 1.03, 0.06);
+  panel.rotation.x = -0.42;
+  panel.castShadow = true;
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.24), KIT.screen(0x3ea8d8));
+  scr.position.set(0, 1.045, 0.093);
+  scr.rotation.x = -0.42;
+  g.add(panel, scr);
+  // 에너지 조절 다이얼
+  [-0.14, 0.14].forEach((dx) => {
+    const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.022, 12), chrome);
+    knob.rotation.x = Math.PI / 2 - 0.42;
+    knob.position.set(dx, 0.86, 0.20);
+    g.add(knob);
+  });
+
+  // 관절 암 — 본체 뒤 기둥에서 나와 환자 쪽으로 꺾여 내려온다
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.030, 0.62, 10), chrome);
+  post.position.set(0.16, 1.20, -0.17);
+  g.add(post);
+  const tip = KIT.armLinkage(g,
+    [[0.16, 1.50, -0.17], [0.13, 1.42, 0.30], [0.08, 1.02, 0.62]], 0.019, chrome);
+
+  // 핸드피스 — 손잡이 + 크롬 어플리케이터. 끝이 환부를 향해 비스듬히 내려간다
+  const hp = new THREE.Group();
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 0.20, 12), KIT.std(0x2f3941, { roughness: 0.45 }));
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.020, 0.07, 12), chrome);
+  head.position.y = -0.13;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.007, 6, 14), KIT.std(0x2f86a4, { roughness: 0.4 }));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = -0.09;
+  hp.add(grip, head, ring);
+  hp.position.copy(tip).add(new THREE.Vector3(0, -0.10, 0.02));
+  hp.rotation.x = 0.55;
+  hp.castShadow = true;
+  g.add(hp);
+
+  // 케이블 — 본체 상단에서 핸드피스까지 늘어진다.
+  // 고리를 여러 개 늘어놓으면 도넛을 꿴 사슬로 보인다. 한 줄 곡선 튜브라야
+  // 무게에 눌려 처진 전선으로 읽힌다.
+  const cable = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.24, 1.28, -0.06),
+      new THREE.Vector3(0.34, 1.00, 0.20),
+      new THREE.Vector3(0.26, 0.86, 0.48),
+      tip.clone().add(new THREE.Vector3(0.03, -0.02, 0.02)),
+    ]), 22, 0.010, 6), KIT.std(0x3c464d, { roughness: 0.8 }));
+  g.add(cable);
+
+  // 젤 병 + 트레이 (충격파는 커플링 젤을 바른다)
+  const tray = new THREE.Mesh(KIT.rbox(0.30, 0.02, 0.20, 0.004), chrome);
+  tray.position.set(-0.06, 0.79, 0.28);
+  const gel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.15, 12), KIT.std(0x2f86a4, { roughness: 0.35 }));
+  gel.position.set(-0.10, 0.875, 0.28);
+  g.add(tray, gel);
+
+  // 풋 스위치 — 충격파는 페달을 밟는 동안만 나간다
+  const pedal = new THREE.Mesh(KIT.rbox(0.20, 0.06, 0.16, 0.02), KIT.std(0x39434a, { roughness: 0.6 }));
+  pedal.position.set(0.30, 0.03, 0.44);
+  pedal.rotation.x = -0.12;
+  g.add(pedal);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw || 0;
+  GAME.scene.add(g);
+  const c = Math.abs(Math.cos(yaw || 0)), s = Math.abs(Math.sin(yaw || 0));
+  KIT.solid(x, z, 0.25 * c + 0.28 * s, 0.28 * c + 0.25 * s);
+  return g;
+};
+
+// ── 고출력 레이저 치료기 (HILT) ──────────────────────────────
+// 키 스위치·비상정지·경고등이 달린 본체 + 관절 암 끝의 스캐너 헤드.
+// 헤드에서 붉은 조준광이 원뿔로 떨어진다.
+KIT.laserUnit = function (x, z, yaw) {
+  const g = new THREE.Group();
+  const { shell, dark } = KIT._trolley(g, 0.42, 0.94, 0.46, '고출력 레이저 HILT');
+  const chrome = KIT.steel(0xc6cfd5);
+  const red = (i) => new THREE.MeshStandardMaterial({
+    color: 0x220305, emissive: 0xff2a1e, emissiveIntensity: i, roughness: 0.6,
+  });
+
+  // 상판 조작부
+  const top = new THREE.Mesh(KIT.rbox(0.44, 0.06, 0.48, 0.014), dark);
+  top.position.y = 1.06;
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.20), KIT.screen(0x4fd0a8));
+  scr.position.set(0, 1.095, 0.06);
+  scr.rotation.x = -Math.PI / 2 + 0.28;
+  g.add(top, scr);
+  // 열쇠 스위치 (레이저는 키를 꽂아야 켜진다) + 비상정지 버튼
+  const key = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.03, 12), chrome);
+  key.position.set(-0.15, 1.10, -0.10);
+  const estop = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.035, 16), red(0.35));
+  estop.position.set(0.15, 1.105, -0.10);
+  g.add(key, estop);
+  // 경고등 — 조사 중임을 알리는 붉은 표시등
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 10), red(2.2));
+  beacon.position.set(0, 1.14, -0.10);
+  g.add(beacon);
+
+  // 관절 암 → 스캐너 헤드
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.66, 10), chrome);
+  post.position.set(-0.14, 1.42, -0.15);
+  g.add(post);
+  const tip = KIT.armLinkage(g,
+    [[-0.14, 1.75, -0.15], [-0.06, 1.66, 0.32], [0.02, 1.24, 0.62]], 0.020, chrome);
+
+  const scanner = new THREE.Group();
+  const shellBox = new THREE.Mesh(KIT.rbox(0.18, 0.14, 0.16, 0.025), KIT.std(0x2b343b, { roughness: 0.4, metalness: 0.25 }));
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.045, 18), red(2.6));
+  lens.position.y = -0.071;
+  lens.rotation.x = -Math.PI / 2;
+  scanner.add(shellBox, lens);
+  scanner.position.copy(tip).add(new THREE.Vector3(0, -0.09, 0));
+  scanner.castShadow = true;
+  g.add(scanner);
+
+  // 조준 원뿔 — 헤드에서 환부로 떨어지는 붉은 빛. 깊이 기록을 끄고
+  // 반투명으로 두어야 빛줄기처럼 보이고 뒤의 환자를 가리지 않는다.
+  const beam = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.42, 18, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x000000, emissive: 0xff3b2a, emissiveIntensity: 0.9, roughness: 1,
+      transparent: true, opacity: 0.20, depthWrite: false, side: THREE.DoubleSide,
+    }));
+  beam.position.copy(scanner.position).add(new THREE.Vector3(0, -0.28, 0));
+  g.add(beam);
+
+  // 보호안경 두 개 — 레이저실의 필수품. 본체 옆 고리에 걸어 둔다
+  [-0.09, 0.09].forEach((dz) => {
+    const goggle = new THREE.Mesh(KIT.rbox(0.15, 0.06, 0.05, 0.018),
+      KIT.std(0xd8842a, { roughness: 0.25, metalness: 0.1, envMapIntensity: 1.4 }));
+    goggle.position.set(-0.24, 0.72, dz);
+    goggle.rotation.z = 0.15;
+    g.add(goggle);
+    const hook = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.005, 5, 12), chrome);
+    hook.position.set(-0.215, 0.77, dz);
+    hook.rotation.y = Math.PI / 2;
+    g.add(hook);
+  });
+
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw || 0;
+  GAME.scene.add(g);
+  const c = Math.abs(Math.cos(yaw || 0)), s = Math.abs(Math.sin(yaw || 0));
+  KIT.solid(x, z, 0.23 * c + 0.26 * s, 0.26 * c + 0.23 * s);
   return g;
 };
 

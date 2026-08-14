@@ -21,6 +21,8 @@ function buildLayout() {
   KIT.portal(Z.divM, Z.manual.entryZ, Math.PI / 2, 1.7, '도수치료실');
   // 운동치료실 — 도면의 운동실 입구는 사람이 지나다니는 넓은 개구부다
   KIT.portal(Z.divE, Z.exercise.entryZ, Math.PI / 2, 3.2, '운동치료실');
+  // 수치료실 — 운동치료실 안쪽 끝에서 가로벽을 지나 들어간다
+  KIT.portal(Z.hydro.entryX, Z.hydro.wallZ, 0, Z.hydro.entryW, '수치료실');
 
   // 전기치료실 사인 — 도면처럼 중앙 복도 끝(안쪽 벽) 위에 건다.
   // 출입문으로 들어서면 복도 정면으로 바로 읽힌다.
@@ -86,10 +88,48 @@ function buildFloor(w, d) {
       },
     }
   );
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), floorMat);
+  const floor = new THREE.Mesh(floorGeometry(w, d), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   GAME.scene.add(floor);
+}
+
+// 바닥판 — 수치료실의 전신 풀 자리는 도려낸다.
+//
+// 풀을 바닥에 앉히려면(수면이 바닥 높이) 그 아래가 실제로 비어 있어야 한다.
+// 바닥판 한 장으로 덮어 두면 수조 벽·바닥이 판 밑에 가려 아무것도 안 보이고,
+// 풀은 바닥에 그려 놓은 파란 사각형이 되어 버린다.
+//
+// PlaneGeometry 대신 구멍 뚫린 Shape 을 쓰되, UV 는 PlaneGeometry 와
+// 똑같이 0..1 로 다시 씌운다. ShapeGeometry 의 기본 UV 는 미터 좌표라
+// 재질의 repeat 값이 그대로 먹지 않는다(타일이 26×19배로 늘어난다).
+function floorGeometry(w, d) {
+  const P = GAME.ZONE.hydro.pool;
+  const shape = new THREE.Shape();
+  shape.moveTo(-w / 2, -d / 2);
+  shape.lineTo(w / 2, -d / 2);
+  shape.lineTo(w / 2, d / 2);
+  shape.lineTo(-w / 2, d / 2);
+  shape.closePath();
+
+  // 판은 XY 평면에서 만들어 -90° 눕힌다 → 판의 +y 가 월드 -z 다.
+  const x0 = P.cx - P.w / 2, x1 = P.cx + P.w / 2;
+  const y0 = -(P.cz + P.d / 2), y1 = -(P.cz - P.d / 2);
+  const hole = new THREE.Path();
+  hole.moveTo(x0, y0);
+  hole.lineTo(x0, y1);
+  hole.lineTo(x1, y1);
+  hole.lineTo(x1, y0);
+  hole.closePath();
+  shape.holes.push(hole);
+
+  const geo = new THREE.ShapeGeometry(shape);
+  const pos = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    uv.setXY(i, (pos.getX(i) + w / 2) / w, (pos.getY(i) + d / 2) / d);
+  }
+  uv.needsUpdate = true;
+  return geo;
 }
 
 // ── 천장 ─────────────────────────────────────────────────────
@@ -249,8 +289,9 @@ function buildShell(w, d, h) {
   [-8.6, -4.4, 4.4, 8.6].forEach((x) => mkWindow(x, -d / 2 + 0.06, 0));
   [-10.8, -7.4, -2.0, 2.0, 6.4, 10.2].forEach((x) => mkWindow(x, d / 2 - 0.06, Math.PI));
   GAME.ZONE.manual.roomZ.forEach((z) => mkWindow(-w / 2 + 0.06, z, Math.PI / 2));   // 도수 룸 창가
-  // 운동치료실 쪽 외벽은 대형 거울(z -6.9..-0.7)과 늑목이 차지하므로 그 사이에만 낸다
-  [2.0, 7.8].forEach((z) => mkWindow(w / 2 - 0.06, z, -Math.PI / 2));
+  // 운동치료실 쪽 외벽은 대형 거울·늑목·덤벨랙이 줄지어 차지한다.
+  // 남는 자리는 수치료실 구간뿐이라 창은 거기에 낸다 — 풀에 낮빛이 들어온다.
+  [6.60].forEach((z) => mkWindow(w / 2 - 0.06, z, -Math.PI / 2));
 
   // ── 출입문 (정면 한가운데) ──
   const dcv = document.createElement('canvas');
@@ -293,6 +334,12 @@ function buildZoneWalls() {
     axis: 'z', at: Z.divE, from: -d / 2, to: d / 2,
     openings: [{ c: Z.exercise.entryZ, w: 3.2 }],
   });
+  // 운동치료실 | 수치료실 — 운동실 안쪽 끝을 가로로 막는다.
+  // 수치료실은 습기·염소 냄새를 가둬야 해서 실제로도 완전히 분리된 실이다.
+  KIT.wallRun({
+    axis: 'x', at: Z.hydro.wallZ, from: Z.divE, to: GAME.ROOM.w / 2,
+    openings: [{ c: Z.hydro.entryX, w: Z.hydro.entryW }],
+  });
 
   // 구분벽 상단 목재 몰딩 — 도면의 벽은 상부에 오크 띠가 둘러져 있다
   [Z.divM, Z.divE].forEach((x) => {
@@ -300,6 +347,10 @@ function buildZoneWalls() {
     cap.position.set(x, h - 0.28, 0);
     GAME.scene.add(cap);
   });
+  const hCap = new THREE.Mesh(
+    new THREE.BoxGeometry(GAME.ROOM.w / 2 - Z.divE, 0.12, Z.wallT + 0.06), KIT.wood());
+  hCap.position.set((Z.divE + GAME.ROOM.w / 2) / 2, h - 0.28, Z.hydro.wallZ);
+  GAME.scene.add(hCap);
 }
 
 // ── 천장 등기구 ──────────────────────────────────────────────
@@ -338,9 +389,13 @@ function buildCeilingFixtures(w, d, h) {
   [-6.6, -1.6, 3.4, 8.0].forEach((z) => spots.push([Z.manual.corrCX, z]));
   // 전기치료실: 복도 양옆
   [-7.4, -4.6, -1.8, 1.0, 3.8, 6.6].forEach((z) => { spots.push([-2.75, z], [2.75, z]); });
-  // 운동치료실: 넓은 실이라 격자로
+  // 운동치료실: 넓은 실이라 격자로 (안쪽 끝은 수치료실이라 z 2.6 까지)
   [4.6, 7.6, 10.6, 12.4].forEach((x) => {
-    [-7.0, -3.0, 1.0, 5.0, 8.4].forEach((z) => spots.push([x, z]));
+    [-8.4, -5.4, -2.4, 0.6, 2.6].forEach((z) => spots.push([x, z]));
+  });
+  // 수치료실: 물 위는 밝아야 바닥이 보인다 — 풀 둘레로 촘촘히
+  [4.7, 6.9, 9.1, 11.3, 12.6].forEach((x) => {
+    [4.4, 6.5, 8.6].forEach((z) => spots.push([x, z]));
   });
 
   const dlCount = spots.length;
