@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인체 모델 뷰어 — 물리치료실 시뮬레이션</title>
+<!--
+  tools/viewer.html — 만든 .glb 를 돌려 가며 확인하는 도구
+
+  스크린샷 한 장으로는 뒤통수도 옆모습도 못 본다. 옷이 등에서 벌어지지는
+  않는지, 머리카락 뒷선이 어떤지, 뼈를 돌렸을 때 관절이 제대로 접히는지는
+  직접 돌려 봐야 안다.
+
+  조명은 render.js 의 스튜디오 환경을 그대로 불러 쓴다. 뷰어에서만 예쁘게
+  보이고 정작 시뮬레이션 안에서는 달라 보이면 확인하는 의미가 없다.
+
+  여는 법 (프로젝트 폴더에서):
+      python -m http.server 8000
+      → http://localhost:8000/tools/viewer.html
+  파일을 창에 끌어다 놓는 방식은 서버 없이도 된다.
+-->
+<style>
+  :root {
+    --bg: #14171c;
+    --panel: rgba(22, 26, 32, 0.92);
+    --line: #2c333d;
+    --tx: #e7ebf0;
+    --dim: #96a0ad;
+    --acc: #5aa9e6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font: 13px/1.55 "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+    color: var(--tx);
+  }
+  canvas { display: block; }
+
+  #panel {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 296px; z-index: 10;
+    background: var(--panel); border-right: 1px solid var(--line);
+    padding: 14px; overflow-y: auto; backdrop-filter: blur(8px);
+  }
+  #panel h1 { font-size: 14px; margin: 0 0 2px; letter-spacing: -.2px; }
+  #panel .sub { color: var(--dim); font-size: 11px; margin-bottom: 14px; }
+  .grp { border-top: 1px solid var(--line); padding-top: 11px; margin-top: 11px; }
+  .grp > label { display: block; color: var(--dim); font-size: 11px; margin-bottom: 5px; }
+  select, input[type=text] {
+    width: 100%; padding: 6px 7px; background: #1c2128; color: var(--tx);
+    border: 1px solid var(--line); border-radius: 5px; font: inherit; font-size: 12px;
+  }
+  button {
+    padding: 6px 9px; background: #232a33; color: var(--tx); font: inherit; font-size: 12px;
+    border: 1px solid var(--line); border-radius: 5px; cursor: pointer;
+  }
+  button:hover { background: #2c343f; border-color: #3d4855; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chk { display: flex; align-items: center; gap: 6px; margin: 4px 0; cursor: pointer; font-size: 12px; }
+  .chk input { accent-color: var(--acc); }
+
+  table.stat { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.stat td { padding: 2px 0; }
+  table.stat td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: #fff; }
+  table.stat td:first-child { color: var(--dim); }
+
+  .sld { display: grid; grid-template-columns: 14px 1fr 44px; gap: 6px; align-items: center; margin: 3px 0; }
+  .sld input { width: 100%; accent-color: var(--acc); }
+  .sld span:last-child { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 11px; }
+
+  #hint {
+    position: fixed; right: 12px; bottom: 12px; z-index: 10; text-align: right;
+    color: var(--tx); font-size: 11px; line-height: 1.7; pointer-events: none;
+    background: rgba(20, 24, 30, .72); padding: 6px 10px; border-radius: 6px;
+  }
+  #msg {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20;
+    background: rgba(20,24,30,.94); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 20px; font-size: 13px; display: none; max-width: 420px;
+  }
+  #drop {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    background: rgba(20,50,80,.55); border: 3px dashed var(--acc);
+    align-items: center; justify-content: center; font-size: 20px; font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <h1>인체 모델 뷰어</h1>
+  <div class="sub">시뮬레이션과 같은 조명으로 봅니다</div>
+
+  <div class="grp" style="border-top:none;padding-top:0;margin-top:0">
+    <label>모델</label>
+    <select id="pick"></select>
+    <div class="row" style="margin-top:6px">
+      <button id="reload">다시 불러오기</button>
+      <button id="fit">화면에 맞춤</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button id="lineup" style="flex:1">전원 한 줄로 세우기 (14명)</button>
+    </div>
+    <input type="text" id="custom" placeholder="직접 경로 입력 후 Enter" style="margin-top:6px">
+  </div>
+
+  <div class="grp">
+    <label>정보</label>
+    <table class="stat" id="stat"><tr><td>—</td><td></td></tr></table>
+  </div>
+
+  <div class="grp">
+    <label>보기</label>
+    <label class="chk"><input type="checkbox" id="c-wire"> 와이어프레임</label>
+    <label class="chk"><input type="checkbox" id="c-bone"> 뼈대 표시</label>
+    <label class="chk"><input type="checkbox" id="c-grid" checked> 바닥 격자 (1m)</label>
+    <label class="chk"><input type="checkbox" id="c-spin"> 자동 회전</label>
+  </div>
+
+  <div class="grp">
+    <label>뼈 돌려보기 — 자세 이식 예행</label>
+    <select id="bone"><option value="">(모델을 먼저 불러오세요)</option></select>
+    <div style="margin-top:7px">
+      <div class="sld"><span>X</span><input type="range" id="rx" min="-180" max="180" value="0"><span id="vx">0°</span></div>
+      <div class="sld"><span>Y</span><input type="range" id="ry" min="-180" max="180" value="0"><span id="vy">0°</span></div>
+      <div class="sld"><span>Z</span><input type="range" id="rz" min="-180" max="180" value="0"><span id="vz">0°</span></div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button id="breset">이 뼈 되돌리기</button>
+      <button id="ballreset">전부 되돌리기</button>
+    </div>
+  </div>
+</div>
+
+<div id="hint">
+  끌기 = 회전 · 휠 = 확대 · Shift+끌기 = 이동<br>
+  .glb 파일을 창에 끌어다 놓아도 됩니다
+</div>
+<div id="msg"></div>
+<div id="drop">.glb 파일을 놓으세요</div>
+
+<script src="../config.js"></script>
+<script src="../vendor/three-lib.js"></script>
+<script src="../render.js"></script>
+<script>
+// ── 후보 모델 ────────────────────────────────────────────────
+// assets/pilot 은 라이선스를 정하기 전이라 저장소에 안 올라간다(.gitignore).
+// 로컬에 없는 항목은 불러올 때 조용히 실패하므로, 목록에는 그냥 다 적어 둔다.
+// tools/roster.json 과 같은 순서. 이름 옆 숫자는 나이·키로, 한눈에
+// "연령대가 실제로 반영됐는지"를 확인하려고 적어 둔다.
+const PEOPLE = [
+  ['p1',  '김미영 45세 여 158cm — 사무직'],
+  ['p2',  '박순자 56세 여 156cm — 주부 (반백)'],
+  ['p3',  '윤정심 49세 여 157cm — BMI 28 과체중'],
+  ['p4',  '이재현 38세 남 173cm — 택배기사'],
+  ['p5',  '정우진 27세 남 174cm — 축구 동호회'],
+  ['p6',  '최영숙 68세 여 156cm — 과체중·백발'],
+  ['p7',  '강대호 52세 남 170cm — 등산'],
+  ['p8',  '한지수 22세 여 165cm — 축구선수'],
+  ['p9',  '문가영 24세 여 161cm — 러닝 초보'],
+  ['p10', '오민석 35세 남 173cm — 마라토너'],
+  ['p11', '임태양 19세 남 180cm — 농구'],
+  ['p12', '서혜란 48세 여 158cm — BMI 25.6'],
+  ['staff_m', '치료사(남) 32세 174cm — 스크럽'],
+  ['staff_f', '치료사(여) 29세 162cm — 스크럽'],
+];
+const MODELS = [
+  ...PEOPLE.map(([id, label]) => [label, '../assets/humans/' + id + '.glb']),
+  ['— 참고: Michelle 원본 (28k)', '../assets/pilot/michelle-orig.glb'],
+  ['— 참고: Michelle 감축 (10k)', '../assets/pilot/michelle-r0.35.glb'],
+];
+
+const $ = (id) => document.getElementById(id);
+const msg = (t) => { const m = $('msg'); if (!t) { m.style.display = 'none'; return; }
+  m.textContent = t; m.style.display = 'block'; };
+
+// ── 렌더러·장면 ──────────────────────────────────────────────
+// render.js 의 화질 프리셋과 스튜디오 환경광을 그대로 쓴다.
+RENDER.resolveTier('high');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14171c);
+const renderer = RENDER.createRenderer(document.body);
+renderer.domElement.style.position = 'fixed';
+renderer.domElement.style.inset = '0';
+RENDER.buildEnvironment(renderer, scene);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.05, 120);
+
+// 그림자를 만드는 약한 주광 하나. 환경광만으로는 형태가 평평해 보인다.
+const key = new THREE.DirectionalLight(0xffffff, 1.1);
+key.position.set(2.4, 4.2, 2.8);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 14;
+key.shadow.camera.left = -2.4; key.shadow.camera.right = 2.4;
+key.shadow.camera.top = 3.2; key.shadow.camera.bottom = -0.6;
+key.shadow.bias = -0.0012;
+scene.add(key);
+
+// 바닥 — 그림자가 떨어질 면이 있어야 발이 땅에 붙어 보인다
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(24, 24),
+  new THREE.MeshStandardMaterial({ color: 0xd8dade, roughness: 0.94 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const grid = new THREE.GridHelper(20, 20, 0x5aa9e6, 0x3a424d);
+grid.position.y = 0.002;
+grid.material.opacity = 0.5; grid.material.transparent = true;
+scene.add(grid);
+
+// ── 궤도 조작 (번들에 OrbitControls 가 없어 직접 만든다) ──────
+const orbit = { target: new THREE.Vector3(0, 0.85, 0), theta: 0, phi: 1.32, radius: 3.4 };
+function applyCamera() {
+  orbit.phi = Math.max(0.08, Math.min(Math.PI - 0.08, orbit.phi));
+  orbit.radius = Math.max(0.35, Math.min(30, orbit.radius));
+  const s = Math.sin(orbit.phi), c = Math.cos(orbit.phi);
+  camera.position.set(
+    orbit.target.x + orbit.radius * s * Math.sin(orbit.theta),
+    orbit.target.y + orbit.radius * c,
+    orbit.target.z + orbit.radius * s * Math.cos(orbit.theta));
+  camera.lookAt(orbit.target);
+}
+applyCamera();
+
+(() => {
+  const el = renderer.domElement;
+  let drag = null;
+  el.addEventListener('pointerdown', (e) => {
+    drag = { x: e.clientX, y: e.clientY, pan: e.shiftKey || e.button === 1 };
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.pan) {
+      // 화면 기준 좌우/상하로 시점 중심을 옮긴다
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+      const k = orbit.radius * 0.0016;
+      orbit.target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
+    } else {
+      orbit.theta -= dx * 0.0055;
+      orbit.phi -= dy * 0.0055;
+    }
+    applyCamera();
+  });
+  const stop = (e) => { if (drag) { try { el.releasePointerCapture(e.pointerId); } catch (x) {} } drag = null; };
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointercancel', stop);
+  el.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    orbit.radius *= Math.exp(e.deltaY * 0.0011);
+    applyCamera();
+  }, { passive: false });
+})();
+
+// ── 모델 관리 ────────────────────────────────────────────────
+let current = null;      // 현재 모델 루트
+let skelHelper = null;
+let bones = [];          // {name, bone, q0}
+const loader = new TX.GLTFLoader();
+
+function disposeCurrent() {
+  if (skelHelper) { scene.remove(skelHelper); skelHelper = null; }
+  if (!current) return;
+  scene.remove(current);
+  current.traverse((o) => {
+    if (o.isMesh) {
+      o.geometry.dispose();
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m && m.dispose());
+    }
+  });
+  current = null;
+  bones = [];
+}
+
+function install(root, label, bytes) {
+  disposeCurrent();
+  current = root;
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(root);
+
+  // 통계
+  let tris = 0, meshes = 0, boneCount = 0;
+  const mats = new Set(), geos = new Set();
+  root.traverse((o) => {
+    if (o.isBone) boneCount++;
+    if (!o.isMesh) return;
+    meshes++;
+    const g = o.geometry;
+    tris += g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+    geos.add(g.uuid);
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m && mats.add(m.uuid));
+  });
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+
+  const rows = [
+    ['이름', label],
+    ['키', size.y.toFixed(3) + ' m'],
+    ['삼각형', Math.round(tris).toLocaleString()],
+    ['드로우콜', meshes],
+    ['재질', mats.size],
+    ['뼈', boneCount || '—'],
+  ];
+  if (bytes) rows.push(['용량', (bytes / 1024).toFixed(0).toLocaleString() + ' KB']);
+  // 지금 인형과의 비교 — 이 뷰어를 보는 목적이 결국 이 대조다
+  rows.push(['지금 인형', '8,736 / 33개']);
+  $('stat').innerHTML = rows.map(([k, v]) =>
+    `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+
+  // 뼈 목록
+  bones = [];
+  root.traverse((o) => { if (o.isBone) bones.push({ name: o.name, bone: o, q0: o.quaternion.clone() }); });
+  const sel = $('bone');
+  sel.innerHTML = bones.length
+    ? bones.map((b, i) => `<option value="${i}">${b.name}</option>`).join('')
+    : '<option value="">(뼈 없음)</option>';
+  syncSliders();
+
+  skelHelper = new THREE.SkeletonHelper(root);
+  skelHelper.visible = $('c-bone').checked;
+  scene.add(skelHelper);
+
+  applyWire();
+  fitView();
+  msg('');
+}
+
+function fitView() {
+  if (!current) return;
+  const box = new THREE.Box3().setFromObject(current);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  orbit.target.copy(center);
+  // 세로와 가로를 따로 계산해서 더 빡빡한 쪽에 맞춘다.
+  //
+  // 둘 중 큰 치수를 세로처럼 다루면, 14명을 한 줄로 세웠을 때(가로 8m)
+  // 카메라가 19m 뒤로 물러나 사람이 개미만 하게 나온다. 가로는 화면이
+  // 옆으로 넓은 만큼(aspect) 더 가까이서도 다 들어온다.
+  const fovV = camera.fov * Math.PI / 180;
+  const fovH = 2 * Math.atan(Math.tan(fovV / 2) * camera.aspect);
+  const rV = (Math.max(size.y, 0.4) / 2) / Math.tan(fovV / 2);
+  const rH = (Math.max(size.x, size.z, 0.4) / 2) / Math.tan(fovH / 2);
+  orbit.radius = Math.max(rV, rH) * 1.18;
+  applyCamera();
+}
+
+function loadPath(url, label) {
+  msg('불러오는 중…\n' + url);
+  loader.load(url,
+    (gltf) => {
+      // 용량은 따로 재 본다 (표시용)
+      fetch(url).then((r) => r.arrayBuffer()).then((b) =>
+        install(gltf.scene, label || url.split('/').pop(), b.byteLength))
+        .catch(() => install(gltf.scene, label || url.split('/').pop(), 0));
+    },
+    undefined,
+    () => msg('불러오지 못했습니다.\n\n' + url + '\n\n'
+      + 'file:// 로 열면 브라우저가 .glb 요청을 막습니다. 프로젝트 폴더에서\n'
+      + 'python -m http.server 8000\n'
+      + '을 띄우고 http://localhost:8000/tools/viewer.html 로 여세요.\n'
+      + '(또는 .glb 파일을 이 창에 끌어다 놓으세요)'));
+}
+
+// ── 뼈 회전 ──────────────────────────────────────────────────
+const dg = (v) => v * Math.PI / 180;
+function currentBone() {
+  const i = parseInt($('bone').value, 10);
+  return Number.isFinite(i) ? bones[i] : null;
+}
+function applyBone() {
+  const b = currentBone();
+  if (!b) return;
+  const e = new THREE.Euler(dg(+$('rx').value), dg(+$('ry').value), dg(+$('rz').value), 'XYZ');
+  // 원래 자세(q0)에 회전을 덧붙인다 — 절대값으로 덮어쓰면 T포즈가 무너진다
+  b.bone.quaternion.copy(b.q0).multiply(new THREE.Quaternion().setFromEuler(e));
+  $('vx').textContent = $('rx').value + '°';
+  $('vy').textContent = $('ry').value + '°';
+  $('vz').textContent = $('rz').value + '°';
+}
+function syncSliders() {
+  ['rx', 'ry', 'rz'].forEach((id) => { $(id).value = 0; });
+  ['vx', 'vy', 'vz'].forEach((id) => { $(id).textContent = '0°'; });
+}
+['rx', 'ry', 'rz'].forEach((id) => $(id).addEventListener('input', applyBone));
+$('bone').addEventListener('change', syncSliders);
+$('breset').addEventListener('click', () => {
+  const b = currentBone(); if (b) b.bone.quaternion.copy(b.q0);
+  syncSliders();
+});
+$('ballreset').addEventListener('click', () => {
+  bones.forEach((b) => b.bone.quaternion.copy(b.q0));
+  syncSliders();
+});
+
+// ── 보기 토글 ────────────────────────────────────────────────
+function applyWire() {
+  const on = $('c-wire').checked;
+  if (!current) return;
+  current.traverse((o) => {
+    if (!o.isMesh) return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m) m.wireframe = on; });
+  });
+}
+$('c-wire').addEventListener('change', applyWire);
+$('c-bone').addEventListener('change', () => { if (skelHelper) skelHelper.visible = $('c-bone').checked; });
+$('c-grid').addEventListener('change', () => { grid.visible = $('c-grid').checked; });
+
+// ── 목록·버튼 ────────────────────────────────────────────────
+$('pick').innerHTML = MODELS.map(([n, p], i) => `<option value="${i}">${n}</option>`).join('');
+$('pick').addEventListener('change', () => {
+  const [n, p] = MODELS[+$('pick').value];
+  loadPath(p, n);
+});
+$('reload').addEventListener('click', () => {
+  const [n, p] = MODELS[+$('pick').value];
+  loadPath(p, n);
+});
+$('fit').addEventListener('click', fitView);
+
+// 전원 한 줄로 — 연령대·체형 차이는 나란히 놓고 봐야 보인다.
+// 한 명씩 번갈아 열어서는 "좀 다른가?" 수준으로만 느껴진다.
+$('lineup').addEventListener('click', async () => {
+  disposeCurrent();
+  const group = new THREE.Group();
+  let tris = 0, meshes = 0, loaded = 0;
+  const gap = 0.62;
+  for (let i = 0; i < PEOPLE.length; i++) {
+    const [id, label] = PEOPLE[i];
+    msg(`불러오는 중… ${i + 1}/${PEOPLE.length}  ${label}`);
+    try {
+      const gltf = await loader.loadAsync('../assets/humans/' + id + '.glb');
+      const o = gltf.scene;
+      o.position.x = (i - (PEOPLE.length - 1) / 2) * gap;
+      // 뷰어 카메라는 +Z 쪽에서 본다. 모델은 그대로 두어야 이쪽을 향한다
+      // (시뮬레이션 촬영 스크립트는 카메라가 반대라 거기서만 180° 돌린다).
+      o.rotation.y = 0;
+      o.traverse((m) => {
+        if (!m.isMesh) return;
+        m.castShadow = true; m.receiveShadow = true;
+        meshes++;
+        const g = m.geometry;
+        tris += g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+      });
+      group.add(o);
+      loaded++;
+    } catch (e) { /* 없는 사람은 건너뛴다 */ }
+  }
+  if (!loaded) {
+    msg('assets/humans/ 에 모델이 없습니다.\n\n먼저 만들어야 합니다:\n'
+      + 'node tools/build-humans.mjs');
+    return;
+  }
+  current = group;
+  scene.add(group);
+  $('stat').innerHTML = [
+    ['인원', loaded + '명'],
+    ['삼각형 합계', Math.round(tris).toLocaleString()],
+    ['드로우콜 합계', meshes],
+    ['1인 평균', Math.round(tris / loaded).toLocaleString() + ' / ' + (meshes / loaded).toFixed(0) + '개'],
+    ['지금 인형 (1인)', '8,736 / 33개'],
+    ['지금 인형 (24명)', '209,664 / 792개'],
+  ].map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  $('bone').innerHTML = '<option value="">(한 줄 보기에서는 사용 안 함)</option>';
+  bones = [];
+  applyWire();
+  // 키 차이는 정면에서 봐야 보인다 — 각도를 먼저 정하고 그다음에 맞춘다
+  orbit.phi = 1.50; orbit.theta = 0;
+  fitView();
+  msg('');
+});
+$('custom').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.value.trim()) loadPath(e.target.value.trim());
+});
+
+// ── 파일 끌어다 놓기 (서버 없이도 됨) ────────────────────────
+const drop = $('drop');
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => { e.preventDefault(); if (++dragDepth === 1) drop.style.display = 'flex'; });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('dragleave', (e) => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; drop.style.display = 'none'; } });
+window.addEventListener('drop', (e) => {
+  e.preventDefault(); dragDepth = 0; drop.style.display = 'none';
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  msg('읽는 중… ' + f.name);
+  f.arrayBuffer().then((buf) => {
+    loader.parse(buf, '', (gltf) => install(gltf.scene, f.name, buf.byteLength),
+      (err) => msg('열지 못했습니다: ' + f.name + '\n' + err));
+  });
+});
+
+// ── 루프 ─────────────────────────────────────────────────────
+window.addEventListener('resize', () => RENDER.setSize(renderer, camera));
+(function tick() {
+  requestAnimationFrame(tick);
+  if ($('c-spin').checked && current) { orbit.theta += 0.0042; applyCamera(); }
+  renderer.render(scene, camera);
+})();
+
+// 첫 모델
+loadPath(MODELS[0][1], MODELS[0][0]);
+</script>
+</body>
+</html>

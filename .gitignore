@@ -14,3 +14,10 @@ desktop.ini
 
 # 번들 재생성용 임시 폴더 (npm install 결과)
 .build/
+
+# 파일럿용 외부 3D 모델 — 라이선스를 정하기 전까지 저장소에 올리지 않는다
+assets/pilot/
+
+# 파이썬 캐시
+__pycache__/
+*.pyc

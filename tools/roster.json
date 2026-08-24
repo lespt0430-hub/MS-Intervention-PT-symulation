@@ -1,0 +1,90 @@
+{
+  "_설명": [
+    "환자 12명과 치료사의 인체 생성 사양. tools/build-humans.mjs 가 읽는다.",
+    "",
+    "age·sex·skin·hair 는 patients1.js / patients2.js 의 환자 데이터에서 그대로 가져왔다.",
+    "두 곳이 어긋나면 환자 데이터가 기준이다.",
+    "",
+    "height_cm — 페르소나에 키가 적힌 환자(p3·p6·p12)는 그 값을 쓰고,",
+    "  나머지는 국민건강통계의 연령·성별 평균을 썼다. 운동선수(p8 축구, p11 농구)는",
+    "  종목 특성상 평균보다 크게 잡았다.",
+    "",
+    "weight·muscle — 0~1. 0.5 가 보통이다.",
+    "  페르소나에 체중·BMI 가 명시된 환자는 그 값에서 역산했다(p3 BMI 28,",
+    "  p6 68kg/156cm, p12 BMI 25.6). 나머지는 직업·활동력으로 잡았다.",
+    "  이 시뮬레이션에서 체형은 장식이 아니라 내용이다 — 과체중은 무릎",
+    "  골관절염의 위험요인이고, 채점 근거에도 그렇게 적혀 있다."
+  ],
+
+  "patients": [
+    { "id": "p1",  "name": "김미영", "age": 45, "sex": "F", "height_cm": 158,
+      "weight": 0.50, "muscle": 0.42, "skin": "f1c8a8", "hair": "3a2a1d", "hair_style": "bob",
+      "note": "사무직, 목 통증. 평균 체형" },
+
+    { "id": "p2",  "name": "박순자", "age": 56, "sex": "F", "height_cm": 156,
+      "weight": 0.55, "muscle": 0.40, "skin": "f1c8a8", "hair": "555555", "hair_style": "bun",
+      "note": "주부. 반백" },
+
+    { "id": "p3",  "name": "윤정심", "age": 49, "sex": "F", "height_cm": 157,
+      "weight": 0.82, "muscle": 0.42, "skin": "f1c8a8", "hair": "4a3a2a", "hair_style": "short",
+      "note": "페르소나 명시 — 71kg/157cm, BMI 28 과체중" },
+
+    { "id": "p4",  "name": "이재현", "age": 38, "sex": "M", "height_cm": 173,
+      "weight": 0.50, "muscle": 0.68, "skin": "e8b98f", "hair": "1e1a17", "hair_style": "crop",
+      "note": "택배기사. 육체노동으로 근육량 높음" },
+
+    { "id": "p5",  "name": "정우진", "age": 27, "sex": "M", "height_cm": 174,
+      "weight": 0.48, "muscle": 0.75, "skin": "e8b98f", "hair": "24201c", "hair_style": "short",
+      "note": "축구 동호회. 운동인 체형" },
+
+    { "id": "p6",  "name": "최영숙", "age": 68, "sex": "F", "height_cm": 156,
+      "weight": 0.80, "muscle": 0.30, "skin": "f1c8a8", "hair": "8a8a8a", "hair_style": "bun",
+      "note": "페르소나 명시 — 68kg/156cm 과체중. 고령이라 근육량 낮음. 백발" },
+
+    { "id": "p7",  "name": "강대호", "age": 52, "sex": "M", "height_cm": 170,
+      "weight": 0.52, "muscle": 0.60, "skin": "dba97e", "hair": "3d3d3d", "hair_style": "short",
+      "note": "등산 애호가. 야외활동으로 피부톤 짙음" },
+
+    { "id": "p8",  "name": "한지수", "age": 22, "sex": "F", "height_cm": 165,
+      "weight": 0.42, "muscle": 0.85, "skin": "f1c8a8", "hair": "2b1f16", "hair_style": "pony",
+      "note": "대학 축구선수. 선수 체형 — 평균보다 크고 근육질" },
+
+    { "id": "p9",  "name": "문가영", "age": 24, "sex": "F", "height_cm": 161,
+      "weight": 0.48, "muscle": 0.45, "skin": "f1c8a8", "hair": "2e2118", "hair_style": "pony",
+      "note": "러닝 초보. 평균 체형" },
+
+    { "id": "p10", "name": "오민석", "age": 35, "sex": "M", "height_cm": 173,
+      "weight": 0.35, "muscle": 0.60, "skin": "dba97e", "hair": "211c18", "hair_style": "crop",
+      "note": "아마추어 마라토너. 지구력 종목이라 마른 편" },
+
+    { "id": "p11", "name": "임태양", "age": 19, "sex": "M", "height_cm": 180,
+      "weight": 0.40, "muscle": 0.65, "skin": "e8b98f", "hair": "17130f", "hair_style": "crop",
+      "note": "농구 동아리. 종목 특성상 큰 키" },
+
+    { "id": "p12", "name": "서혜란", "age": 48, "sex": "F", "height_cm": 158,
+      "weight": 0.68, "muscle": 0.42, "skin": "f1c8a8", "hair": "4a3728", "hair_style": "bob",
+      "note": "페르소나 명시 — 64kg/158cm, BMI 25.6 경도 과체중" }
+  ],
+
+  "staff": [
+    { "id": "staff_m", "name": "치료사(남1)", "age": 32, "sex": "M", "height_cm": 174,
+      "weight": 0.48, "muscle": 0.62, "skin": "f0c6a4", "hair": "241f1c",
+      "hair_style": "short", "garment": "scrub",
+      "note": "game.js buildTherapist 의 기본 배색을 따름" },
+
+    { "id": "staff_m2", "name": "치료사(남2)", "age": 45, "sex": "M", "height_cm": 169,
+      "weight": 0.58, "muscle": 0.55, "skin": "dba97e", "hair": "3a3a38",
+      "hair_style": "crop", "garment": "scrub",
+      "note": "선배 치료사 — 키가 작고 다부진 체형, 희끗한 짧은 머리" },
+
+    { "id": "staff_f", "name": "치료사(여1)", "age": 29, "sex": "F", "height_cm": 162,
+      "weight": 0.46, "muscle": 0.52, "skin": "f1c8a8", "hair": "2b211a",
+      "hair_style": "bun", "garment": "scrub",
+      "note": "치료사가 전부 같은 사람으로 보이지 않게 한 명 더 둔다" },
+
+    { "id": "staff_f2", "name": "치료사(여2)", "age": 37, "sex": "F", "height_cm": 158,
+      "weight": 0.52, "muscle": 0.45, "skin": "e8b98f", "hair": "4a3728",
+      "hair_style": "bob", "garment": "scrub",
+      "note": "치료실 네 곳에 12명이 서 있어서 둘로는 모자란다 — 남2·여2 로 돌려 쓴다" }
+  ]
+}

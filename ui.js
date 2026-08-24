@@ -63,12 +63,21 @@ UI.updateModeStatus = function () {
   if (mode === 'offline') {
     el.className = 'ok';
     el.textContent = '✓ 바로 시작할 수 있습니다. 환자별로 준비된 답변으로 문진이 진행됩니다.';
+  } else if (AI_RELAY.ready && !hasApiKey()) {
+    el.className = 'ok';
+    el.textContent = '✓ 교수님이 등록해 둔 AI로 문진합니다 — 학생은 따로 키를 넣지 않아도 됩니다.';
   } else if (hasApiKey()) {
     el.className = 'ok';
-    el.textContent = '✓ Gemini API 연동됨 (' + getModel() + ') — AI와 자유 대화로 문진합니다.';
+    el.textContent = getStoredKey()
+      ? '✓ 이 PC에 등록된 Gemini 키로 연동됨 (' + getModel() + ').'
+      : '✓ 교수님 Gemini 키로 연동됨 (' + getModel() + ') — 바로 AI 문진을 쓸 수 있습니다.';
+  } else if (!AI_RELAY.checked) {
+    el.className = '';
+    el.textContent = 'AI 연동을 확인하는 중…';
   } else {
     el.className = 'err';
-    el.textContent = '✗ Gemini API 키가 등록되지 않았습니다. 아래 교수 모드에서 등록해 주세요.';
+    el.textContent = '✗ AI 문진을 아직 쓸 수 없습니다. 교수님이 AI 키를 등록해야 켜집니다 ' +
+      '(PROFESSOR_SETUP.md의 「AI 문진 켜기」).';
   }
 };
 
@@ -86,7 +95,9 @@ UI.initStart = function () {
   // 엑셀에서 분반별로 묶이지 않는다.
   classEl.value = UI.state.className
     || ((window.PTSIM_CONFIG && PTSIM_CONFIG.className) || '');
-  keyEl.value = getApiKey();
+  // 입력칸에는 '이 PC에 등록한 키'만 보여 준다. config.js 의 공용 키까지
+  // 여기 채우면 교수님이 지우려다 헷갈린다 (지워도 config 값이 계속 쓰인다).
+  keyEl.value = getStoredKey();
   modelEl.value = getModel();
   if (modelEl.value !== getModel()) { // 저장된 모델이 기본 옵션에 없으면 추가
     modelEl.insertAdjacentHTML('afterbegin', '<option value="' + getModel() + '">' + getModel() + '</option>');
@@ -94,6 +105,9 @@ UI.initStart = function () {
   }
   document.querySelector('input[name="chatmode"][value="' + getChatMode() + '"]').checked = true;
   UI.updateModeStatus();
+  // 교수님이 서버에 키를 넣어 두었는지 물어본다. 학생은 이 결과만 보고
+  // AI 문진을 고를 수 있다 — 키 자체는 브라우저로 내려오지 않는다.
+  probeAiRelay().then(UI.updateModeStatus);
   document.querySelectorAll('input[name="chatmode"]').forEach((r) => {
     r.addEventListener('change', () => {
       localStorage.setItem('ptsim_mode', r.value);
@@ -132,9 +146,11 @@ UI.initStart = function () {
     if (!cls) { msg.className = 'err'; msg.textContent = '분반을 입력하세요.'; classEl.focus(); return; }
     if (!sid) { msg.className = 'err'; msg.textContent = '학번을 입력하세요.'; sidEl.focus(); return; }
     if (!name) { msg.className = 'err'; msg.textContent = '이름을 입력하세요.'; nameEl.focus(); return; }
-    if (mode === 'ai' && !hasApiKey()) {
-      msg.textContent = 'AI 문진 모드는 교수 모드에서 Gemini API 키를 등록해야 사용할 수 있습니다.';
-      document.getElementById('prof-mode').open = true;
+    if (mode === 'ai' && !aiAvailable()) {
+      msg.className = 'err';
+      msg.textContent = AI_RELAY.checked
+        ? 'AI 문진은 교수님이 AI 키를 등록해야 켜집니다. 지금은 「내장 답변 모드」로 진행해 주세요.'
+        : 'AI 연동을 확인하는 중입니다. 잠시 후 다시 눌러 주세요.';
       return;
     }
     if (!window.THREE) { msg.textContent = '3D 엔진을 아직 불러오는 중입니다. 잠시 후 다시 눌러 주세요.'; return; }
@@ -149,6 +165,20 @@ UI.initStart = function () {
     localStorage.setItem('ptsim_quality', GAME.qualityPref);
 
     document.getElementById('start-screen').style.display = 'none';
+    UI.showLoading(true, '물리치료실을 준비하고 있습니다…');
+
+    // 사람 모델(.glb)을 먼저 받아 둔다.
+    //
+    // 장면은 동기로 지어지는데 모델은 비동기로 온다. 장면을 짓는 도중에는
+    // 기다릴 수가 없으므로, 로딩 화면이 떠 있는 지금 전부 받아 놓고 그 다음에
+    // initGame() 을 부른다. 못 받아도 그냥 진행한다 — 예전 인형으로 나온다.
+    const ready = (window.HUMANS && HUMANS.enabled)
+      ? HUMANS.preload((n, total) =>
+          UI.showLoading(true, '사람 모델을 불러오는 중… (' + n + '/' + total + ')'))
+        .catch(() => false)
+      : Promise.resolve(false);
+
+    ready.then(() => {
     UI.showLoading(true, '물리치료실을 준비하고 있습니다…');
     // 장면 생성에는 절차적 PBR 맵 계산(수백 ms)이 포함되어 그 동안 화면이 멈춘다.
     // 두 프레임 양보해 로딩 화면이 실제로 그려진 뒤에 시작한다.
@@ -165,6 +195,7 @@ UI.initStart = function () {
       }
       UI.showLoading(false);
     }));
+    });
   });
 
   // 교수 모드 — Gemini 키 등록/해제
@@ -215,12 +246,6 @@ UI.initStart = function () {
   });
 
   UI.bindCollect();
-
-  document.getElementById('btn-reset').addEventListener('click', () => {
-    if (confirm('모든 진료 기록을 초기화할까요? (교수 모드의 API 키 설정은 유지됩니다)')) {
-      UI.state.records = {}; UI.save(); location.reload();
-    }
-  });
 };
 
 // ── 교수 모드 · 학생 결과 조회 ───────────────────────────────
@@ -230,9 +255,36 @@ UI.bindCollect = function () {
   const statusEl = document.getElementById('collect-status');
   const msgEl = document.getElementById('collect-msg');
   const resEl = document.getElementById('collect-result');
-  const actEl = document.getElementById('collect-actions');
   const loginBtn = document.getElementById('btn-prof-login');
+  const resetBtn = document.getElementById('btn-reset');
+  const toolsEl = document.getElementById('prof-tools');
   if (!loginBtn) return;
+
+  // 교수 전용 도구는 로그인 전에는 화면에 아예 없다.
+  //
+  // 예전에는 시작 화면에 초기화 버튼이 그냥 놓여 있어서, 학생이 자기 진행을
+  // 통째로 날리거나 다음 학생이 앞사람 기록을 지우고 시작하는 사고가 날 수
+  // 있었다. 서버가 아이디·비밀번호를 확인해 준 뒤에만 나타난다 (브라우저에서
+  // 비교하면 소스가 공개된 정적 사이트에서는 아무 의미가 없다).
+  UI.profVerified = false;
+  const showTools = (on) => { if (toolsEl) toolsEl.style.display = on ? '' : 'none'; };
+  showTools(false);
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      if (!UI.profVerified) {
+        msgEl.className = 'err';
+        msgEl.textContent = '먼저 교수 아이디·비밀번호로 로그인하세요.';
+        return;
+      }
+      const n = Object.keys(UI.state.records || {}).length;
+      if (!confirm('이 컴퓨터에 저장된 진료 기록 ' + n + '건을 모두 지웁니다.\n' +
+                   '(구글 시트에 이미 제출된 기록은 그대로 남습니다)\n\n계속할까요?')) return;
+      UI.state.records = {};
+      UI.save();
+      location.reload();
+    });
+  }
 
   const showStatus = () => {
     if (!window.COLLECT) return;
@@ -251,11 +303,57 @@ UI.bindCollect = function () {
 
   UI.collectRows = [];
 
+  // ── AI 문진 켜기/끄기 (교수 전용) ──────────────────────────
+  // 키는 서버(Apps Script 스크립트 속성)에만 저장된다. 교수님이 Apps Script
+  // 편집기를 열지 않고도 학기 시작에 켜고 끝에 끌 수 있게 하려고 둔 통로다.
+  const aiStateEl = document.getElementById('ai-state');
+  const aiKeyEl = document.getElementById('inp-ai-key');
+  const showAiState = () => {
+    if (!aiStateEl) return;
+    aiStateEl.innerHTML = AI_RELAY.ready
+      ? '현재 <b>켜짐</b> — 학생이 키 입력 없이 AI 문진을 쓸 수 있습니다.'
+      : '현재 <b>꺼짐</b> — 학생은 내장 답변 모드로 실습합니다.';
+  };
+  const aiSet = async (on) => {
+    const id = document.getElementById('inp-prof-id').value.trim();
+    const pw = document.getElementById('inp-prof-pw').value;
+    const key = aiKeyEl ? aiKeyEl.value.trim() : '';
+    if (on && !key) { msgEl.className = 'err'; msgEl.textContent = 'Gemini API 키를 입력하세요.'; return; }
+    msgEl.className = '';
+    msgEl.textContent = on ? 'AI 문진을 켜는 중… (키가 실제로 되는지 확인합니다)' : 'AI 문진을 끄는 중…';
+    try {
+      const r = await COLLECT.call(
+        on ? { action: 'ai_set', user: id, pw, key } : { action: 'ai_set', user: id, pw, enable: false },
+        45000);
+      AI_RELAY.ready = !!r.ai;
+      AI_RELAY.checked = true;
+      if (aiKeyEl) aiKeyEl.value = '';
+      msgEl.className = 'ok';
+      msgEl.textContent = r.ai
+        ? '✓ AI 문진을 켰습니다 — 이제 모든 학생이 바로 쓸 수 있습니다.'
+        : '✓ AI 문진을 껐습니다 — 저장된 키도 서버에서 지웠습니다.';
+      showAiState();
+      UI.updateModeStatus();
+    } catch (e) {
+      msgEl.className = 'err';
+      msgEl.textContent = 'AI 설정 실패: ' + e.message;
+    }
+  };
+  const aiOn = document.getElementById('btn-ai-on');
+  const aiOff = document.getElementById('btn-ai-off');
+  if (aiOn) aiOn.addEventListener('click', () => aiSet(true));
+  if (aiOff) aiOff.addEventListener('click', () => aiSet(false));
+
+  const xlsxBtn = document.getElementById('btn-xlsx');
   const render = (rows) => {
     UI.collectRows = rows;
+    // 제출이 아직 없어도 도구는 열어 둔다 — 초기화는 그때도 써야 한다.
+    if (xlsxBtn) {
+      xlsxBtn.disabled = !rows.length;
+      xlsxBtn.title = rows.length ? '' : '아직 받을 기록이 없습니다';
+    }
     if (!rows.length) {
       resEl.innerHTML = '<div class="collect-empty">아직 제출된 결과가 없습니다.</div>';
-      actEl.style.display = 'none';
       return;
     }
     // 학생별 요약 — 상세 전체는 엑셀로 받아 보는 편이 낫다.
@@ -285,7 +383,6 @@ UI.bindCollect = function () {
     });
     html += '</tbody></table>';
     resEl.innerHTML = html;
-    actEl.style.display = 'flex';
   };
 
   const load = async () => {
@@ -302,13 +399,20 @@ UI.bindCollect = function () {
     try {
       const rows = await COLLECT.fetchAll(id, pw);
       msgEl.className = 'ok';
-      msgEl.textContent = '✓ ' + rows.length + '건 불러왔습니다.';
+      msgEl.textContent = '✓ 교수 로그인 · 제출 ' + rows.length +
+        '건을 불러왔습니다 (학생이 어느 컴퓨터에서 했든 전부).';
+      UI.profVerified = true;      // 교수 전용 도구를 여기서 연다
+      showTools(true);
+      // 로그인한 김에 AI 상태도 서버에 다시 물어본다 (다른 PC에서 켜 뒀을 수 있다)
+      probeAiRelay().then(() => { showAiState(); UI.updateModeStatus(); });
+      showAiState();
       render(rows);
     } catch (e) {
       msgEl.className = 'err';
       msgEl.textContent = '불러오기 실패: ' + e.message;
       resEl.innerHTML = '';
-      actEl.style.display = 'none';
+      UI.profVerified = false;
+      showTools(false);
     }
     loginBtn.disabled = false;
   };

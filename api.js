@@ -1,10 +1,51 @@
 // 문진 엔진 — 두 가지 모드
 //  ① 내장 답변 모드(기본): 환자 데이터(keyHistory[].answer)를 키워드 매칭으로 답변. API 키 불필요.
-//  ② AI 모드: 교수 모드에서 등록한 Google Gemini API 키로 실시간 롤플레이 대화.
+//  ② AI 모드: Google Gemini 로 실시간 롤플레이 대화.
+//
+// AI 모드에서 키를 구하는 길은 두 가지다.
+//
+//   ㉠ 중계(기본) — 교수님이 구글 Apps Script 의 '스크립트 속성'에 키를 넣어 두면,
+//      학생 브라우저는 키를 모른 채 그 주소로 질문만 보낸다. 학생이 키를 입력할
+//      일도, 페이지 소스에서 키가 새어 나갈 일도 없다.
+//   ㉡ 이 PC 키 — 교수님이 자기 PC 브라우저에 직접 등록한 키. 인터넷 수집처를
+//      안 쓰거나 혼자 시험해 볼 때를 위해 남겨 둔다. 등록돼 있으면 이쪽이 우선.
+//
+// 정적 사이트라 소스가 그대로 공개된다. 그래서 키는 코드에도 config.js 에도
+// 두지 않는다 — 적어 두는 순간 학생 누구나 소스 보기로 꺼내 갈 수 있다.
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
-function getApiKey() { return localStorage.getItem('ptsim_gemini_key') || ''; }
+// 이 브라우저에 교수님이 직접 등록해 둔 키 (교수 모드 입력칸)
+function getStoredKey() { return localStorage.getItem('ptsim_gemini_key') || ''; }
+
+// 실제로 호출에 쓸 키.
+//   ㉠ 이 PC에 등록한 키가 있으면 그것
+//   ㉡ 없으면 config.js 의 geminiKey (교수님이 미리 넣어 둔 공용 키)
+// 둘 다 없으면 중계(Apps Script)를 쓴다.
+function getApiKey() {
+  const local = getStoredKey();
+  if (local) return local;
+  return (((window.PTSIM_CONFIG || {}).geminiKey) || '').trim();
+}
 function hasApiKey() { return getApiKey().length > 0; }
+
+// 중계 사용 가능 여부. 시작 화면에서 한 번 물어보고 기억해 둔다.
+const AI_RELAY = { ready: false, checked: false };
+
+async function probeAiRelay() {
+  AI_RELAY.checked = true;
+  AI_RELAY.ready = false;
+  if (!window.COLLECT || !COLLECT.enabled()) return false;
+  try {
+    const data = await COLLECT.call({ action: 'ai_status' }, 8000);
+    AI_RELAY.ready = !!data.ai;
+  } catch (e) {
+    AI_RELAY.ready = false;   // 옛 버전 스크립트거나 인터넷이 막힌 실습실
+  }
+  return AI_RELAY.ready;
+}
+
+// AI 문진을 지금 쓸 수 있는가 (학생 화면의 안내·차단 판단용)
+function aiAvailable() { return hasApiKey() || AI_RELAY.ready; }
 function getModel() {
   const m = localStorage.getItem('ptsim_model') || '';
   return m.startsWith('gemini') ? m : 'gemini-flash-latest';
@@ -36,11 +77,53 @@ function pickDefaultModel(models) {
   return flash[0] || ids[0];
 }
 function getChatMode() { return localStorage.getItem('ptsim_mode') === 'ai' ? 'ai' : 'offline'; }
-function useAI() { return getChatMode() === 'ai' && hasApiKey(); }
+function useAI() { return getChatMode() === 'ai' && aiAvailable(); }
 
-// ── Gemini API 호출 ──
+// ── Gemini 호출 ──
+//
+// 요즘 flash 모델은 답을 쓰기 전에 '생각'하는 데도 토큰을 쓴다. 한도가 빠듯하면
+// 생각만 하다 한도에 걸려 본문이 빈 채로 돌아온다 (실측: 한 마디 인사에 생각
+// 244토큰). 그럴 때 한 번은 한도를 크게 잡아 다시 물어본다 — 학생 화면에
+// "응답이 비어 있습니다" 를 띄우는 것보다 낫다.
+// 모델이 붐빌 때 갈아탈 후보. 수업 중에 "지금 수요가 몰렸습니다" 한 줄로
+// 문진이 멈추면 안 된다 — 실제로 gemini-flash-latest 가 그렇게 거절했다.
+const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-flash-lite-latest'];
+const BUSY = /high demand|overload|unavailable|503|try again later/i;
+
 async function callGemini(system, messages, maxTokens, jsonMode) {
-  const model = getModel();
+  const budget = maxTokens || 1024;
+  const first = getModel();
+  const models = [first].concat(FALLBACK_MODELS.filter((m) => m !== first));
+  let lastErr = null;
+  for (const model of models) {
+    try {
+      return await geminiOnce(system, messages, budget, jsonMode, model);
+    } catch (e) {
+      lastErr = e;
+      if (/MAX_TOKENS|비어 있습니다/.test(e.message || '')) {
+        try { return await geminiOnce(system, messages, budget * 3, jsonMode, model); }
+        catch (e2) { lastErr = e2; }
+      }
+      if (!BUSY.test(lastErr.message || '')) throw lastErr;   // 붐빔이 아니면 그대로 알린다
+      console.warn('[ai] ' + model + ' 혼잡 — 다음 모델로 넘어갑니다');
+    }
+  }
+  throw lastErr;
+}
+
+async function geminiOnce(system, messages, maxTokens, jsonMode, model) {
+  model = model || getModel();
+  if (!hasApiKey() && AI_RELAY.ready) {
+    // 중계 — 키는 교수님 스크립트 안에 있고 여기서는 질문만 보낸다
+    const data = await COLLECT.call({
+      action: 'ai',
+      model: model,
+      system, messages,
+      maxTokens: maxTokens || 1024,
+      jsonMode: !!jsonMode,
+    }, 60000);
+    return data.text || '';
+  }
   const url = GEMINI_URL + model + ':generateContent?key=' + encodeURIComponent(getApiKey());
   const body = {
     system_instruction: { parts: [{ text: system }] },

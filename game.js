@@ -98,10 +98,14 @@ const PATIENT_POSES = {
 const STANCES = {
   stand:  { legR: { hip: 0.04 }, legL: { hip: -0.04 }, armR: 'hang', armL: 'hang' },
   walk:   { legR: { hip: 0.42, knee: 0.10 }, legL: { hip: -0.30, knee: 0.30 }, armR: 'swingB', armL: 'swingF' },
-  // 앉기: 고관절·무릎 90°. 엉덩이가 앉는 면에 오도록 배치 쪽에서 y를 잡는다.
-  sit:    { legR: { hip: 1.52, knee: 1.52 }, legL: { hip: 1.52, knee: 1.52 }, armR: 'lap', armL: 'lap' },
-  // 치료사가 환자 위로 손을 얹은 자세 (도수치료·촉진)
-  handson: { legR: { hip: 0.10 }, legL: { hip: -0.10 }, armR: 'reach', armL: 'reach' },
+  // 앉기: 고관절·무릎 90°. seatY 는 골반뼈가 와야 할 높이(m) — 매트베드·리포머
+  // 캐리지가 0.50~0.53 이라 그 위에 걸터앉는 높이로 잡았다. (사람 모델 전용:
+  // 인형은 원점이 머리라 아래 upright.position.y 로 따로 맞춘다.)
+  sit:    { legR: { hip: 1.52, knee: 1.52 }, legL: { hip: 1.52, knee: 1.52 }, armR: 'lap', armL: 'lap', seatY: 0.56 },
+  // 치료사가 환자 위로 손을 얹은 자세 (도수치료·촉진).
+  // lean 은 허리를 숙이는 각(라디안) — 사람 모델에서만 쓴다. 곧게 선 채로
+  // 팔만 뻗으면 손이 침대보다 한참 위에서 허공을 짚는다.
+  handson: { legR: { hip: 0.10 }, legL: { hip: -0.10 }, armR: 'reach', armL: 'reach', lean: 0.45 },
 };
 
 // 환자복 원단 — 국내 병원 환자복의 연한 하늘색 세로 줄무늬.
@@ -123,8 +127,112 @@ function patientGownTexture() {
   return GOWN_TEX;
 }
 
+// ── 질환별 소품 (인형·사람 모델 공용) ──────────────────────────
+// 담요·목베개·무릎 받침·압박붕대·얼음팩은 몸이 아니라 침대 위에 놓인 물건이다.
+// 좌표는 침대 기준 — 베개가 원점, 발끝이 +z, 천장이 +y. 캡슐 인형과 .glb 사람이
+// 이 규약을 똑같이 지키므로 소품은 한 벌만 두고 양쪽에서 부른다.
+// (사람 모델로 갈아탈 때 이 코드가 인형 안에 갇혀 있어서, 얼음팩도 담요도 없이
+//  환자만 덩그러니 누워 있었다.)
+function capsuleBetween(parent, a, b, r, mat) {
+  const dir = new THREE.Vector3().subVectors(b, a);
+  const len = dir.length();
+  const m = new THREE.Mesh(
+    new THREE.CapsuleGeometry(r, Math.max(0.004, len - r), 3, 12), mat);
+  m.position.copy(a).addScaledVector(dir, 0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  m.castShadow = true;
+  parent.add(m);
+  return m;
+}
+
+function boxAt(parent, p, w, h, d, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.copy(p); m.castShadow = true;
+  parent.add(m);
+  return m;
+}
+
+// 소품 재질은 환자별로 다르지 않다 — 12명이 같은 것을 나눠 쓴다.
+let PROP_MATS = null;
+function propMaterials() {
+  if (PROP_MATS) return PROP_MATS;
+  PROP_MATS = {
+    white: new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9, envMapIntensity: 0.5 }),
+    // 얼음팩 — 반투명하고 젖은 표면
+    ice: new THREE.MeshStandardMaterial({ color: 0xbfe3f5, roughness: 0.12, metalness: 0.05, envMapIntensity: 1.4, transparent: true, opacity: 0.86 }),
+    // 담요는 반원통 껍질이라 안쪽 면도 보인다 → DoubleSide
+    blanket: new THREE.MeshStandardMaterial({ color: 0xdfe8f0, roughness: 0.97, envMapIntensity: 0.4, side: THREE.DoubleSide }),
+    sheet: new THREE.MeshStandardMaterial({ color: 0xf4f7fa, roughness: 0.95, envMapIntensity: 0.4 }),
+  };
+  return PROP_MATS;
+}
+
+// props  — PATIENT_POSES 의 소품 이름 목록
+// joints — 침대 좌표계의 무릎·발목 위치 { kneeR, ankleR, shankDirR }
+function buildPatientProps(props, joints) {
+  const g = new THREE.Group();
+  if (!props || !props.length) return g;
+  const M = propMaterials();
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // 몸을 가로지르는 원통 (목베개·무릎 받침)
+  const xCyl = (p, r, len, mat) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), mat);
+    m.position.copy(p); m.rotation.z = Math.PI / 2; m.castShadow = true;
+    g.add(m);
+    return m;
+  };
+  const kR = joints.kneeR, aR = joints.ankleR, dR = joints.shankDirR;
+  props.forEach((prop) => {
+    switch (prop) {
+      case 'neckroll':    xCyl(V(0, 0.05, 0.12), 0.05, 0.34, M.white); break;
+      case 'blanket': {
+        // 다리 위에 덮인 담요. 예전에는 0.16m 두께 상자여서 스티로폼 덩어리로 보였다.
+        // 반원통 껍질을 씌우면 다리 윤곽을 따라 천이 흐르는 것처럼 읽힌다.
+        // 발쪽으로 갈수록 좁아져야 한다. 굵기가 일정하면 담요가 아니라 통나무다.
+        //
+        // 가슴까지 끌어올리지 않는다. 예전에는 z=0.61(가슴)에서 시작했는데,
+        // 환자복이 상하 두 벌이 되면서 몸이 얇아지자 껍질이 몸에서 떠서
+        // 벌어진 입구 안쪽(어두운 뒷면)이 가슴에 시커멓게 비쳤다.
+        // 골반에서 시작해 다리만 덮는다 — 실제로도 그렇게 덮어 준다.
+        const Z0 = 0.95, Z1 = 1.80;                         // 골반 → 발끝
+        const bg = new THREE.CylinderGeometry(0.24, 0.30, Z1 - Z0, 22, 1, true, 0, Math.PI);
+        bg.rotateZ(Math.PI / 2); bg.rotateY(Math.PI / 2);   // 축을 z로, 껍질을 위쪽으로
+        const bl = new THREE.Mesh(bg, M.blanket);
+        bl.position.set(0, 0.0, (Z0 + Z1) / 2);
+        bl.castShadow = true;
+        g.add(bl);
+        // 입구를 반원판으로 막는다. 안 막으면 그 구멍으로 껍질 안쪽이 보인다.
+        const cap = new THREE.Mesh(new THREE.CircleGeometry(0.24, 22, 0, Math.PI), M.sheet);
+        cap.position.set(0, 0, Z0);
+        cap.rotation.z = -Math.PI / 2;                      // 반원의 평평한 쪽을 아래로
+        g.add(cap);
+        // 골반께로 접어 올린 시트 끝단
+        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.05, 0.10), M.sheet);
+        hem.position.set(0, 0.17, Z0 + 0.02);
+        hem.castShadow = true;
+        g.add(hem);
+        break;
+      }
+      case 'bolsterKneeR': xCyl(V(kR.x, 0.06, kR.z), 0.09, 0.5, M.white); break;
+      case 'bolsterKnees': xCyl(V(0, 0.055, kR.z), 0.07, 0.5, M.white); break;
+      case 'wrapKneeR':   capsuleBetween(g, kR.clone().addScaledVector(dR, -0.09), kR.clone().addScaledVector(dR, 0.09), 0.085, M.white); break;
+      case 'iceKneeR':    boxAt(g, kR.clone().add(V(0, 0.11, 0)), 0.16, 0.06, 0.16, M.ice); break;
+      case 'pillowAnkleR': boxAt(g, V(aR.x, 0.10, aR.z), 0.34, 0.20, 0.32, M.white); break;
+      case 'wrapAnkleR':  capsuleBetween(g, aR.clone().addScaledVector(dR, -0.08), aR.clone().addScaledVector(dR, 0.08), 0.062, M.white); break;
+      case 'iceAnkleR':   boxAt(g, aR.clone().add(V(0, 0.12, 0)), 0.14, 0.06, 0.14, M.ice); break;
+    }
+  });
+  return g;
+}
+
 function buildPatientFigure(patient, opts) {
   const o = opts || {};
+  // 리깅된 .glb 가 준비돼 있으면 그쪽을 쓴다. 못 불러왔으면 아래의 캡슐 인형이
+  // 그대로 동작한다 — 수업 중에 사람이 통째로 안 보이는 것보다 낫다.
+  if (window.HUMANS && HUMANS.enabled && HUMANS.loaded) {
+    const g = HUMANS.build(patient, o);
+    if (g) return g;
+  }
   const col = patient.colors || {};
   const M = {
     // 피부는 완전 무광이 아니다 — 약한 광택이 있어야 사람 피부로 읽힌다
@@ -176,17 +284,7 @@ function buildPatientFigure(patient, opts) {
   // 관절점에 딱 멈춰서 팔꿈치·무릎마다 틈이 벌어져 조립식 인형으로 보였다.
   // 반대로 (전체길이)로 두면 마디마다 r씩 늘어나 팔다리가 40%씩 길어진다.
   // r 하나만 빼는 지금 값이 관절은 메우면서 비율은 거의 유지한다.
-  const seg = (a, b, r, mat, parent) => {
-    const dir = new THREE.Vector3().subVectors(b, a);
-    const len = dir.length();
-    const m = new THREE.Mesh(
-      new THREE.CapsuleGeometry(r, Math.max(0.004, len - r), 3, 12), mat);
-    m.position.copy(a).addScaledVector(dir, 0.5);
-    m.quaternion.setFromUnitVectors(V(0, 1, 0), dir.normalize());
-    m.castShadow = true;
-    (parent || body).add(m);
-    return m;
-  };
+  const seg = (a, b, r, mat, parent) => capsuleBetween(parent || body, a, b, r, mat);
   // 구 분할을 20×16에서 14×10으로 낮췄다. 손·관절처럼 화면에서 몇 픽셀밖에
   // 안 되는 것에 640삼각형씩 쓰고 있었다 — 눈에 띄는 차이 없이 절반 이하로 준다.
   const ball = (p, r, mat, parent) => {
@@ -195,12 +293,7 @@ function buildPatientFigure(patient, opts) {
     (parent || body).add(m);
     return m;
   };
-  const box = (p, w, h, d, mat, parent) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.copy(p); m.castShadow = true;
-    (parent || body).add(m);
-    return m;
-  };
+  const box = (p, w, h, d, mat, parent) => boxAt(parent || body, p, w, h, d, mat);
   // 몸통·골반처럼 모서리가 없어야 하는 부위. 구 하나를 눌러 타원체로 쓴다
   // (직육면체로 두면 아무리 재질이 좋아도 사람이 아니라 상자로 읽힌다).
   const ellip = (p, rx, ry, rz, mat, parent) => {
@@ -398,42 +491,7 @@ function buildPatientFigure(patient, opts) {
   });
 
   // 질환별 소품 (침대 위 고정 — roll 미적용, 바로누움 환자 전용)
-  const xCyl = (p, r, len, mat) => {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), mat);
-    m.position.copy(p); m.rotation.z = Math.PI / 2; m.castShadow = true;
-    fig.add(m);
-    return m;
-  };
-  pose.props.forEach((prop) => {
-    const kR = joints.kneeR, aR = joints.ankleR, dR = joints.shankDirR;
-    switch (prop) {
-      case 'neckroll':    xCyl(V(0, 0.05, 0.12), 0.05, 0.34, M.white); break;
-      case 'blanket': {
-        // 다리 위에 덮인 담요. 예전에는 0.16m 두께 상자여서 스티로폼 덩어리로 보였다.
-        // 반원통 껍질을 씌우면 다리 윤곽을 따라 천이 흐르는 것처럼 읽힌다.
-        // 발쪽으로 갈수록 좁아져야 한다. 굵기가 일정하면 담요가 아니라 통나무다.
-        const bg = new THREE.CylinderGeometry(0.20, 0.29, 1.16, 22, 1, true, 0, Math.PI);
-        bg.rotateZ(Math.PI / 2); bg.rotateY(Math.PI / 2);   // 축을 z로, 껍질을 위쪽으로
-        const bl = new THREE.Mesh(bg, M.blanket);
-        bl.position.set(0, 0.0, 1.19);
-        bl.castShadow = true;
-        fig.add(bl);
-        // 가슴께로 접어 올린 시트 끝단
-        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.05, 0.14), M.sheet);
-        hem.position.set(0, 0.19, 0.63);
-        hem.castShadow = true;
-        fig.add(hem);
-        break;
-      }
-      case 'bolsterKneeR': xCyl(V(kR.x, 0.06, kR.z), 0.09, 0.5, M.white); break;
-      case 'bolsterKnees': xCyl(V(0, 0.055, kR.z), 0.07, 0.5, M.white); break;
-      case 'wrapKneeR':   seg(kR.clone().addScaledVector(dR, -0.09), kR.clone().addScaledVector(dR, 0.09), 0.085, M.white, fig); break;
-      case 'iceKneeR':    box(kR.clone().add(V(0, 0.11, 0)), 0.16, 0.06, 0.16, M.ice, fig); break;
-      case 'pillowAnkleR': box(V(aR.x, 0.10, aR.z), 0.34, 0.20, 0.32, M.white, fig); break;
-      case 'wrapAnkleR':  seg(aR.clone().addScaledVector(dR, -0.08), aR.clone().addScaledVector(dR, 0.08), 0.062, M.white, fig); break;
-      case 'iceAnkleR':   box(aR.clone().add(V(0, 0.12, 0)), 0.14, 0.06, 0.14, M.ice, fig); break;
-    }
-  });
+  fig.add(buildPatientProps(pose.props, joints));
 
   if (!o.stance) return fig;
 
@@ -449,7 +507,16 @@ function buildPatientFigure(patient, opts) {
 
 // 치료사 — 환자와 같은 리그를 쓰되 도면처럼 남색 스크럽 상하의를 입힌다.
 // 환자복(연한 하늘색·회색)과 색이 확실히 갈려야 실습생이 한눈에 구분한다.
+// 치료사가 전부 같은 사람으로 보이지 않게 남녀를 번갈아 쓴다.
+let THERAPIST_TURN = 0;
+
 function buildTherapist(stance, skin, hair) {
+  if (window.HUMANS && HUMANS.enabled && HUMANS.loaded) {
+    const roll = HUMANS.STAFF || ['staff_m', 'staff_f'];
+    const id = roll[THERAPIST_TURN++ % roll.length];
+    const g = HUMANS.build(null, { stance: stance || 'stand', staff: id });
+    if (g) return g;
+  }
   return buildPatientFigure(
     // 노출을 낮춘 뒤 남색 0x33456b가 거의 검게 눌려서 한 톤 올렸다
     { id: '_staff', colors: { skin: skin || 0xf0c6a4, hair: hair || 0x241f1c, blanket: 0x415d87, pants: 0x35486a } },

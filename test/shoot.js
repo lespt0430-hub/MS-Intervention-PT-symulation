@@ -45,14 +45,30 @@ const SHOTS = [
 
 // 환자 앞으로 카메라를 자동으로 데려간다. 좌표를 손으로 적으면 배치가 바뀔 때마다
 // 빈 벽을 찍게 된다 — 장면에 등록된 베드(GAME.beds)에서 직접 위치를 읽는다.
-const FACE_PATIENT = (idx) => `(()=>{
+// side 가 참이면 베드 옆에서 본다.
+//
+// 정면(발치)에서만 찍으면 팔이 앞뒤로 얼마나 들렸는지가 안 보인다. 실제로
+// 그 각도만 보고 자세를 맞췄다가, 팔을 45° 앞으로 든 사람을 눕혀 놓고
+// 팔이 천장으로 솟은 걸 뒤늦게 알았다. 옆에서 한 장 더 찍는다.
+const FACE_PATIENT = (idx, side) => `(()=>{
   const b = GAME.beds[${idx}];
   if (!b) return '베드 없음';
-  // 베드 앞(-z 쪽) 1.6m 에 서서 베드를 바라본다
+  ${side ? `
+  // 정확히 옆(±x)에 서면 옆 침대나 수납장 안에 들어가 버린다. 발치에서
+  // 비스듬히 보는 자리가 몸을 가장 잘 보여 주면서 가구도 피한다.
+  GAME.player.x = b.cx - 0.95;
+  GAME.player.z = b.cz - 0.95;
+  GAME.yaw = 1.25 * Math.PI;   // +x·+z 사이를 본다
+  GAME.pitch = -0.30;
+  ` : `
+  // 베드 앞(-z 쪽)에 바짝 서서 베드를 내려다본다.
+  // 1.7m 로 물러섰더니 전기치료실에서는 커튼 밖으로 나가 화면이 온통
+  // 커튼 천이었다 — 칸막이 안에 들어와 있어야 환자가 보인다.
   GAME.player.x = b.cx;
-  GAME.player.z = b.cz - 1.7;
+  GAME.player.z = b.cz - 1.15;
   GAME.yaw = Math.PI;      // +z 를 본다
-  GAME.pitch = -0.13;
+  GAME.pitch = -0.22;
+  `}
   return b.patient.name;
 })()`;
 
@@ -213,15 +229,19 @@ async function main() {
     console.log('  캡처:', path.basename(file), (fs.statSync(file).size / 1024).toFixed(0) + ' KB');
   }
 
-  // 환자 두 명을 가까이서 — 캐릭터 형상 확인용
-  if (!ONLY || ONLY === '캐릭터') {
-    for (const idx of [0, 5]) {
-      const who = await cdp.eval(FACE_PATIENT(idx));
-      await sleep(2500);
-      const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      const file = path.join(OUT, `${TAG}-캐릭터${idx}.png`);
-      fs.writeFileSync(file, Buffer.from(data, 'base64'));
-      console.log('  캡처:', path.basename(file), '—', who);
+  // 환자를 가까이서 — 캐릭터 형상 확인용.
+  // 베드 번호를 지정할 수 있다:  node test/shoot.js h2 high 캐릭터:0,7,10
+  if (!ONLY || ONLY.startsWith('캐릭터')) {
+    const idxs = (ONLY.split(':')[1] || '0,5').split(',').map(Number);
+    for (const idx of idxs) {
+      for (const side of [false, true]) {
+        const who = await cdp.eval(FACE_PATIENT(idx, side));
+        await sleep(2500);
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+        const file = path.join(OUT, `${TAG}-캐릭터${idx}${side ? '-옆' : ''}.png`);
+        fs.writeFileSync(file, Buffer.from(data, 'base64'));
+        console.log('  캡처:', path.basename(file), '—', who);
+      }
     }
   }
 

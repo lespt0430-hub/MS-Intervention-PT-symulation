@@ -87,7 +87,7 @@
       <label class="mode-opt"><input type="radio" name="chatmode" value="offline" checked>
         <b>내장 답변 모드</b><span>준비된 환자 답변 · API 키 불필요 · 무료</span></label>
       <label class="mode-opt"><input type="radio" name="chatmode" value="ai">
-        <b>AI 문진 모드</b><span>Gemini AI 자유 대화 · 교수 모드에서 키 등록 필요</span></label>
+        <b>AI 문진 모드</b><span>Gemini AI 자유 대화 · 교수님이 켜 두면 바로 사용</span></label>
     </div>
     <div id="mode-status"></div>
 
@@ -101,14 +101,21 @@
     <div class="key-hint" id="quality-hint"></div>
 
     <button id="btn-start">물리치료실 입장</button>
-    <button id="btn-reset">진료 기록 전체 초기화</button>
     <div id="start-msg"></div>
 
     <details id="prof-mode">
-      <summary>⚙ 교수 모드 — AI 연동 설정 (Gemini API)</summary>
-      <label>Gemini API 키</label>
+      <summary>⚙ 교수 모드 — AI 연동 · 학생 결과 조회</summary>
+      <div class="key-hint">
+        <b>AI 문진은 교수님 키 하나로 모든 학생이 함께 씁니다.</b>
+        키는 구글 Apps Script의 <b>스크립트 속성 GEMINI_KEY</b>에 넣어 두세요
+        (PROFESSOR_SETUP.md의 「AI 문진 켜기」). 그러면 학생은 어느 PC에서 접속하든
+        키를 입력하지 않고 AI 문진을 쓸 수 있고, 키가 페이지 소스로 새어 나가지도 않습니다.
+      </div>
+      <label>Gemini API 키 (이 컴퓨터에서만 임시로 쓸 때)</label>
       <input type="password" id="inp-key" placeholder="AIza...">
-      <div class="key-hint"><a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>에서 무료 발급 · 이 컴퓨터에만 저장됩니다. 실습실 PC에 한 번 등록하면 모든 학생이 AI 문진 모드를 사용할 수 있습니다.</div>
+      <div class="key-hint">여기에 넣은 키는 <b>이 브라우저에만</b> 저장되며 이 PC에서만 쓰입니다.
+        서버(스크립트 속성)에 키를 넣기 전에 시험해 보거나, 수집처 없이 혼자 쓸 때만 사용하세요.
+        <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>에서 발급합니다.</div>
       <label>AI 모델</label>
       <select id="inp-model">
         <option value="gemini-flash-latest">Gemini Flash 최신 버전 (자동, 권장)</option>
@@ -129,18 +136,50 @@
         <input type="password" id="inp-prof-pw" placeholder="비밀번호">
         <button id="btn-prof-login">결과 불러오기</button>
       </div>
+      <div class="key-hint">
+        학생이 집에서 접속했든 실습실에서 했든, 제출된 기록은 모두 교수님 구글 시트로 모입니다.
+        로그인하면 그 전부를 한 번에 받습니다.
+      </div>
       <div id="collect-msg"></div>
       <div id="collect-result"></div>
-      <div class="prof-btn-row" id="collect-actions" style="display:none">
-        <button id="btn-xlsx">📥 엑셀(.xlsx) 다운로드</button>
-        <button id="btn-collect-refresh">새로고침</button>
+
+      <!-- 로그인 전에는 통째로 숨겨 둔다. 학생 화면에는 아예 보이지 않는다. -->
+      <div id="prof-tools" style="display:none">
+        <div class="prof-btn-row" id="collect-actions">
+          <button id="btn-xlsx">📥 전체 학생 기록 엑셀(.xlsx) 받기</button>
+          <button id="btn-collect-refresh">새로고침</button>
+        </div>
+
+        <hr class="prof-div">
+        <label>🤖 AI 문진 — 학생 전원에게 켜기/끄기</label>
+        <div class="key-hint" id="ai-state">확인 중…</div>
+        <input type="password" id="inp-ai-key" placeholder="Gemini API 키 (AIza… 또는 AQ…)">
+        <div class="prof-btn-row">
+          <button id="btn-ai-on">AI 문진 켜기</button>
+          <button id="btn-ai-off">끄기</button>
+        </div>
+        <div class="key-hint">
+          여기 넣은 키는 <b>교수님 구글 계정(Apps Script) 안에만</b> 저장됩니다 —
+          저장소에도, 학생 브라우저에도 내려가지 않습니다. 켜 두면 학생은 어느
+          컴퓨터에서든 아무것도 입력하지 않고 AI 문진을 쓰고, 끄면 모두 내장 답변
+          모드로 돌아갑니다. 학기가 끝나면 여기서 꺼 두세요.
+          키 발급: <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
+        </div>
+        <div class="prof-btn-row">
+          <button id="btn-reset">🗑 이 PC 진료 기록 초기화</button>
+        </div>
+        <div class="key-hint">
+          「전체 초기화」 — 이 컴퓨터에 남아 있는 진행 상황만 지웁니다.
+          구글 시트에 이미 제출된 기록은 지워지지 않습니다.
+        </div>
       </div>
+
       <div class="prof-btn-row">
         <button id="btn-xlsx-local">💾 이 PC 기록만 엑셀로 받기</button>
       </div>
       <div class="key-hint">
-        수집처를 설정하지 않았거나 인터넷이 안 될 때 씁니다 — 지금 이 컴퓨터에 남아 있는
-        진료 기록만 엑셀로 저장합니다.
+        「이 PC 기록만」 — 수집처를 설정하지 않았거나 인터넷이 안 될 때 씁니다.
+        지금 이 컴퓨터에 남아 있는 진료 기록만 엑셀로 저장합니다 (로그인 없이 됩니다).
       </div>
       <div class="key-hint">
         설정 방법은 저장소의 <b>PROFESSOR_SETUP.md</b> 를 보세요. 수집처를 설정하지 않으면
@@ -217,6 +256,7 @@
 <script src="patients2.js"></script>
 <script src="api.js"></script>
 <script src="game.js"></script>
+<script src="humans.js"></script>
 <!-- 공간 모듈 — 도면 4장을 구역별로 나눠 짓는다 (game.js 뒤에 와야 GAME을 참조할 수 있다) -->
 <script src="rooms/kit.js"></script>
 <script src="rooms/layout.js"></script>
