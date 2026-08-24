@@ -46,10 +46,21 @@ async function probeAiRelay() {
 
 // AI 문진을 지금 쓸 수 있는가 (학생 화면의 안내·차단 판단용)
 function aiAvailable() { return hasApiKey() || AI_RELAY.ready; }
+// 기본 모델 — 가벼운 것으로 잡는다.
+//
+// 환자 역할은 1~3문장 대답이라 큰 모델이 필요 없다. 오히려 'latest' 계열은
+// 답을 쓰기 전에 '생각'을 오래 하고, 붐빌 때는 아예 응답하지 않는다.
+// 실측(문진 한 마디):
+//   gemini-flash-latest       30초 넘도록 무응답
+//   gemini-flash-lite-latest  1.2초 · 생각 0토큰
+//   gemini-3.5-flash          2.5초 · 생각 419토큰
 function getModel() {
   const m = localStorage.getItem('ptsim_model') || '';
-  return m.startsWith('gemini') ? m : 'gemini-flash-latest';
+  return m.startsWith('gemini') ? m : 'gemini-flash-lite-latest';
 }
+
+// 채점처럼 판단이 필요한 일은 조금 더 큰 모델로. 학생 성적이 걸려 있다.
+const JUDGE_MODEL = 'gemini-3.5-flash';
 
 // 사용 가능한 Gemini 모델 목록 조회 (키 등록 시 드롭다운 자동 구성)
 async function listGeminiModels() {
@@ -85,14 +96,16 @@ function useAI() { return getChatMode() === 'ai' && aiAvailable(); }
 // 생각만 하다 한도에 걸려 본문이 빈 채로 돌아온다 (실측: 한 마디 인사에 생각
 // 244토큰). 그럴 때 한 번은 한도를 크게 잡아 다시 물어본다 — 학생 화면에
 // "응답이 비어 있습니다" 를 띄우는 것보다 낫다.
-// 모델이 붐빌 때 갈아탈 후보. 수업 중에 "지금 수요가 몰렸습니다" 한 줄로
-// 문진이 멈추면 안 된다 — 실제로 gemini-flash-latest 가 그렇게 거절했다.
-const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-flash-lite-latest'];
-const BUSY = /high demand|overload|unavailable|503|try again later/i;
+// 모델이 붐비거나 응답이 없을 때 갈아탈 후보. 수업 중에 한 모델이 막혔다고
+// 문진 전체가 멈추면 안 된다 — 실제로 gemini-flash-latest 가 무응답이었다.
+const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest'];
+const BUSY = /high demand|overload|unavailable|503|try again later|응답이 없습니다/i;
+// 한 모델을 기다려 주는 시간. 이게 없으면 학생 화면이 하염없이 멈춰 있는다.
+const CALL_TIMEOUT = 20000;
 
-async function callGemini(system, messages, maxTokens, jsonMode) {
+async function callGemini(system, messages, maxTokens, jsonMode, prefer) {
   const budget = maxTokens || 1024;
-  const first = getModel();
+  const first = prefer || getModel();
   const models = [first].concat(FALLBACK_MODELS.filter((m) => m !== first));
   let lastErr = null;
   for (const model of models) {
@@ -134,11 +147,18 @@ async function geminiOnce(system, messages, maxTokens, jsonMode, model) {
     generationConfig: { maxOutputTokens: maxTokens || 1024, temperature: 0.7 },
   };
   if (jsonMode) body.generationConfig.responseMimeType = 'application/json';
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(CALL_TIMEOUT),
+    });
+  } catch (e) {
+    // 시간 초과·연결 끊김 — 붐빔과 같이 취급해 다음 모델로 넘긴다
+    throw new Error(model + ' 이(가) ' + Math.round(CALL_TIMEOUT / 1000) + '초 동안 응답이 없습니다');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err.error && err.error.message) || 'API 오류 (' + res.status + ')');
@@ -232,7 +252,7 @@ async function evaluateHistory(patient, chatHistory) {
 - 반드시 JSON만 출력한다. 다른 텍스트 금지.
 형식: {"items":[{"id":"...","elicited":true,"evidence":"근거가 된 학생 질문 발췌(간단히)"}]}`;
   const user = `[핵심 문진 항목]\n${itemList}\n\n[문진 대화]\n${transcript}`;
-  const raw = await callGemini(system, [{ role: 'user', content: user }], 4096, true);
+  const raw = await callGemini(system, [{ role: 'user', content: user }], 4096, true, JUDGE_MODEL);
   let parsed;
   try { parsed = JSON.parse(raw); }
   catch (e) {

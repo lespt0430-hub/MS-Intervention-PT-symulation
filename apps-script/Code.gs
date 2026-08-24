@@ -12,7 +12,9 @@ var SHEET_NAME = '결과';
 //   속성 GEMINI_KEY / 값 (발급받은 키) 저장
 //
 // 키를 넣지 않으면 AI 문진은 그냥 꺼진 채로 동작한다(내장 답변 모드).
-var GEMINI_DEFAULT_MODEL = 'gemini-flash-latest';
+// 가벼운 모델이 기본이다. 'latest' 계열은 답 쓰기 전에 생각을 오래 하고
+// 붐빌 때는 아예 응답하지 않아, 문진 한 마디에 30초를 넘기는 일이 있었다.
+var GEMINI_DEFAULT_MODEL = 'gemini-flash-lite-latest';
 function geminiKey_() {
   return (PropertiesService.getScriptProperties().getProperty('GEMINI_KEY') || '').trim();
 }
