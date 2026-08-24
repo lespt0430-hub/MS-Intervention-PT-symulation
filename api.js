@@ -99,7 +99,12 @@ function useAI() { return getChatMode() === 'ai' && aiAvailable(); }
 // 모델이 붐비거나 응답이 없을 때 갈아탈 후보. 수업 중에 한 모델이 막혔다고
 // 문진 전체가 멈추면 안 된다 — 실제로 gemini-flash-latest 가 무응답이었다.
 const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest'];
-const BUSY = /high demand|overload|unavailable|503|try again later|응답이 없습니다/i;
+// 다음 모델로 넘어가야 하는 사정들.
+//
+// 붐빔(503)뿐 아니라 '이 요금제에서는 못 쓰는 모델'도 여기 들어간다.
+// 무료 요금제는 Pro 계열이 limit: 0 이라 아예 거절당한다 — 교수님이 모델
+// 목록에서 Pro 를 골라 두면 학생 전원이 그 오류를 보게 된다.
+const BUSY = /high demand|overload|unavailable|503|try again later|응답이 없습니다|quota|resource.?exhausted|rate limit|429|exceeded/i;
 // 한 모델을 기다려 주는 시간. 이게 없으면 학생 화면이 하염없이 멈춰 있는다.
 const CALL_TIMEOUT = 20000;
 
@@ -110,7 +115,11 @@ async function callGemini(system, messages, maxTokens, jsonMode, prefer) {
   let lastErr = null;
   for (const model of models) {
     try {
-      return await geminiOnce(system, messages, budget, jsonMode, model);
+      const out = await geminiOnce(system, messages, budget, jsonMode, model);
+      // 처음 고른 모델이 막혀서 여기까지 왔다면, 되는 모델을 기억해 둔다.
+      // 안 그러면 학생이 질문할 때마다 같은 오류를 한 번씩 다시 겪는다.
+      if (model !== first && !prefer) rememberModel(model);
+      return out;
     } catch (e) {
       lastErr = e;
       if (/MAX_TOKENS|비어 있습니다/.test(e.message || '')) {
@@ -118,10 +127,21 @@ async function callGemini(system, messages, maxTokens, jsonMode, prefer) {
         catch (e2) { lastErr = e2; }
       }
       if (!BUSY.test(lastErr.message || '')) throw lastErr;   // 붐빔이 아니면 그대로 알린다
-      console.warn('[ai] ' + model + ' 혼잡 — 다음 모델로 넘어갑니다');
+      console.warn('[ai] ' + model + ' 사용 불가 — 다음 모델로 넘어갑니다: ' + lastErr.message);
     }
   }
   throw lastErr;
+}
+
+// 실제로 응답한 모델을 이 브라우저에 저장한다.
+// (교수님이 Pro 를 골라 뒀는데 무료 요금제라 limit:0 이던 경우가 그랬다)
+function rememberModel(model) {
+  try {
+    localStorage.setItem('ptsim_model', model);
+    const sel = document.getElementById('inp-model');
+    if (sel && [...sel.options].some((o) => o.value === model)) sel.value = model;
+    if (window.UI && UI.updateModeStatus) UI.updateModeStatus();
+  } catch (e) { /* 저장 실패는 무시 — 다음 호출에서 다시 넘어가면 된다 */ }
 }
 
 async function geminiOnce(system, messages, maxTokens, jsonMode, model) {
