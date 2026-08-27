@@ -481,6 +481,7 @@ UI.bindCollect = function () {
         '건을 불러왔습니다 (학생이 어느 컴퓨터에서 했든 전부).';
       UI.profVerified = true;      // 교수 전용 도구를 여기서 연다
       showTools(true);
+      checkScriptVersion();        // 배포된 스크립트가 최신인지 미리 알려 준다
       // 로그인한 김에 AI 상태도 서버에 다시 물어본다 (다른 PC에서 켜 뒀을 수 있다)
       probeAiRelay().then(() => { showAiState(); UI.updateModeStatus(); });
       showAiState();
@@ -497,6 +498,38 @@ UI.bindCollect = function () {
 
   loginBtn.addEventListener('click', load);
   document.getElementById('btn-collect-refresh').addEventListener('click', load);
+
+  // ── 배포된 앱스크립트가 최신인지 확인 ──
+  //
+  // 코드를 고쳐도 '새 버전' 으로 다시 배포하지 않으면 예전 코드가 계속
+  // 서비스된다. 그러면 화면에는 버튼이 있는데 서버가 그 요청을 몰라서,
+  // 눌러도 아무 일이 없는 것처럼 보인다(실제로 그렇게 헤맸다).
+  // 로그인 직후에 한 번 물어보고, 예전 판이면 버튼을 잠가 둔다.
+  const REQUIRED_SCRIPT_VERSION = 3;
+  async function checkScriptVersion() {
+    const btn = document.getElementById('btn-reset-all');
+    const rmsg = document.getElementById('reset-all-msg');
+    if (!btn) return;
+    let ver = 0;
+    try {
+      const r = await COLLECT.call({ action: 'ping' }, 15000);
+      ver = Number(r.version) || 0;
+    } catch (e) {
+      ver = 0;      // 'ping' 을 모르는 예전 판
+    }
+    const ok = ver >= REQUIRED_SCRIPT_VERSION;
+    btn.disabled = !ok;
+    if (rmsg) {
+      rmsg.className = ok ? 'ok' : 'err';
+      rmsg.innerHTML = ok
+        ? '✓ 앱스크립트 최신 (v' + ver + ') — 초기화를 쓸 수 있습니다.'
+        : '✗ 배포된 앱스크립트가 예전 판입니다' + (ver ? ' (v' + ver + ')' : '') +
+          ' — 초기화가 동작하지 않아 버튼을 잠갔습니다.<br>' +
+          '저장소의 <b>apps-script/Code.gs</b> 를 통째로 복사해 붙여넣고, ' +
+          '<b>배포 → 배포 관리 → 편집(연필) → 버전을 「새 버전」으로 → 배포</b> 하세요. ' +
+          '코드만 저장하고 재배포하지 않으면 예전 코드가 계속 돌아갑니다.';
+    }
+  }
 
   // ── 전체 학생 기록 초기화 ──
   // 버튼 하나로 학생 전원의 성적이 화면에서 사라지는 기능이다. 그래서
