@@ -14,7 +14,7 @@
 
 <!-- HUD -->
 <div class="hud" id="hud-crosshair"></div>
-<div class="hud" id="hud-progress">진료 완료 0 / 12</div>
+<div class="hud" id="hud-progress">진료 완료 0 / 19</div>
 <div class="hud" id="hud-prompt"></div>
 <div class="hud" id="hud-hint"><span>PC: 화면을 클릭하면 이동 모드 시작 (ESC로 해제) · WASD 이동 · 마우스 시점<br>휴대폰: 화면을 손가락으로 밀어 둘러보기 · 왼쪽 아래 버튼으로 이동 · 오른쪽 아래 버튼으로 시점</span></div>
 <div class="hud" id="hud-toast"></div>
@@ -66,7 +66,7 @@
   </header>
   <div class="start-card">
     <h1>근골격계 물리치료 가상환자 시뮬레이션</h1>
-    <div class="sub">JOSPT 임상진료지침(CPG) 기반 · 가상환자 12명</div>
+    <div class="sub">JOSPT 임상진료지침(CPG) 기반 · 가상환자 19명</div>
 
     <label>분반</label>
     <input type="text" id="inp-class" placeholder="예: 물리치료중재론 A반" autocomplete="off">
@@ -111,19 +111,23 @@
         (PROFESSOR_SETUP.md의 「AI 문진 켜기」). 그러면 학생은 어느 PC에서 접속하든
         키를 입력하지 않고 AI 문진을 쓸 수 있고, 키가 페이지 소스로 새어 나가지도 않습니다.
       </div>
-      <label>Gemini API 키 (이 컴퓨터에서만 임시로 쓸 때)</label>
-      <input type="password" id="inp-key" placeholder="AIza...">
+      <label>AI 회사</label>
+      <select id="inp-provider">
+        <option value="gemini">Google Gemini</option>
+        <option value="openai">OpenAI GPT</option>
+        <option value="anthropic">Anthropic Claude</option>
+      </select>
+      <div class="key-hint" id="key-hint-provider"></div>
+
+      <label>API 키 (이 컴퓨터에서만 임시로 쓸 때)</label>
+      <input type="password" id="inp-key" placeholder="AIza... / sk-... / sk-ant-...">
       <div class="key-hint">여기에 넣은 키는 <b>이 브라우저에만</b> 저장되며 이 PC에서만 쓰입니다.
         서버(스크립트 속성)에 키를 넣기 전에 시험해 보거나, 수집처 없이 혼자 쓸 때만 사용하세요.
-        <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>에서 발급합니다.</div>
+        키를 붙여넣으면 어느 회사 것인지 자동으로 알아냅니다.</div>
       <label>AI 모델</label>
-      <select id="inp-model">
-        <option value="gemini-flash-lite-latest">Gemini Flash Lite — 가장 빠름 (권장)</option>
-        <option value="gemini-3.5-flash">Gemini 3.5 Flash — 조금 느리지만 답이 풍부</option>
-        <option value="gemini-flash-latest">Gemini Flash 최신 버전 (붐빌 때 느림)</option>
-        <option value="gemini-pro-latest">Gemini Pro 최신 버전 (무료 요금제에서는 사용 불가)</option>
-      </select>
-      <div class="key-hint">"저장 및 연결 테스트"를 누르면 이 키로 사용 가능한 모델 목록을 자동으로 불러옵니다.</div>
+      <select id="inp-model"></select>
+      <div class="key-hint">"저장 및 연결 테스트"를 누르면 그 키로 실제 호출까지 확인합니다.
+        Gemini 는 쓸 수 있는 모델 목록도 자동으로 불러옵니다.</div>
       <div class="prof-btn-row">
         <button id="btn-save-key">저장 및 연결 테스트</button>
         <button id="btn-del-key">연동 해제</button>
@@ -195,7 +199,7 @@
       &nbsp;&nbsp;&nbsp;휴대폰·태블릿은 <b>화면을 밀어</b> 둘러보고, <b>왼쪽 아래</b> 버튼으로 이동,
       <b>오른쪽 아래</b> 버튼으로 시점·진료를 조작합니다<br>
       ② <b>문진</b>(자유 대화) → <b>이학적 검사</b> 선택 → <b>진단</b> → <b>치료계획</b> 수립 → 채점<br>
-      ③ 12명 모두 진료하면 종합 성적표가 열립니다
+      ③ 19명 모두 진료하면 종합 성적표가 열립니다
     </div>
   </div>
 </div>
@@ -256,6 +260,7 @@
 <script src="exams.js"></script>
 <script src="patients1.js"></script>
 <script src="patients2.js"></script>
+<script src="patients3.js"></script>
 <script src="api.js"></script>
 <script src="game.js"></script>
 <script src="humans.js"></script>

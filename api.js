@@ -54,13 +54,94 @@ function aiAvailable() { return hasApiKey() || AI_RELAY.ready; }
 //   gemini-flash-latest       30초 넘도록 무응답
 //   gemini-flash-lite-latest  1.2초 · 생각 0토큰
 //   gemini-3.5-flash          2.5초 · 생각 419토큰
+// ── 어느 회사의 AI를 쓸 것인가 ──────────────────────────────
+//
+// 문진은 "환자 역할로 짧게 대답하기"라 회사가 달라도 하는 일은 같다.
+// 다른 것은 주소·헤더·요청/응답 모양뿐이라, 그 셋만 표로 두고 나머지 코드는
+// 공통으로 쓴다. 교수님이 가진 키가 무엇이든 그걸로 수업할 수 있어야 한다.
+//
+// 브라우저에서 직접 부르는 방식이라 회사마다 사정이 다르다:
+//   · Gemini  — 키를 주소에 붙인다. CORS 허용.
+//   · OpenAI  — Authorization 헤더. CORS 허용.
+//   · Claude  — 기본적으로 브라우저 호출을 막는다. 전용 헤더를 붙여야 열린다.
+// 어느 쪽이든 브라우저에 키가 있으면 학생이 꺼내 볼 수 있다. 그래서 실제
+// 수업에서는 중계(교수님 Apps Script)를 쓰고, 아래 직접 호출은 교수님이
+// 본인 PC에서 시험해 볼 때만 쓰는 길이다.
+const AI_PROVIDERS = {
+  gemini: {
+    label: 'Google Gemini',
+    hint: 'AIza… 로 시작',
+    detect: (k) => /^AIza/.test(k),
+    models: ['gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-pro-latest'],
+    fast: 'gemini-flash-lite-latest',
+    judge: 'gemini-3.5-flash',
+    issue: 'https://aistudio.google.com/apikey',
+  },
+  openai: {
+    label: 'OpenAI GPT',
+    hint: 'sk-… 로 시작',
+    detect: (k) => /^sk-(?!ant-)/.test(k),
+    models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini', 'gpt-4o'],
+    fast: 'gpt-4.1-mini',
+    judge: 'gpt-4.1',
+    issue: 'https://platform.openai.com/api-keys',
+  },
+  anthropic: {
+    label: 'Anthropic Claude',
+    hint: 'sk-ant-… 로 시작',
+    detect: (k) => /^sk-ant-/.test(k),
+    models: ['claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-5'],
+    fast: 'claude-haiku-4-5-20251001',
+    judge: 'claude-sonnet-5',
+    issue: 'https://console.anthropic.com/settings/keys',
+  },
+};
+
+// 지금 쓸 회사. 교수님이 고른 값이 있으면 그것, 없으면 키 생김새로 알아낸다 —
+// 키를 붙여넣기만 해도 어느 회사인지 대개 알 수 있다(AIza / sk- / sk-ant-).
+function getProvider() {
+  const saved = localStorage.getItem('ptsim_ai_provider') || '';
+  if (AI_PROVIDERS[saved]) return saved;
+  const key = getApiKey();
+  if (key) {
+    const hit = Object.keys(AI_PROVIDERS).find((p) => AI_PROVIDERS[p].detect(key));
+    if (hit) return hit;
+  }
+  return 'gemini';
+}
+function providerInfo(p) { return AI_PROVIDERS[p || getProvider()] || AI_PROVIDERS.gemini; }
+
+// 회사를 바꾸면 모델도 그 회사 것으로 갈아 끼운다. 안 그러면 Claude 를 골라
+// 놓고 gemini-flash 를 부르게 된다.
+function setProvider(p) {
+  if (!AI_PROVIDERS[p]) return;
+  localStorage.setItem('ptsim_ai_provider', p);
+  const cur = localStorage.getItem('ptsim_model') || '';
+  if (!AI_PROVIDERS[p].models.includes(cur)) {
+    localStorage.setItem('ptsim_model', AI_PROVIDERS[p].fast);
+  }
+}
+
+// 환자 역할은 1~3문장 대답이라 큰 모델이 필요 없다. 회사별 '빠른 모델'이 기본.
 function getModel() {
+  const info = providerInfo();
   const m = localStorage.getItem('ptsim_model') || '';
-  return m.startsWith('gemini') ? m : 'gemini-flash-lite-latest';
+  // 저장된 모델이 지금 회사 것이 아니면 무시한다 (회사를 바꾼 직후)
+  return (m && (info.models.includes(m) || info.detect === undefined)) ? m
+    : (m && looksLikeModelOf(m, info)) ? m : info.fast;
+}
+
+// 목록에 없는 모델이라도 이름이 그 회사 것처럼 생겼으면 존중한다 —
+// 교수님이 새 모델 이름을 직접 적어 넣을 수 있어야 한다.
+function looksLikeModelOf(id, info) {
+  if (info === AI_PROVIDERS.gemini) return /^gemini/.test(id);
+  if (info === AI_PROVIDERS.openai) return /^(gpt|o\d)/.test(id);
+  if (info === AI_PROVIDERS.anthropic) return /^claude/.test(id);
+  return false;
 }
 
 // 채점처럼 판단이 필요한 일은 조금 더 큰 모델로. 학생 성적이 걸려 있다.
-const JUDGE_MODEL = 'gemini-3.5-flash';
+function judgeModel() { return providerInfo().judge; }
 
 // 사용 가능한 Gemini 모델 목록 조회 (키 등록 시 드롭다운 자동 구성)
 async function listGeminiModels() {
@@ -87,7 +168,16 @@ function pickDefaultModel(models) {
     .sort((a, b) => ver(b) - ver(a) || a.length - b.length);
   return flash[0] || ids[0];
 }
-function getChatMode() { return localStorage.getItem('ptsim_mode') === 'ai' ? 'ai' : 'offline'; }
+// 문진 방식. 학생이 시작 화면에서 직접 고른 적이 있으면 그 선택을 존중하고,
+// 고른 적이 없으면 **쓸 수 있는 쪽을 자동으로 고른다** — 교수님이 키를 등록해
+// 두었는데도 학생이 매번 라디오를 직접 눌러야 했던 것이 문제였다.
+// (저장값이 아예 없을 때만 자동 판정한다. 'offline' 이 저장돼 있으면 그건
+//  학생이 일부러 내장 답변을 고른 것이므로 건드리지 않는다.)
+function getChatMode() {
+  const saved = localStorage.getItem('ptsim_mode');
+  if (saved === 'ai' || saved === 'offline') return saved;
+  return aiAvailable() ? 'ai' : 'offline';
+}
 function useAI() { return getChatMode() === 'ai' && aiAvailable(); }
 
 // ── Gemini 호출 ──
@@ -98,7 +188,6 @@ function useAI() { return getChatMode() === 'ai' && aiAvailable(); }
 // "응답이 비어 있습니다" 를 띄우는 것보다 낫다.
 // 모델이 붐비거나 응답이 없을 때 갈아탈 후보. 수업 중에 한 모델이 막혔다고
 // 문진 전체가 멈추면 안 된다 — 실제로 gemini-flash-latest 가 무응답이었다.
-const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-flash-latest'];
 // 다음 모델로 넘어가야 하는 사정들.
 //
 // 붐빔(503)뿐 아니라 '이 요금제에서는 못 쓰는 모델'도 여기 들어간다.
@@ -108,14 +197,17 @@ const BUSY = /high demand|overload|unavailable|503|try again later|응답이 없
 // 한 모델을 기다려 주는 시간. 이게 없으면 학생 화면이 하염없이 멈춰 있는다.
 const CALL_TIMEOUT = 20000;
 
-async function callGemini(system, messages, maxTokens, jsonMode, prefer) {
+async function callAI(system, messages, maxTokens, jsonMode, prefer) {
   const budget = maxTokens || 1024;
   const first = prefer || getModel();
-  const models = [first].concat(FALLBACK_MODELS.filter((m) => m !== first));
+  // 갈아탈 후보도 지금 회사 것이어야 한다. 예전에는 Gemini 목록이 박혀 있어
+  // Claude 를 쓰다 붐비면 gemini-3.5-flash 를 부르고 또 실패했다.
+  const info = providerInfo();
+  const models = [first].concat(info.models.filter((m) => m !== first));
   let lastErr = null;
   for (const model of models) {
     try {
-      const out = await geminiOnce(system, messages, budget, jsonMode, model);
+      const out = await aiOnce(system, messages, budget, jsonMode, model);
       // 처음 고른 모델이 막혀서 여기까지 왔다면, 되는 모델을 기억해 둔다.
       // 안 그러면 학생이 질문할 때마다 같은 오류를 한 번씩 다시 겪는다.
       if (model !== first && !prefer) rememberModel(model);
@@ -123,7 +215,7 @@ async function callGemini(system, messages, maxTokens, jsonMode, prefer) {
     } catch (e) {
       lastErr = e;
       if (/MAX_TOKENS|비어 있습니다/.test(e.message || '')) {
-        try { return await geminiOnce(system, messages, budget * 3, jsonMode, model); }
+        try { return await aiOnce(system, messages, budget * 3, jsonMode, model); }
         catch (e2) { lastErr = e2; }
       }
       if (!BUSY.test(lastErr.message || '')) throw lastErr;   // 붐빔이 아니면 그대로 알린다
@@ -144,52 +236,117 @@ function rememberModel(model) {
   } catch (e) { /* 저장 실패는 무시 — 다음 호출에서 다시 넘어가면 된다 */ }
 }
 
-async function geminiOnce(system, messages, maxTokens, jsonMode, model) {
+async function aiOnce(system, messages, maxTokens, jsonMode, model) {
   model = model || getModel();
+  const budget = maxTokens || 1024;
   if (!hasApiKey() && AI_RELAY.ready) {
-    // 중계 — 키는 교수님 스크립트 안에 있고 여기서는 질문만 보낸다
+    // 중계 — 키는 교수님 스크립트 안에 있고 여기서는 질문만 보낸다.
+    // 어느 회사인지도 같이 넘긴다. 서버가 회사를 알아야 부를 주소를 정한다.
     const data = await COLLECT.call({
       action: 'ai',
+      provider: getProvider(),
       model: model,
       system, messages,
-      maxTokens: maxTokens || 1024,
+      maxTokens: budget,
       jsonMode: !!jsonMode,
     }, 60000);
     return data.text || '';
   }
-  const url = GEMINI_URL + model + ':generateContent?key=' + encodeURIComponent(getApiKey());
+
+  const provider = getProvider();
+  const req = buildAiRequest(provider, system, messages, budget, jsonMode, model);
+  let res;
+  try {
+    res = await fetch(req.url, {
+      method: 'POST',
+      headers: req.headers,
+      body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(CALL_TIMEOUT),
+    });
+  } catch (e) {
+    // 시간 초과·연결 끊김 — 붐빔과 같이 취급해 다음 모델로 넘긴다.
+    // Claude 는 브라우저 직접 호출이 막히면 여기로 떨어진다(CORS).
+    throw new Error(model + ' 이(가) ' + Math.round(CALL_TIMEOUT / 1000) + '초 동안 응답이 없습니다');
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = (err.error && (err.error.message || err.error.type)) || err.message;
+    throw new Error(msg || 'API 오류 (' + res.status + ')');
+  }
+  const data = await res.json();
+  const text = readAiText(provider, data);
+  if (!text) throw new Error('응답이 비어 있습니다' + (data.stop_reason ? ' (' + data.stop_reason + ')' : ''));
+  return text;
+}
+
+// 회사별 요청 만들기 — 주소·헤더·본문 모양만 다르다.
+function buildAiRequest(provider, system, messages, maxTokens, jsonMode, model) {
+  const key = getApiKey();
+  if (provider === 'openai') {
+    const body = {
+      model: model,
+      max_completion_tokens: maxTokens,
+      messages: [{ role: 'system', content: system }].concat(
+        messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))),
+    };
+    if (jsonMode) body.response_format = { type: 'json_object' };
+    return {
+      url: 'https://api.openai.com/v1/chat/completions',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key },
+      body,
+    };
+  }
+  if (provider === 'anthropic') {
+    // system 은 별도 필드다. JSON 모드가 따로 없어 지시로 대신한다.
+    const body = {
+      model: model,
+      max_tokens: maxTokens,
+      system: system + (jsonMode ? '\n\n반드시 JSON 하나만 출력한다. 설명·코드펜스를 붙이지 않는다.' : ''),
+      messages: messages.map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content,
+      })),
+    };
+    return {
+      url: 'https://api.anthropic.com/v1/messages',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        // 이 헤더가 없으면 브라우저에서의 호출을 아예 거절한다
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body,
+    };
+  }
+  // gemini (기본)
   const body = {
     system_instruction: { parts: [{ text: system }] },
     contents: messages.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     })),
-    generationConfig: { maxOutputTokens: maxTokens || 1024, temperature: 0.7 },
+    generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
   };
   if (jsonMode) body.generationConfig.responseMimeType = 'application/json';
-  let res;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(CALL_TIMEOUT),
-    });
-  } catch (e) {
-    // 시간 초과·연결 끊김 — 붐빔과 같이 취급해 다음 모델로 넘긴다
-    throw new Error(model + ' 이(가) ' + Math.round(CALL_TIMEOUT / 1000) + '초 동안 응답이 없습니다');
+  return {
+    url: GEMINI_URL + model + ':generateContent?key=' + encodeURIComponent(key),
+    headers: { 'content-type': 'application/json' },
+    body,
+  };
+}
+
+// 회사별 응답에서 본문만 꺼낸다.
+function readAiText(provider, data) {
+  if (provider === 'openai') {
+    const c = data.choices && data.choices[0];
+    return (c && c.message && c.message.content) || '';
   }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err.error && err.error.message) || 'API 오류 (' + res.status + ')');
+  if (provider === 'anthropic') {
+    return (data.content || []).map((b) => b.text || '').join('');
   }
-  const data = await res.json();
   const cand = data.candidates && data.candidates[0];
   const parts = cand && cand.content && cand.content.parts;
-  if (!parts || !parts.length) {
-    throw new Error('응답이 비어 있습니다' + (cand && cand.finishReason ? ' (' + cand.finishReason + ')' : ''));
-  }
-  return parts.map((p) => p.text || '').join('');
+  return parts ? parts.map((p) => p.text || '').join('') : '';
 }
 
 // ── 가상환자 시스템 프롬프트 (AI 모드) ──
@@ -254,7 +411,7 @@ async function patientChat(patient, chatHistory) {
     await new Promise((r) => setTimeout(r, 350 + Math.random() * 450)); // 자연스러운 타이핑 지연
     return offlineReply(patient, chatHistory);
   }
-  return callGemini(buildPatientSystem(patient), chatHistory, 2048);
+  return callAI(buildPatientSystem(patient), chatHistory, 2048);
 }
 
 // ── 문진 평가 (채점) ──
@@ -272,7 +429,7 @@ async function evaluateHistory(patient, chatHistory) {
 - 반드시 JSON만 출력한다. 다른 텍스트 금지.
 형식: {"items":[{"id":"...","elicited":true,"evidence":"근거가 된 학생 질문 발췌(간단히)"}]}`;
   const user = `[핵심 문진 항목]\n${itemList}\n\n[문진 대화]\n${transcript}`;
-  const raw = await callGemini(system, [{ role: 'user', content: user }], 4096, true, JUDGE_MODEL);
+  const raw = await callAI(system, [{ role: 'user', content: user }], 4096, true, judgeModel());
   let parsed;
   try { parsed = JSON.parse(raw); }
   catch (e) {
@@ -298,6 +455,6 @@ function evaluateHistoryFallback(patient, chatHistory) {
 
 // API 키 유효성 확인 (교수 모드 연결 테스트)
 async function testApiKey() {
-  await callGemini('한 단어로만 답하라.', [{ role: 'user', content: '안녕' }], 512);
+  await callAI('한 단어로만 답하라.', [{ role: 'user', content: '안녕' }], 512);
   return true;
 }

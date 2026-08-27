@@ -9,16 +9,16 @@
 function buildManualRoom() {
   const M = GAME.ZONE.manual;
   const xOuter = -GAME.ROOM.w / 2;          // 외벽
-  const blockZ0 = M.roomZ[0] - M.roomHD - 0.10;   // 룸 블록 앞면
-  const blockZ1 = M.roomZ[3] + M.roomHD + 0.10;   // 룸 블록 뒷면
+  const blockZ0 = M.roomZ[0] - M.roomHD - 0.10;                     // 룸 블록 앞면
+  const blockZ1 = M.roomZ[M.roomZ.length - 1] + M.roomHD + 0.10;    // 룸 블록 뒷면
 
   // ── 룸 블록의 벽 ──
   // 앞뒤 마구리 + 방 사이 칸막이 3장 (모두 x 방향으로 뻗는다)
   [blockZ0, blockZ1].forEach((z) => {
     KIT.wallRun({ axis: 'x', at: z, from: xOuter, to: M.corrWall, t: 0.16 });
   });
-  [0, 1, 2].forEach((i) => {
-    const z = (M.roomZ[i] + M.roomZ[i + 1]) / 2;
+  M.roomZ.slice(0, -1).forEach((z0, i) => {
+    const z = (z0 + M.roomZ[i + 1]) / 2;
     KIT.wallRun({ axis: 'x', at: z, from: xOuter, to: M.corrWall, t: 0.16 });
   });
   // 복도 쪽 벽 — 방마다 문이 하나씩 뚫린다
@@ -33,10 +33,11 @@ function buildManualRoom() {
   // ── 방 4개 ──
   // 배정: 경추·견관절·요추·고관절 — 도수치료 적응증인 환자를 넣는다.
   const roster = [
-    { p: PATIENTS[0], side: 1 },    // p1 목통증
-    { p: PATIENTS[1], side: -1 },   // p2 오십견
-    { p: PATIENTS[3], side: 1 },    // p4 급성 요통
-    { p: PATIENTS[4], side: -1 },   // p5 고관절 FAI
+    { p: PATIENTS[0], side: 1 },    // p1  목통증 — 가동성 결핍
+    { p: PATIENTS[1], side: -1 },   // p2  오십견
+    { p: PATIENTS[3], side: 1 },    // p4  급성 요통
+    { p: PATIENTS[4], side: -1 },   // p5  고관절 FAI
+    { p: PATIENTS[12], side: 1 },   // p13 경인성 두통 — 상부경추 도수기법·C1-2 SNAG
   ];
   roster.forEach((r, i) => buildManualBay(r.p, i + 1, M.roomZ[i], r.side));
 }
@@ -144,7 +145,7 @@ function buildManualCorridor() {
 
   // 복도 벽 안내 사인 — 어느 방향이 몇 번 방인지
   const guide = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.42),
-    printedMat(makeTextCanvas(['도수치료실 01–04', '→ 안쪽 방향'], 512, 200, { border: '#2c5f7c', fontSize: 52 }),
+    printedMat(makeTextCanvas(['도수치료실 01–05', '→ 안쪽 방향'], 512, 200, { border: '#2c5f7c', fontSize: 52 }),
       { roughness: 0.5, envMapIntensity: 1.0 }));
   guide.position.set(Z.divM - 0.11, 1.65, M.entryZ + 1.9);
   guide.rotation.y = -Math.PI / 2;

@@ -27,12 +27,17 @@ GAME.ZONE = {
   manual: {
     // 복도 폭 2.7m — 1.6m로는 문선이 양쪽에서 튀어나와 답답하고
     // 두 사람이 스쳐 지나갈 수도 없다.
-    corrWall: -6.60,    // 복도 ↔ 룸 경계 벽 x
-    corrCX: -5.25,      // 복도 중심 x
+    // 실 폭이 26m→29m 가 되며 외벽이 -13 에서 -14.5 로 물러났다. 늘어난 1.5m 를
+    // 룸과 복도가 나눠 갖는다 — 룸은 6.4m→7.0m, 복도는 2.7m→3.6m.
+    // (전부 룸에 주면 베드 뒤가 텅 비고, 전부 복도에 주면 복도가 실보다 넓어진다)
+    corrWall: -7.50,    // 복도 ↔ 룸 경계 벽 x
+    corrCX: -5.70,      // 복도 중심 x
     entryZ: -5.90,      // 전기치료실에서 들어오는 개구부 z
-    roomZ: [-5.50, -1.90, 1.70, 5.30],   // 룸 4개 중심 z
+    // 룸 5개 중심 z. 간격 3.6m 는 그대로 두고 실 깊이를 3m 늘려 한 칸을 더 냈다.
+    // (간격을 줄여 다섯 칸을 우겨넣으면 베드 옆 치료사 자리가 사라진다.)
+    roomZ: [-7.20, -3.60, 0.00, 3.60, 7.20],
     roomHD: 1.70,       // 룸 반깊이(z)
-    bedX: -10.40,       // 치료 베드 중심 x (머리쪽 -x, 창가 벽 쪽)
+    bedX: -11.60,       // 치료 베드 중심 x (머리쪽 -x, 창가 벽 쪽)
   },
 
   // 전기치료실 — 중앙 복도 양옆 커튼 베이
@@ -64,7 +69,11 @@ GAME.ZONE = {
     // 보행 풀 — 앞면(-z)이 아크릴 관찰창이라 문으로 들어서면 정면으로 보인다
     // h = 수조 전체 높이, deck = 수조 안쪽 바닥(트레드밀이 깔리는 면) 높이.
     // 수면이 환자의 명치에 오려면 안쪽 바닥은 낮고 벽은 높아야 한다.
-    gait: { cx: 5.90, cz: 6.30, w: 2.40, d: 1.90, h: 1.68, deck: 0.16 },
+    // h 를 1.68 로 두었더니 수조 벽이 환자 머리를 먹었다 — 안쪽 바닥(deck 0.16)에
+    // 선 161cm 환자의 머리끝이 1.82m 인데 벽이 1.68m 라 머리 위 14cm 만 나왔다.
+    // 실제 수중 트레드밀도 벽이 수면보다 조금 높을 뿐이다. 1.46 으로 낮춰
+    // 어깨 위가 통째로 보이게 한다.
+    gait: { cx: 5.90, cz: 6.30, w: 2.40, d: 1.90, h: 1.46, deck: 0.16 },
     // 전신 풀 — 바닥에 뚫는 구멍(수면 테두리) 기준 치수
     pool: { cx: 10.30, cz: 6.55, w: 3.60, d: 4.00, depth: 1.25 },
   },
@@ -72,14 +81,18 @@ GAME.ZONE = {
   // 천장 등기구 자리 [x, z, 우선순위]. 벽으로 막힌 세 실을 각각 밝혀야 하므로
   // 예전처럼 중앙 한 줄로는 안 된다. render.js가 화질 등급에 맞춰 우선순위
   // 순서대로 켠다 — 0번만 켜도 세 실이 모두 커버되도록 흩어 놓았다.
+  // 등기구 자리는 룸 중심(manual.roomZ)과 맞아야 방마다 한 등씩 떨어진다.
+  // 실을 3m 늘리면서 도수 룸이 5개가 됐고, 앞뒤로 늘어난 구역에도 등을 보탰다.
   lights: [
-    [-9.60, -5.50, 1], [-9.60, -1.90, 0], [-9.60, 1.70, 1], [-9.60, 5.30, 0],  // 도수 룸 4개
-    [-5.25, -3.20, 2], [-5.25, 4.20, 2],                                        // 도수 복도
-    [-2.75, -1.00, 0], [-2.75, 4.20, 1], [2.75, -1.00, 1], [2.75, 4.20, 0],     // 전기 양 열
-    [0, -7.60, 2], [0, 6.60, 2],                                                // 전기 복도 앞뒤
-    [5.60, -4.60, 0], [10.80, -4.60, 1], [5.60, 1.40, 1], [10.80, 1.40, 0],     // 운동 4구역
-    [8.30, -8.20, 2],
-    [5.90, 6.30, 0], [10.60, 6.40, 1],                                          // 수치료실 (풀 2기)
+    [-11.00, -7.20, 0], [-11.00, -3.60, 1], [-11.00, 0.00, 0],
+    [-11.00, 3.60, 1], [-11.00, 7.20, 0],                                       // 도수 룸 5개
+    [-5.70, -4.50, 2], [-5.70, 1.50, 2], [-5.70, 7.00, 2],                      // 도수 복도
+    [-2.75, -2.00, 0], [-2.75, 3.60, 1], [2.75, -2.00, 1], [2.75, 3.60, 0],     // 전기 양 열
+    [-2.75, 6.40, 2], [2.75, 6.40, 2],
+    [0, -8.60, 2], [0, -4.00, 1], [0, 7.60, 2],                                 // 전기 복도 앞뒤
+    [5.60, -4.60, 0], [11.60, -4.60, 1], [5.60, 1.40, 1], [11.60, 1.40, 0],     // 운동 4구역
+    [8.30, -8.20, 1], [6.60, -10.10, 2], [11.30, -10.10, 2],                    // 운동 앞쪽 열
+    [5.90, 6.30, 0], [10.60, 6.40, 1], [8.30, 9.60, 2],                         // 수치료실 (풀 2기)
   ],
 };
 
@@ -527,6 +540,102 @@ KIT._trolley = function (g, w, h, d, label) {
   return { shell, dark };
 };
 
+// ── 간헐적 견인 치료기 (traction unit) ───────────────────────
+// 흰 트롤리 + 상단 디스플레이 + 견인 로프가 도르래를 지나 하네스로 이어진다.
+// mode 'cervical' 은 목걸이형 후두-하악 하네스가 머리 쪽에 걸리고,
+// mode 'lumbar' 는 골반 벨트가 허리에 채워진다. 둘은 하네스 모양과
+// 로프가 향하는 높이만 다르다.
+//
+// 로컬 규약: 견인 방향(로프가 뻗는 쪽)이 +z. 기기를 베드 머리맡/발치에 세우고
+// yaw 로 환자를 향하게 돌린다.
+KIT.tractionUnit = function (x, z, yaw, mode) {
+  const g = new THREE.Group();
+  const cervical = mode !== 'lumbar';
+  const { dark } = KIT._trolley(g, 0.44, 0.78, 0.46,
+    cervical ? '경추 견인 CERVICAL' : '요추 견인 LUMBAR');
+  const chrome = KIT.steel(0xc6cfd5);
+
+  // 상단 조작 디스플레이 — 견인력(kg)·유지/휴식 시간을 띄운다
+  const panel = new THREE.Mesh(KIT.rbox(0.40, 0.26, 0.05, 0.012), dark);
+  panel.position.set(0, 0.98, 0.05);
+  panel.rotation.x = -0.38;
+  panel.castShadow = true;
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.19), KIT.screen(0x54c08a));
+  scr.position.set(0, 0.992, 0.081);
+  scr.rotation.x = -0.38;
+  g.add(panel, scr);
+
+  // 견인력 조절 다이얼 + 비상 정지 버튼(빨강)
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.030, 0.024, 12), chrome);
+  knob.rotation.x = Math.PI / 2 - 0.38;
+  knob.position.set(-0.13, 0.83, 0.19);
+  const stop = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.020, 14),
+    KIT.std(0xc0392b, { roughness: 0.45 }));
+  stop.rotation.x = Math.PI / 2 - 0.38;
+  stop.position.set(0.13, 0.83, 0.19);
+  g.add(knob, stop);
+
+  // 견인 기둥과 도르래 — 로프가 여기서 꺾여 환자 쪽으로 내려간다.
+  // 경추는 앉거나 누운 머리 높이(≈1.25m), 요추는 침대 위 골반 높이(≈0.80m).
+  const armY = cervical ? 1.52 : 1.16;
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, armY - 0.87, 10), chrome);
+  post.position.set(0, (armY + 0.87) / 2, -0.02);
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.46, 10), chrome);
+  arm.rotation.x = Math.PI / 2;
+  arm.position.set(0, armY, 0.21);
+  const pulley = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.012, 8, 16), chrome);
+  pulley.rotation.y = Math.PI / 2;
+  pulley.position.set(0, armY - 0.02, 0.42);
+  g.add(post, arm, pulley);
+
+  // 로프 — 도르래에서 하네스까지. 자중으로 살짝 처진다.
+  const endY = cervical ? 1.18 : 0.74;
+  const rope = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, armY - 0.06, 0.42),
+      new THREE.Vector3(0, endY + 0.16, 0.66),
+      new THREE.Vector3(0, endY, 0.86),
+    ]), 18, 0.008, 6), KIT.std(0xe8e2d4, { roughness: 0.9 }));
+  g.add(rope);
+
+  // 하네스 — 경추는 후두-하악 스트랩, 요추는 골반 벨트
+  const strap = KIT.std(0x455a64, { roughness: 0.85, side: THREE.DoubleSide });
+  if (cervical) {
+    const yoke = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.014, 8, 18, Math.PI), strap);
+    yoke.rotation.set(Math.PI / 2, 0, 0);
+    yoke.position.set(0, endY - 0.02, 0.92);
+    const chin = new THREE.Mesh(KIT.rbox(0.17, 0.07, 0.05, 0.02), strap);
+    chin.position.set(0, endY - 0.06, 0.86);
+    g.add(yoke, chin);
+  } else {
+    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.20, 18, 1, true), strap);
+    belt.scale.set(1, 1, 0.62);
+    belt.position.set(0, endY, 0.94);
+    const buckle = new THREE.Mesh(KIT.rbox(0.07, 0.05, 0.02, 0.008), chrome);
+    buckle.position.set(0, endY, 0.82);
+    g.add(belt, buckle);
+  }
+
+  // 환자 손 정지 스위치 — 견인 중 환자가 직접 끊을 수 있어야 한다
+  const hand = new THREE.Mesh(KIT.rbox(0.07, 0.11, 0.03, 0.012), KIT.std(0xc0392b, { roughness: 0.5 }));
+  hand.position.set(0.20, 0.30, 0.30);
+  hand.rotation.z = 0.2;
+  const hcord = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.16, 0.88, 0.16),
+      new THREE.Vector3(0.24, 0.58, 0.26),
+      new THREE.Vector3(0.20, 0.36, 0.30),
+    ]), 14, 0.006, 5), KIT.std(0x3c464d, { roughness: 0.8 }));
+  g.add(hand, hcord);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw || 0;
+  GAME.scene.add(g);
+  const c = Math.abs(Math.cos(yaw || 0)), s = Math.abs(Math.sin(yaw || 0));
+  KIT.solid(x, z, 0.24 * c + 0.26 * s, 0.26 * c + 0.24 * s);
+  return g;
+};
+
 // ── 체외충격파 치료기 (ESWT) ─────────────────────────────────
 // 흰 트롤리 + 경사 터치스크린 + 관절 암 끝의 핸드피스(어플리케이터).
 // 로컬 규약: 시술 방향이 +z. 핸드피스가 그쪽으로 뻗는다.
@@ -934,6 +1043,12 @@ KIT.registerPatient = function (group, patient, cx, cz, hw, hd, checkY) {
   GAME.beds.push({ patient, group, checkSprite: check, cx, cz, hw, hd });
 };
 
+// 말 걸 수 있는 자리 — 환자가 아니지만 E 로 반응하는 사람(접수 직원 등).
+// 진료 판정(GAME.beds)과 섞지 않는다. 섞으면 채점 대상 인원수가 어긋난다.
+KIT.registerDesk = function (cx, cz, hw, hd, data) {
+  GAME.desks.push(Object.assign({ cx, cz, hw, hd }, data));
+};
+
 // 이름표 — 어느 환자인지 멀리서 알아볼 수 있어야 한다.
 // 앞면에만 글자를 인쇄한다. 양면(DoubleSide)으로 두면 뒤에서 봤을 때
 // 글자가 좌우로 뒤집혀 읽혀서 표지가 아니라 오류처럼 보인다.
@@ -959,13 +1074,24 @@ KIT.nameplate = function (parent, lines, x, y, z, yaw, w) {
 // 인형은 자기 안에 "바닥에서 머리까지" 높이 오프셋을 갖고 있으므로
 // 반드시 바깥 그룹으로 감싸서 옮긴다. 인형 자체의 position을 덮어쓰면
 // 머리가 바닥 높이로 내려가 몸이 바닥 아래로 사라진다.
-KIT.therapist = function (x, z, yaw, stance) {
+KIT.therapist = function (x, z, yaw, stance, who) {
   const g = new THREE.Group();
-  g.add(buildTherapist(stance || 'handson'));
+  g.add(buildTherapist(stance || 'handson', null, null, who));
   g.position.set(x, 0, z);
   g.rotation.y = yaw;
   GAME.scene.add(g);
   GAME.obstacles.push({ cx: x, cz: z, hw: 0.30, hd: 0.30 });
+  return g;
+};
+
+// 물속에 들어가 있는 치료사. 풀 그룹의 자식으로 붙이므로 월드 좌표가 아니라
+// 풀 기준 좌표를 받고, 통행 금지도 등록하지 않는다 — 풀 전체가 이미 막혀 있다.
+KIT.therapistIn = function (parent, lx, ly, lz, yaw, who) {
+  const g = new THREE.Group();
+  g.add(buildTherapist('handson', null, null, who));
+  g.position.set(lx, ly, lz);
+  g.rotation.y = yaw;
+  parent.add(g);
   return g;
 };
 

@@ -1,4 +1,4 @@
-// reach.mjs — 열두 환자에게 실제로 걸어갈 수 있는지 점검한다
+// reach.mjs — 모든 환자에게 실제로 걸어갈 수 있는지 점검한다
 //
 //   node test/reach.mjs
 //
@@ -160,6 +160,7 @@ async function main() {
     start: { x: GAME.player.x, z: GAME.player.z },
     obstacles: GAME.obstacles.map(o => ({cx:o.cx,cz:o.cz,hw:o.hw,hd:o.hd})),
     beds: GAME.beds.map(b => ({id:b.patient.id, name:b.patient.name, cx:b.cx, cz:b.cz, hw:b.hw, hd:b.hd})),
+    roster: PATIENTS.map(p => p.id),
   })`);
   chrome.kill(); srv.close();
 
@@ -178,9 +179,12 @@ async function main() {
       '  (' + b.cx.toFixed(2) + ', ' + b.cz.toFixed(2) + ')');
     if (!ok) bad++;
   });
-  if (data.beds.length !== 12) { console.log('  ✗ 등록된 환자가 12명이 아닙니다:', data.beds.length); bad++; }
+  // 배치 누락 점검 — 데이터에는 있는데 어느 실에도 세우지 않은 환자를 잡는다.
+  // 인원수를 상수로 박아 두면 환자를 늘릴 때마다 테스트가 먼저 깨진다.
+  const missing = data.roster.filter((id) => !seenIds.has(id));
+  if (missing.length) { console.log('  ✗ 배치되지 않은 환자:', missing.join(', ')); bad++; }
 
-  console.log(bad ? `\n실패 ${bad}건` : '\n열두 환자 모두 접근 가능');
+  console.log(bad ? `\n실패 ${bad}건` : `\n환자 ${data.beds.length}명 모두 접근 가능`);
   process.exit(bad ? 1 : 0);
 }
 

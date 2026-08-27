@@ -8,7 +8,7 @@
 //   ③④ 전신 풀 치료 수영장 — 바닥에 앉힌 수조. 할리윅·바트라가츠·왓수를
 //        1:1 또는 그룹으로 시행한다. 수중 계단·벤치·평행봉이 들어간다.
 //
-// 좌표: x 4.0~13.0, z 3.4~9.5 (운동치료실과는 z = ZONE.hydro.wallZ 벽으로 분리)
+// 좌표: x 4.0~14.5, z 3.4~11.0 (운동치료실과는 z = ZONE.hydro.wallZ 벽으로 분리)
 
 function buildHydroRoom() {
   const H = GAME.ZONE.hydro;
@@ -274,6 +274,68 @@ function buildTherapyPool(P) {
     g.add(post);
   });
 
+  // ── 환자 (p19 고관절 이형성·미세불안정) — 수중 근력·협응 훈련 ──
+  // 과가동 고관절에 지상 체중부하는 부담이라, 부력으로 하중을 덜고
+  // 한 다리 지지·골반 조절을 훈련하는 것이 이 환자에게 풀이 필요한 이유다.
+  // 발이 수조 바닥(y = −DEP)에 닿아야 하므로 그만큼 내려 세운다.
+  const patient = PATIENTS[18];
+  // 환자가 서는 자리(풀 기준). 수조 한가운데(0.60, −0.10)에 세웠더니 물가까지
+  // 빙 돌아가야 얼굴이 보였다. 학생은 −x·−z 쪽 개구부로 들어오므로 그쪽 벽에
+  // 붙여 세워야 들어서자마자 보인다. 아령·치료사·판정도 이 값을 따라간다.
+  const px = 0.10, pz = -hd + 0.62;
+  const pg = new THREE.Group();
+  pg.add(buildPatientFigure(patient, { stance: 'stand' }));
+  pg.position.set(px, -DEP, pz);
+  pg.rotation.y = Math.PI;                 // 입구(−z) 쪽을 바라본다
+  g.add(pg);
+
+  // 수중 운동용 아령(부력 덤벨) — 양손에 하나씩 잡는 높이에 띄운다
+  [-0.30, 0.30].forEach((dx) => {
+    const db = new THREE.Group();
+    [-0.11, 0.11].forEach((dy) => {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.14, 12),
+        KIT.std(0x3f7fa5, { roughness: 0.7 }));
+      cap.position.y = dy;
+      db.add(cap);
+    });
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.20, 8), KIT.steel(0xd8e0e4));
+    db.add(bar);
+    db.rotation.z = Math.PI / 2;
+    db.position.set(px + dx, -DEP + 0.94, pz + 0.24);
+    g.add(db);
+  });
+
+  // 명패 — 수조가 커서 침대처럼 발치에 눕힐 수 없다. 데크 모서리에 세운다.
+  const sign = new THREE.Group();
+  KIT.nameplate(sign, [patient.name + ' (' + patient.sex + ', ' + patient.age + '세)'],
+    0, 1.06, 0, 0, 0.62);
+  const spost = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.96, 8), KIT.steel(0xa8b3ba));
+  spost.position.y = 0.48;
+  const sbase = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.03, 14),
+    KIT.std(0x8d979e, { roughness: 0.45, metalness: 0.5 }));
+  sbase.position.y = 0.015;
+  sign.add(spost, sbase);
+  // 명패도 들어오는 쪽 데크 모서리로 — 환자와 이름이 한 화면에 들어와야 한다
+  sign.position.set(-0.80, 0, -hd - CW - 0.34);
+  sign.rotation.y = Math.PI;
+  g.add(sign);
+
+  // 진료 판정 — 학생은 데크에 서서 E 를 누른다.
+  //
+  // 판정 중심은 '풀 한가운데'가 아니라 '환자가 실제로 서 있는 자리'여야 한다.
+  // 중심이 수조 한가운데면 2.6m 반경이 안쪽 데크까지만 닿아서, 들어서자마자
+  // 눈앞에 환자가 보이는데도 빙 돌아가야 E 가 떴다.
+  // 상자는 수조 안에만 두어 새로 막는 자리가 생기지 않게 한다 — 풀 전체는
+  // 아래 wallSolid 가 이미 막고 있다.
+  KIT.registerPatient(g, patient, P.cx + px, P.cz + pz, 1.20, 0.60, 1.25);
+  // 완료 체크 표시도 환자 머리 위로 옮긴다 (기본값은 그룹 원점 = 수조 한가운데)
+  GAME.beds[GAME.beds.length - 1].checkSprite.position.set(px, 1.25, pz);
+
+  // 치료사 — 전신 풀의 할리윅·바트라가츠·왓수는 치료사가 물에 같이 들어가
+  // 환자를 받쳐 주는 1:1 기법이다. 데크에서 지켜보는 것으로는 그 장면이 안 된다.
+  // 환자와 마주 서도록 −x 쪽에 세우고 +x(환자)를 보게 한다.
+  KIT.therapistIn(g, px + 1.05, -DEP, pz, -Math.PI / 2, 'staff_m');
+
   // 풀 전체를 통행 금지로 등록한다. AO 데칼이 없는 wallSolid 를 쓴다 —
   // solid 로 두면 도려낸 바닥 구멍 위에 검은 원이 떠서 물이 더러워 보인다.
   KIT.wallSolid(P.cx, P.cz, hw + CW + 0.1, hd + CW + 0.1);
@@ -285,10 +347,10 @@ function buildTherapyPool(P) {
 function buildGaitPool(G) {
   const W = G.w, D = G.d, H = G.h, FL = G.deck;
   const T = 0.09;                     // 수조 벽 두께
-  const WATER = 1.44;                 // 수면 (안쪽 바닥에서 1.28m — 성인 명치 높이)
+  const WATER = 1.30;                 // 수면 (안쪽 바닥에서 1.14m — 성인 명치 높이)
   // 관찰창 윗변은 수면보다 위에 둔다. 수면 아래에서 끊으면 창으로 볼 때
   // 물이 안 보여서 마른 유리 상자에 사람이 서 있는 것처럼 읽힌다.
-  const WIN_HW = 0.78, WIN_Y0 = 0.34, WIN_Y1 = 1.52;
+  const WIN_HW = 0.78, WIN_Y0 = 0.34, WIN_Y1 = 1.38;
 
   const g = new THREE.Group();
   g.position.set(G.cx, 0, G.cz);
@@ -475,12 +537,14 @@ function buildGaitPool(G) {
   const vest = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.285, 0.40, 18, 1, true),
     KIT.std(0xd8842a, { roughness: 0.75, side: THREE.DoubleSide }));
   vest.scale.set(1, 1, 0.58);
-  vest.position.set(0, FL + 0.05 + 1.30, 0.02);
+  // 발바닥에서 잰 높이다. 1.30 은 161cm 환자의 목 언저리라 조끼가 턱을 받치고
+  // 얼굴을 가렸다 — 수조를 낮추자 그게 그대로 드러났다. 가슴 한가운데로 내린다.
+  vest.position.set(0, FL + 0.05 + 1.12, 0.02);
   g.add(vest);
   [-1, 1].forEach((sx) => {         // 어깨끈
     const strap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.30, 0.03),
       KIT.std(0x2f3941, { roughness: 0.8 }));
-    strap.position.set(sx * 0.13, FL + 0.05 + 1.60, 0.02);
+    strap.position.set(sx * 0.13, FL + 0.05 + 1.36, 0.02);   // 어깨
     strap.rotation.z = sx * 0.14;
     g.add(strap);
   });
@@ -594,15 +658,15 @@ function buildHydroFittings() {
     db.position.set(xx, yy + 0.07, -0.10);
     rack.add(db);
   });
-  rack.position.set(12.55, 0, 4.05);
+  rack.position.set(14.05, 0, 4.05);
   rack.rotation.y = -Math.PI / 2;
   s.add(rack);
-  KIT.solid(12.55, 4.05, 0.25, 0.62);
+  KIT.solid(14.05, 4.05, 0.25, 0.62);
 
   // 구명 부표 — 물이 있는 실의 법정 비치품
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.075, 10, 22),
     KIT.std(0xe4453c, { roughness: 0.6 }));
-  ring.position.set(GAME.ROOM.w / 2 - 0.09, 1.60, 8.60);
+  ring.position.set(GAME.ROOM.w / 2 - 0.09, 1.60, backZ - 2.30);
   ring.rotation.y = Math.PI / 2;
   s.add(ring);
   [0, 1].forEach((i) => {

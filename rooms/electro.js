@@ -16,10 +16,14 @@ function buildElectroRoom() {
   // 배정: 누워서 전기·한랭 치료를 받는 환자. 도면처럼 발끝이 복도를 향한다.
   // device: 그 베이에 붙는 기기. 'laser'·'eswt' 는 전기치료기 카트를 대신한다.
   const roster = {
-    'L0': { p: PATIENTS[2] },                   // p3 손목터널증후군
-    'L2': { p: PATIENTS[7], device: 'laser' },  // p8 ACL 재건 후 — 무릎에 고출력 레이저
-    'R1': { p: PATIENTS[5] },                   // p6 고관절 골관절염
-    'R3': { p: PATIENTS[10], device: 'eswt' },  // p11 발목 염좌 — 발목에 체외충격파
+    'L0': { p: PATIENTS[2] },                        // p3  손목터널증후군
+    'L1': { p: PATIENTS[13], device: 'ctrac' },      // p14 경추 신경근병증 — 간헐적 경추 견인
+    'L2': { p: PATIENTS[7], device: 'laser' },       // p8  ACL 재건 후 — 무릎에 고출력 레이저
+    'L3': { p: PATIENTS[14], device: 'ltrac' },      // p15 요추 신경근병증 — 엎드린 간헐 요추 견인
+    'R0': { p: PATIENTS[16] },                       // p17 MCL 염좌 — 급성기 한랭·전기치료
+    'R1': { p: PATIENTS[5] },                        // p6  고관절 골관절염
+    'R3': { p: PATIENTS[10], device: 'eswt' },       // p11 발목 염좌 — 발목에 체외충격파
+    // R2 는 비워 둔다 — 케이스를 더 넣을 때 쓰는 자리다.
   };
   let num = 1;
   ['L', 'R'].forEach((col) => {
@@ -48,12 +52,16 @@ function buildElectroRoom() {
   KIT.therapist(E.bankL + 0.30, E.bayZ[0] + 1.00, Math.PI, 'handson');
   KIT.therapist(E.bankR - 0.30, E.bayZ[1] - 1.00, 0, 'handson');
   KIT.therapist(E.bankL + 0.20, E.bayZ[2] - 1.00, 0, 'handson');   // 레이저 베이
+  // 견인 베이 둘 — 견인력을 올리는 동안 환자 옆을 지킨다
+  KIT.therapist(E.bankL + 0.35, E.bayZ[1] + 0.95, Math.PI, 'handson');   // 경추 견인
+  KIT.therapist(E.bankL + 0.35, E.bayZ[3] + 0.95, Math.PI, 'handson');   // 요추 견인
+  KIT.therapist(E.bankR - 0.35, E.bayZ[0] + 0.95, Math.PI, 'handson');   // MCL 급성기 베이
   // 체외충격파 베이 — 발끝(복도) 쪽에 서서 발목에 핸드피스를 댄다
   KIT.therapist(E.bankR - 1.30, E.bayZ[3], Math.PI / 2, 'handson');
 
   // 특수치료 안내 — 복도에서 어느 베이가 무엇인지 읽힌다
   const spec = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.60),
-    printedMat(makeTextCanvas(['특수치료 베이', '③ 고출력 레이저  ④ 체외충격파'], 512, 200,
+    printedMat(makeTextCanvas(['특수치료 베이', '② 경추견인 ③ 레이저 ④ 요추견인 ⑦ 충격파'], 512, 200,
       { bg: '#22506b', color: '#ffffff', fontSize: 54 }),
       { roughness: 0.35, envMapIntensity: 1.1 }));
   spec.position.set(Z.divM + 0.11, 2.05, E.bayZ[2]);
@@ -146,6 +154,11 @@ function buildElectroBay(patient, num, bx, cz, yaw, aisleSide, device) {
   } else if (device === 'eswt') {
     // 충격파는 발목·발에 대므로 발치(복도) 쪽으로 물려 세운다
     KIT.eswtUnit(bx + aisleSide * 0.80, cz + 0.75, Math.PI);
+  } else if (device === 'ctrac' || device === 'lumbar' || device === 'ltrac') {
+    // 견인기는 머리맡(로컬 -z)에 세우고 로프가 환자 쪽(+z)으로 뻗게 둔다.
+    // 베드는 머리쪽이 바깥 벽이므로 기기도 벽 쪽에 붙는다.
+    KIT.tractionUnit(bx - aisleSide * 0.30, cz - 1.42, 0,
+      device === 'ctrac' ? 'cervical' : 'lumbar');
   } else {
     KIT.etCart(bx + aisleSide * 0.95, cz + 0.72, aisleSide > 0 ? -Math.PI / 2 : Math.PI / 2);
   }
@@ -189,6 +202,34 @@ function buildElectroFront() {
   chair.position.set(3.45, 0, frontZ + 1.5);
   chair.rotation.y = Math.PI / 2;
   s.add(chair);
+
+  // ── 접수 직원 ──
+  // 데스크 뒤(+x)에 앉아 −x 쪽 대기 구역을 마주본다. 앉은 자세의 기준 좌면은
+  // 0.56m 인데 이 의자는 0.48m 이라 그만큼 내려 앉힌다.
+  const front = KIT.therapist(3.45, frontZ + 1.5, -Math.PI / 2, 'sit');
+  front.position.y = -0.08;
+
+  // 전산 처리용 키보드 — 손이 놓이는 자리에 둔다. 모니터만 있으면
+  // 앉아서 화면만 보고 있는 사람으로 읽힌다.
+  const kbd = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.02, 0.15),
+    KIT.std(0x2f3b42, { roughness: 0.5 }));
+  kbd.position.set(2.78, 1.0, frontZ + 1.5);
+  kbd.rotation.y = -Math.PI / 2;
+  s.add(kbd);
+
+  // 말 걸기 등록 — 학생이 처음 들어와 "어디부터 가지?" 할 때의 안내 창구.
+  // 인원수는 배치와 어긋나면 안 되므로 실제 배정과 같이 적는다
+  // (도수 5 · 전기 7 · 운동 5 · 수치료 2 = 19).
+  KIT.registerDesk(2.90, frontZ + 1.5, 0.9, 1.3, {
+    name: '유가람', role: '접수 물리치료사',
+    lines: [
+      '어서 오세요. 실습 오셨죠? 접수 도와드릴게요. 가운 입으시고 바로 들어가시면 됩니다.',
+      '오늘 환자분은 모두 열아홉 분이세요. 여기 전기치료실에 일곱 분, 왼쪽 도수치료실에 다섯 분, 오른쪽 운동치료실에 다섯 분, 그 안쪽 수치료실에 두 분 계십니다.',
+      '순서는 정해 두지 않았어요. 환자분 앞에 서서 E 를 누르시면 문진부터 시작됩니다.',
+      '진행은 문진 → 이학적 검사 → 진단 → 치료계획 순서예요. 검사는 필요한 것만 고르세요. 안 해도 될 검사를 많이 넣으면 점수가 깎입니다.',
+      '열아홉 분 다 보시면 종합 성적표가 열려요. 급하게 안 하셔도 되니 한 분씩 꼼꼼히 보세요.',
+    ],
+  });
 
   // 대기 벤치 (반대편)
   const bench = new THREE.Group();
@@ -246,11 +287,15 @@ function buildElectroFront() {
   s.add(wc);
   KIT.solid(-2.28, frontZ + 2.3, 0.42, 0.42);
 
-  // 안내 게시판 (출입문 옆 벽)
+  // 안내 게시판 — 도수치료실 구분벽(−x)에 건다.
+  // 예전에는 frontZ + 5.2 였는데, 실 깊이를 19m→22m 로 늘리자 frontZ 가 같이
+  // 밀려 판이 도수치료실 개구부(z −6.75~−5.05) 한가운데를 가로막았다.
+  // 개구부는 entryZ 로 고정돼 있어 frontZ 를 따라오지 않는다 — 그래서 이제는
+  // 앞쪽 구석의 정수기 옆에 붙여, 깊이를 또 바꿔도 문을 막을 일이 없게 한다.
   const board = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.05),
     printedMat(makeTextCanvas(['진료 안내', '① 접수  ② 전기치료', '③ 도수·운동치료'], 512, 320,
       { bg: '#eef4f7', color: '#22506b', border: '#2c5f7c', fontSize: 54 })));
-  board.position.set(Z.divM + 0.11, 1.85, frontZ + 5.2);
+  board.position.set(Z.divM + 0.11, 1.85, frontZ + 1.75);
   board.rotation.y = Math.PI / 2;
   s.add(board);
 

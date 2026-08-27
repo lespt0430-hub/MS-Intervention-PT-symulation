@@ -12,6 +12,9 @@ const GAME = {
   keys: {},
   player: { x: 0, z: -8.4, speed: 3.2 },   // 출입문 안쪽 — 정면이 전기치료실 중앙 복도
   beds: [], // {patient, group, checkSprite, cx, cz, hw, hd}
+  // 환자가 아닌 말 걸 수 있는 자리 (접수 데스크 등). {cx, cz, hw, hd, name, role, lines}
+  desks: [],
+  nearDesk: null,
   obstacles: [], // 벽·장비 충돌 박스 {cx, cz, hw, hd}
   // 매 프레임 갱신이 필요한 것 (dt) => void. 지금은 수치료실 물결뿐이다 —
   // 텍스처 오프셋만 밀면 되므로 비용이 사실상 없다.
@@ -30,7 +33,11 @@ const GAME = {
   look: 0,        // 화면 버튼 상하 시선 (+1 위 / -1 아래)
   turnSpeed: 1.5, // rad/s
   qualityPref: 'auto',  // index.html이 시작 전에 채운다
-  ROOM: { w: 26, d: 19, h: 3.4 }, // x: -13..13, z: -9.5..9.5
+  // 환자가 12명에서 19명으로 늘면서 세로로 3m 넓혔다. 도수치료실 룸이
+  // 4개→5개가 되고, 전기치료실 대기 구역과 수치료실 데크에도 여유가 생긴다.
+  // 가로 3m 은 그 다음이다 — 운동치료실에 기구와 환자가 몰려 앞줄이 빽빽했다.
+  // 폭은 전기치료실을 x=0 에 대칭으로 두고 늘리므로 도수·운동 양쪽이 함께 넓어진다.
+  ROOM: { w: 29, d: 22, h: 3.4 }, // x: -14.5..14.5, z: -11..11
 };
 
 function initGame() {
@@ -90,6 +97,12 @@ const PATIENT_POSES = {
   p10: { roll: Math.PI, lift: 0.2, foot: 'prone' },                                            // 아킬레스건 — 엎드린 자세
   p11: { legR: { hip: 0.26, knee: 0.14 }, props: ['pillowAnkleR', 'wrapAnkleR', 'iceAnkleR'] }, // 발목염좌 — 다리 거상 + 붕대 + 얼음
   p12: { legR: { hip: 0.12, knee: 0.24 }, legL: { hip: 0.12, knee: 0.24 }, armR: 'belly', props: ['bolsterKnees'] }, // 족저근막염 — 무릎 아래 쿠션, 발 노출
+  // 하위분류 확장분(patients3.js). 누워서 받는 네 명만 여기에 있고,
+  // 나머지 셋(p16·p18·p19)은 서거나 걷는 자세라 STANCES 를 쓴다.
+  p13: { armR: 'neck', props: ['neckroll', 'blanket'] },                                       // 경인성 두통 — 뒷목을 짚음
+  p14: { armL: 'neck', props: ['blanket'] },                                                   // 경추 신경근병증 — 환측 팔을 머리에 얹는 어깨외전 완화 자세
+  p15: { legR: { hip: 0.55, knee: 1.05 }, legL: { hip: 0.5, knee: 1.0 }, armR: 'belly', props: ['blanket'] }, // 요추 신경근병증 — 무릎 세워 신경 긴장을 던 자세
+  p17: { legR: { hip: 0.20, knee: 0.40 }, props: ['bolsterKneeR', 'wrapKneeR', 'iceKneeR'] },  // MCL 염좌 — 무릎 받침 + 압박붕대 + 얼음
 };
 
 // 서 있는/앉아 있는 사람의 자세. 누운 리그를 그대로 세워서 쓴다.
@@ -510,10 +523,12 @@ function buildPatientFigure(patient, opts) {
 // 치료사가 전부 같은 사람으로 보이지 않게 남녀를 번갈아 쓴다.
 let THERAPIST_TURN = 0;
 
-function buildTherapist(stance, skin, hair) {
+// who — 특정 직원을 지정한다('staff_m' 등). 비우면 남녀를 번갈아 쓴다.
+// 수치료실처럼 "남자 치료사가 물에 들어간다" 같은 배역이 있는 자리에 쓴다.
+function buildTherapist(stance, skin, hair, who) {
   if (window.HUMANS && HUMANS.enabled && HUMANS.loaded) {
     const roll = HUMANS.STAFF || ['staff_m', 'staff_f'];
-    const id = roll[THERAPIST_TURN++ % roll.length];
+    const id = who || roll[THERAPIST_TURN++ % roll.length];
     const g = HUMANS.build(null, { stance: stance || 'stand', staff: id });
     if (g) return g;
   }
@@ -554,6 +569,10 @@ function bindControls() {
     if (e.code === 'KeyE' && GAME.nearPatient && GAME.locked) {
       document.exitPointerLock();
       UI.openConsult(GAME.nearPatient);
+    } else if (e.code === 'KeyE' && GAME.nearDesk && GAME.locked) {
+      // 접수 데스크는 모달을 열지 않는다 — 포인터 잠금을 풀지 않고
+      // 말풍선만 띄워야 계속 걸어다니며 물어볼 수 있다.
+      UI.askDesk(GAME.nearDesk);
     }
   });
   document.addEventListener('keyup', (e) => { GAME.keys[e.code] = false; });
@@ -652,7 +671,10 @@ function bindScreenPad() {
   if (eBtn) {
     eBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      if (!GAME.nearPatient) return;
+      if (!GAME.nearPatient) {
+        if (GAME.nearDesk) UI.askDesk(GAME.nearDesk);
+        return;
+      }
       if (document.pointerLockElement) document.exitPointerLock();
       UI.openConsult(GAME.nearPatient);
     });
@@ -696,15 +718,45 @@ function movePlayer(dt) {
   GAME.player.x = nx; GAME.player.z = nz;
 }
 
+// 학생과 그 자리 사이에 실 구분벽이 있는가.
+//
+// 판정은 거리만 보기 때문에, 벽 하나를 사이에 두고 1.7m 떨어져 있으면
+// 옆 실 환자가 잡힌다 — 수치료실에서 물가에 서면 벽 반대편 운동치료실의
+// 하유리가 뜨고, 정작 눈앞의 표민아는 그보다 멀어 가려졌다.
+// 개구부(문)는 따지지 않아도 된다. 문을 지나 마주 보는 거리는 판정 반경보다 멀다.
+function sameRoom(px, pz, cx, cz) {
+  const Z = GAME.ZONE;
+  const side = (a, b, at) => (a < at) === (b < at);
+  if (!side(px, cx, Z.divM)) return false;          // 도수 | 전기
+  if (!side(px, cx, Z.divE)) return false;          // 전기 | 운동
+  // 수치료실 경계는 운동치료실(+x) 안쪽에만 있다
+  if (px > Z.divE && cx > Z.divE && !side(pz, cz, Z.hydro.wallZ)) return false;
+  return true;
+}
+
 function updateInteraction() {
   let best = null, bestDist = 2.6;
   GAME.beds.forEach((b) => {
+    if (!sameRoom(GAME.player.x, GAME.player.z, b.cx, b.cz)) return;
     const d = Math.hypot(GAME.player.x - b.cx, GAME.player.z - b.cz);
     if (d < bestDist) { bestDist = d; best = b; }
   });
   GAME.nearPatient = best ? best.patient : null;
+
+  // 안내 자리(접수 데스크)는 환자보다 뒤에 본다. 환자 앞에 서 있는데
+  // 접수 안내가 뜨면 진료를 시작하지 못한다.
+  let desk = null;
+  if (!best) {
+    let dd = 2.2;
+    GAME.desks.forEach((k) => {
+      const d = Math.hypot(GAME.player.x - k.cx, GAME.player.z - k.cz);
+      if (d < dd) { dd = d; desk = k; }
+    });
+  }
+  GAME.nearDesk = desk;
+
   const padBtn = document.getElementById('pad-interact');
-  if (padBtn) padBtn.classList.toggle('ready', !!best);
+  if (padBtn) padBtn.classList.toggle('ready', !!(best || desk));
   const prompt = document.getElementById('hud-prompt');
   // 포인터 잠금 여부와 무관하게 띄운다 — 화면 조작판으로만 다니는 경우에도
   // 지금 누구 앞에 서 있는지 알려줘야 E 버튼을 누를 수 있다.
@@ -714,6 +766,9 @@ function updateInteraction() {
     prompt.innerHTML = done
       ? '<b>E</b> — ' + best.patient.name + ' 진료 기록 다시 보기 <span class="done-tag">진료완료</span>'
       : '<b>E</b> — <span class="p-name">' + best.patient.name + '</span> 환자 진료 시작 · “' + best.patient.chiefComplaint + '”';
+  } else if (desk) {
+    prompt.style.display = 'block';
+    prompt.innerHTML = '<b>E</b> — <span class="p-name">' + desk.name + '</span> ' + desk.role + '에게 물어보기';
   } else {
     prompt.style.display = 'none';
   }

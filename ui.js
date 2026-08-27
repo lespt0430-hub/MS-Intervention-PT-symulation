@@ -46,6 +46,20 @@ UI.toast = function (text, ms) {
   UI._toastT = setTimeout(() => { el.style.display = 'none'; }, ms || 6000);
 };
 
+// ── 접수 데스크에 말 걸기 ──
+// 진료 모달을 여는 대신 말풍선만 띄운다. 학생이 처음 들어왔을 때 "어디부터
+// 가야 하나"를 사람에게 물어보는 경로가 하나는 있어야 한다.
+// 누를 때마다 다음 문장으로 넘어가고, 끝나면 처음으로 돌아간다.
+UI.askDesk = function (desk) {
+  if (!desk || !desk.lines || !desk.lines.length) return;
+  UI._deskAt = UI._deskAt || {};
+  const key = desk.name;
+  const i = UI._deskAt[key] || 0;
+  UI._deskAt[key] = (i + 1) % desk.lines.length;
+  const more = desk.lines.length > 1 ? '   (E — 더 듣기)' : '';
+  UI.toast(desk.name + ' ' + desk.role + ' — “' + desk.lines[i] + '”' + more, 7000);
+};
+
 UI.notifyQuality = function (tier, fps) {
   const label = { low: '낮음', medium: '보통', high: '높음' }[tier] || tier;
   const el = document.getElementById('hud-toast');
@@ -54,6 +68,42 @@ UI.notifyQuality = function (tier, fps) {
   el.style.display = 'block';
   clearTimeout(UI._toastT);
   UI._toastT = setTimeout(() => { el.style.display = 'none'; }, 5000);
+};
+
+// ── AI 회사 선택 (교수 모드) ──
+// Gemini·GPT·Claude 는 부르는 주소와 모델 이름이 전부 달라서, 회사를 바꾸면
+// 모델 목록도 통째로 갈아 끼워야 한다. 목록을 HTML 에 박아 두면 회사를 바꿔도
+// Gemini 모델이 남아 있어, Claude 를 골라 놓고 gemini-flash 를 부르게 된다.
+UI.bindProviderPicker = function () {
+  const provEl = document.getElementById('inp-provider');
+  const modelEl = document.getElementById('inp-model');
+  if (!provEl || !modelEl) return;
+
+  const fill = () => {
+    const info = providerInfo();
+    const cur = getModel();
+    modelEl.innerHTML = info.models
+      .map((m) => '<option value="' + m + '">' + m + '</option>').join('');
+    // 교수님이 표에 없는 새 모델 이름을 쓰고 있으면 그것도 목록에 넣어 준다
+    if (!info.models.includes(cur)) {
+      modelEl.insertAdjacentHTML('afterbegin', '<option value="' + cur + '">' + cur + '</option>');
+    }
+    modelEl.value = cur;
+    const hint = document.getElementById('key-hint-provider');
+    if (hint) {
+      hint.innerHTML = info.label + ' 키는 <b>' + info.hint + '</b>합니다. 발급: ' +
+        '<a href="' + info.issue + '" target="_blank">' + info.issue.replace(/^https:\/\//, '') + '</a>';
+    }
+  };
+
+  provEl.value = getProvider();
+  fill();
+  UI.fillModelOptions = fill;
+  provEl.addEventListener('change', () => {
+    setProvider(provEl.value);
+    fill();
+    UI.updateModeStatus();
+  });
 };
 
 // ── 시작 화면 ──
@@ -68,9 +118,10 @@ UI.updateModeStatus = function () {
     el.textContent = '✓ 교수님이 등록해 둔 AI로 문진합니다 — 학생은 따로 키를 넣지 않아도 됩니다.';
   } else if (hasApiKey()) {
     el.className = 'ok';
+    const pl = providerInfo().label;
     el.textContent = getStoredKey()
-      ? '✓ 이 PC에 등록된 Gemini 키로 연동됨 (' + getModel() + ').'
-      : '✓ 교수님 Gemini 키로 연동됨 (' + getModel() + ') — 바로 AI 문진을 쓸 수 있습니다.';
+      ? '✓ 이 PC에 등록된 ' + pl + ' 키로 연동됨 (' + getModel() + ').'
+      : '✓ 교수님 ' + pl + ' 키로 연동됨 (' + getModel() + ') — 바로 AI 문진을 쓸 수 있습니다.';
   } else if (!AI_RELAY.checked) {
     el.className = '';
     el.textContent = 'AI 연동을 확인하는 중…';
@@ -98,16 +149,23 @@ UI.initStart = function () {
   // 입력칸에는 '이 PC에 등록한 키'만 보여 준다. config.js 의 공용 키까지
   // 여기 채우면 교수님이 지우려다 헷갈린다 (지워도 config 값이 계속 쓰인다).
   keyEl.value = getStoredKey();
-  modelEl.value = getModel();
-  if (modelEl.value !== getModel()) { // 저장된 모델이 기본 옵션에 없으면 추가
-    modelEl.insertAdjacentHTML('afterbegin', '<option value="' + getModel() + '">' + getModel() + '</option>');
-    modelEl.value = getModel();
-  }
+  // 모델 목록은 회사(Gemini/GPT/Claude)마다 달라 HTML 에 미리 적을 수 없다.
+  UI.bindProviderPicker();
   document.querySelector('input[name="chatmode"][value="' + getChatMode() + '"]').checked = true;
   UI.updateModeStatus();
   // 교수님이 서버에 키를 넣어 두었는지 물어본다. 학생은 이 결과만 보고
   // AI 문진을 고를 수 있다 — 키 자체는 브라우저로 내려오지 않는다.
-  probeAiRelay().then(UI.updateModeStatus);
+  //
+  // 응답이 온 뒤 라디오를 한 번 더 맞춘다. 처음 그릴 때는 아직 중계 여부를
+  // 몰라 무조건 내장 답변에 체크되기 때문이다. 학생이 직접 고른 적이 없을
+  // 때(저장값 없음)만 바꾸므로, 일부러 내장 답변을 고른 학생은 그대로 둔다.
+  probeAiRelay().then(() => {
+    if (!localStorage.getItem('ptsim_mode')) {
+      const el = document.querySelector('input[name="chatmode"][value="' + getChatMode() + '"]');
+      if (el) el.checked = true;
+    }
+    UI.updateModeStatus();
+  });
   document.querySelectorAll('input[name="chatmode"]').forEach((r) => {
     r.addEventListener('change', () => {
       localStorage.setItem('ptsim_mode', r.value);
@@ -198,37 +256,56 @@ UI.initStart = function () {
     });
   });
 
-  // 교수 모드 — Gemini 키 등록/해제
+  // 교수 모드 — AI 키 등록/해제
   document.getElementById('btn-save-key').addEventListener('click', async () => {
     const key = keyEl.value.trim();
     const msg = document.getElementById('prof-msg');
     if (!key) { msg.className = 'err'; msg.textContent = 'API 키를 입력하세요.'; return; }
+    // 붙여넣은 키 생김새로 회사를 알아맞힌다 — 교수님이 회사를 안 골라도 되게.
+    const guess = Object.keys(AI_PROVIDERS).find((p) => AI_PROVIDERS[p].detect(key));
+    if (guess && guess !== getProvider()) {
+      setProvider(guess);
+      const pe = document.getElementById('inp-provider');
+      if (pe) pe.value = guess;
+      if (UI.fillModelOptions) UI.fillModelOptions();
+    }
     localStorage.setItem('ptsim_gemini_key', key);
+    const info = providerInfo();
     try {
-      // 1) 이 키로 사용 가능한 모델 목록을 불러와 드롭다운 구성
-      msg.className = ''; msg.textContent = '사용 가능한 모델 목록 불러오는 중...';
-      const models = await listGeminiModels();
-      if (!models.length) throw new Error('이 키로 사용 가능한 Gemini 모델이 없습니다.');
-      const prev = modelEl.value;
-      modelEl.innerHTML = models.map((m) => '<option value="' + m.id + '">' + m.label + '</option>').join('');
-      modelEl.value = models.some((m) => m.id === prev) ? prev : pickDefaultModel(models);
-      localStorage.setItem('ptsim_model', modelEl.value);
-      // 2) 선택된 모델로 실제 호출 테스트 (실패 시 권장 모델로 1회 자동 재시도)
-      msg.textContent = '연결 테스트 중... (' + modelEl.value + ')';
+      // Gemini 는 키로 쓸 수 있는 모델 목록을 물어볼 수 있다. 나머지 회사는
+      // 그런 창구가 없어 표에 적어 둔 후보를 그대로 쓴다.
+      if (getProvider() === 'gemini') {
+        msg.className = ''; msg.textContent = '사용 가능한 모델 목록 불러오는 중...';
+        const models = await listGeminiModels();
+        if (!models.length) throw new Error('이 키로 사용 가능한 Gemini 모델이 없습니다.');
+        const prev = modelEl.value;
+        modelEl.innerHTML = models.map((m) => '<option value="' + m.id + '">' + m.label + '</option>').join('');
+        modelEl.value = models.some((m) => m.id === prev) ? prev : pickDefaultModel(models);
+        localStorage.setItem('ptsim_model', modelEl.value);
+      } else {
+        UI.fillModelOptions();
+        localStorage.setItem('ptsim_model', modelEl.value);
+      }
+      // 선택된 모델로 실제 호출 테스트 (실패 시 그 회사의 기본 모델로 1회 재시도)
+      msg.className = ''; msg.textContent = '연결 테스트 중... (' + modelEl.value + ')';
       try { await testApiKey(); }
       catch (e1) {
-        const fb = pickDefaultModel(models);
+        const fb = info.fast;
         if (!fb || fb === modelEl.value) throw e1;
         modelEl.value = fb;
         localStorage.setItem('ptsim_model', fb);
-        msg.textContent = '권장 모델로 재시도 중... (' + fb + ')';
+        msg.textContent = '기본 모델로 재시도 중... (' + fb + ')';
         await testApiKey();
       }
       msg.className = 'ok';
-      msg.textContent = '✓ 연결 성공 (' + modelEl.value + ') — 모델 ' + models.length + '개 사용 가능. AI 문진 모드를 쓸 수 있습니다.';
+      msg.textContent = '✓ ' + info.label + ' 연결 성공 (' + modelEl.value + ') — AI 문진 모드를 쓸 수 있습니다.';
     } catch (e) {
       localStorage.removeItem('ptsim_gemini_key');
-      msg.className = 'err'; msg.textContent = '연결 실패: ' + e.message;
+      msg.className = 'err';
+      msg.textContent = '연결 실패: ' + e.message +
+        (getProvider() === 'anthropic'
+          ? ' — Claude 는 브라우저에서 직접 부르는 것을 막는 경우가 있습니다. 그때는 중계(교수 로그인 → AI 문진 켜기)를 쓰세요.'
+          : '');
     }
     UI.updateModeStatus();
   });
@@ -323,7 +400,8 @@ UI.bindCollect = function () {
     msgEl.textContent = on ? 'AI 문진을 켜는 중… (키가 실제로 되는지 확인합니다)' : 'AI 문진을 끄는 중…';
     try {
       const r = await COLLECT.call(
-        on ? { action: 'ai_set', user: id, pw, key } : { action: 'ai_set', user: id, pw, enable: false },
+        on ? { action: 'ai_set', user: id, pw, key, provider: getProvider() }
+           : { action: 'ai_set', user: id, pw, enable: false },
         45000);
       AI_RELAY.ready = !!r.ai;
       AI_RELAY.checked = true;

@@ -34,6 +34,21 @@ HUMANS.IDS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11'
 // 남2·여2 를 번갈아 쓴다.
 HUMANS.STAFF = ['staff_m', 'staff_f', 'staff_m2', 'staff_f2'];
 
+// 하위분류 확장으로 늘어난 일곱 명(p13~p19)은 아직 전용 모델이 없다.
+// 전용 모델이 없으면 그 사람만 캡슐 인형으로 떨어져 혼자 딴 세상 사람이 되므로,
+// 성별·연령대가 가까운 기존 모델을 빌려 쓴다. 같은 실에서 같은 얼굴이 마주
+// 보이지 않도록 배치를 보고 짝을 지었다 (예: p19 는 수치료실이라 전기치료실의 p8 을 쓴다).
+// tools/build-humans.mjs 로 전용 모델을 뽑으면 여기서 해당 줄만 지우면 된다.
+HUMANS.ALIAS = {
+  p13: 'p12',   // 여 42 ← 여 48
+  p14: 'p7',    // 남 51 ← 남 52
+  p15: 'p4',    // 남 34 ← 남 38
+  p16: 'p1',    // 여 29 ← 여 45
+  p17: 'p5',    // 남 20 ← 남 27
+  p18: 'p9',    // 여 25 ← 여 24
+  p19: 'p8',    // 여 23 ← 여 22
+};
+
 HUMANS.path = (id) => 'assets/humans/' + id + '.glb';
 
 // ── 불러오기 ────────────────────────────────────────────────
@@ -290,7 +305,9 @@ function applyLeg(bones, side, spec) {
 HUMANS.build = function (patient, opts) {
   const o = opts || {};
   const id = o.staff || (patient && patient.id);
-  const src = HUMANS.models[id];
+  // 모델은 빌려 쓸 수 있지만(ALIAS) 자세는 그 환자 것을 그대로 써야 한다 —
+  // 아래 자세표 조회에는 빌려 온 id 가 아니라 본인 id 를 넘긴다.
+  const src = HUMANS.models[HUMANS.ALIAS[id] || id];
   if (!src) return null;
 
   const model = TX.SkeletonUtils.clone(src);

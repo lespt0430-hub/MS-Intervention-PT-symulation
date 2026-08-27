@@ -1,29 +1,51 @@
 // rooms/exercise.js — ExerciseRoom : 운동치료실
 //
 // '운동치료실 내부도면' 기준. 안쪽 끝(z > ZONE.hydro.wallZ)은 수치료실로
-// 떼어 냈으므로 이 실은 x 4.0~13.0 · z −9.5~3.2 를 쓴다.
+// 떼어 냈으므로 이 실은 x 4.0~14.5 · z −11.0~3.2 를 쓴다.
 //   · 바닥에 빨강·노랑 이중선 보행 트랙 + 그 위 천장의 곡선 슬링 트랙
 //   · 앞 벽면 한 줄이 기구 라인 — 재활 계단 · 트레드밀 · 자전거 · 평행봉 · 상지 에르고미터
 //   · 구분벽 쪽에 케이블 타워 · 짐볼 랙 · 소도구 선반
 //   · 거울 벽에 무릎 신전 운동기구 · 덤벨 랙 · 늑목
+
+// 바닥 컬러 요가 매트 3장의 자리. 파란 매트에는 짐볼과 환자(p16)가 올라가므로
+// 매트를 그리는 쪽(buildProps)과 환자를 세우는 쪽이 같은 좌표를 봐야 한다 —
+// 숫자를 두 군데 적어 두면 한쪽만 옮겼을 때 환자가 맨바닥에 앉는다.
+const MAT_RED = [7.40, 2.60];
+const MAT_BLUE = [9.30, 2.60];
+const MAT_GREEN = [11.20, 2.60];
+const MAT_H = 0.05;                     // 매트 두께
+
+// p10 이 서는 천장 슬링 자리. 슬링 레일(타원, 중심 8.50/−1.10 · 반지름 약 3.15)
+// 위에 있어야 로프가 바로 머리 위로 내려온다 — 환자와 로프를 따로 적어 두면
+// 한쪽만 옮겼을 때 허공에 매달린 하네스가 된다. 그래서 여기 한 번만 적는다.
+const SLING_P10 = [6.15, 1.00];
 
 function buildExerciseRoom() {
   const X = GAME.ZONE.exercise;
 
   buildWalkTrack(X.track);
   buildSlingTrack();
-  // 앞 벽면 기구 라인 (z ≈ −8.5)
-  buildTrainingStairs(5.30, -8.90);
-  buildParallelBars(10.55, -8.60);
-  buildArmErgometer(12.62, -8.70);
+  // 앞 벽면 기구 라인 (z ≈ −10.2). 실이 가로로 3m 넓어져 간격을 벌렸다.
+  buildTrainingStairs(5.30, -10.40);
+  buildParallelBars(11.30, -10.10);
+  buildArmErgometer(14.10, -10.20);
   // 중앙 열
   buildMatBed(7.40, -6.50);
-  buildReformer(10.30, -6.60);
+  buildReformer(12.80, -5.60, Math.PI / 2);   // p12 — 긴 축을 z 로 돌려 거울을 보게
+  // 균형 훈련(p18) — 평행봉 발판 위. 붙잡을 것이 있어야 하는 훈련이라
+  // 따로 난간을 세우는 것보다 평행봉 안에 넣는 편이 자연스럽고 자리도 넓다.
+  // 발판 윗면이 0.06m 이므로 그만큼 올린다.
+  buildBalanceZone(11.30, -10.10, 0.06);
+  // 체간 협응 운동(p16) — 짐볼. 매트 테이블은 없앴다.
+  // 바닥에 깔린 파란 요가 매트(buildProps) 위에 올린다. 매트 두께 0.05 만큼 띄운다.
+  buildGymBall(MAT_BLUE[0], MAT_BLUE[1], undefined, 0.05);
   // 구분벽(−x) 열
   buildCableTower(4.35, -0.30);
   buildBallRack(4.35, -2.50);
-  // 거울 벽(+x) 열
-  buildLegMachine(12.30, -3.40);
+  // 거울 벽(+x) 열 — 거울(z −6.8~−0.8) 정면은 비워 둔다.
+  // 자세를 보며 운동하는 자리라 기구가 그 앞을 막으면 거울이 무용지물이고,
+  // 거울 앞 통로도 좁아진다. 기구는 거울 위아래로 물리고 벽에 바짝 붙인다.
+  buildLegMachine(13.95, -8.30);
   buildWallBars();
   buildBigMirror();
 
@@ -124,8 +146,9 @@ function buildSlingTrack() {
       }
     });
   };
-  unit(8.50, -4.00);    // 하네스 보행 훈련 자리 (레일 앞머리)
-  unit(10.85, 1.00);
+  unit(SLING_P10[0], SLING_P10[1]);   // p10 이 매달리는 자리
+  unit(10.85, 1.00);                  // 예비 유닛
+  unit(8.50, -4.00);                  // 레일 앞머리 (비어 있는 자리)
 }
 
 // ── 보행용 평행봉 ────────────────────────────────────────────
@@ -183,7 +206,9 @@ function buildMatBed(x, z) {
 }
 
 // ── 필라테스 리포머 ──────────────────────────────────────────
-function buildReformer(x, z) {
+// yaw 를 주면 기구를 돌린다. 서혜란은 거울(+x)을 보고 앉아야 해서, 기구의
+// 긴 축을 z 방향으로 돌려 놓아야 다리가 기구 옆으로 자연스럽게 내려온다.
+function buildReformer(x, z, yaw) {
   const g = new THREE.Group();
   const wood = KIT.std(0xcbab7c, { roughness: 0.5, envMapIntensity: 0.7 });
   const rail = KIT.steel(0xd2d9dd);
@@ -223,8 +248,11 @@ function buildReformer(x, z) {
     g.add(spr);
   });
   g.position.set(x, 0, z);
+  g.rotation.y = yaw || 0;
   GAME.scene.add(g);
-  KIT.solid(x, z, 1.20, 0.45);
+  // 돌리면 막는 넓이도 같이 돌아간다
+  const c = Math.abs(Math.cos(yaw || 0)), sn = Math.abs(Math.sin(yaw || 0));
+  KIT.solid(x, z, 1.20 * c + 0.45 * sn, 0.45 * c + 1.20 * sn);
 }
 
 // ── 짐볼 랙 + 짐볼 ───────────────────────────────────────────
@@ -364,9 +392,9 @@ function buildCardio() {
   scr.position.set(0, 1.2, -0.885);
   scr.rotation.x = -0.35;
   tm.add(console_, scr);
-  tm.position.set(7.00, 0, -8.45);
+  tm.position.set(7.00, 0, -9.95);
   s.add(tm);                       // 콘솔이 −z(앞 벽) 쪽 — 환자는 실 안쪽을 보고 걷는다
-  KIT.solid(7.00, -8.45, 0.45, 1.02);
+  KIT.solid(7.00, -9.95, 0.45, 1.02);
 
   const bike = new THREE.Group();
   const flywheel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.06, 18), KIT.std(0x37424a, { roughness: 0.35 }));
@@ -391,10 +419,10 @@ function buildCardio() {
     pd.position.set(xx, yy, -0.12);
     bike.add(pd);
   });
-  bike.position.set(8.15, 0, -8.60);
+  bike.position.set(8.15, 0, -10.10);
   bike.rotation.y = 0.25;
   s.add(bike);
-  KIT.solid(8.15, -8.60, 0.45, 0.5);
+  KIT.solid(8.15, -10.10, 0.45, 0.5);
 }
 
 // ── 재활 계단 (training stairs) ──────────────────────────────
@@ -677,12 +705,16 @@ function buildProps() {
   // 컬러 요가 매트 — 도면처럼 여러 색을 섞어 깐다.
   // 입구(z -6.8~-3.6) 앞에 깔면 들어서자마자 매트를 밟고 지나가야 해서
   // 보행 트랙 뒤편, 수치료실 문 옆 벽면 줄에 폈다.
-  [[7.40, 2.60, 0xc0564e], [9.30, 2.60, 0x4f7c9e], [11.20, 2.60, 0x6f9c62]].forEach(([x, z, col]) => {
-    const mat = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.05, 0.9), KIT.std(col, { roughness: 0.62, envMapIntensity: 0.8 }));
-    mat.position.set(x, 0.025, z);
-    mat.receiveShadow = true;
-    s.add(mat);
-  });
+  // 파란 매트는 p16 의 짐볼 운동 자리라 다른 둘보다 넓게 깐다 —
+  // 1.7×0.9 위에 짐볼과 사람이 올라가면 매트가 방석처럼 보인다.
+  [[MAT_RED, 0xc0564e, 1.7, 0.9], [MAT_BLUE, 0x4f7c9e, 2.4, 1.6], [MAT_GREEN, 0x6f9c62, 1.7, 0.9]]
+    .forEach(([[x, z], col, mw, md]) => {
+      const mat = new THREE.Mesh(new THREE.BoxGeometry(mw, MAT_H, md),
+        KIT.std(col, { roughness: 0.62, envMapIntensity: 0.8 }));
+      mat.position.set(x, MAT_H / 2, z);
+      mat.receiveShadow = true;
+      s.add(mat);
+    });
 
   // 덤벨 랙
   const rack = new THREE.Group();
@@ -713,21 +745,21 @@ function buildProps() {
     leg.position.set(xx, 0.34, 0);
     rack.add(leg);
   });
-  rack.position.set(12.50, 0, -0.10);
+  rack.position.set(14.15, 0, 0.70);
   rack.rotation.y = -Math.PI / 2;
   GAME.scene.add(rack);
-  KIT.solid(12.50, -0.10, 0.35, 0.85);
+  KIT.solid(14.15, 0.70, 0.35, 0.85);
 
   // 스텝박스 · 밸런스 보드
   const step = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.22, 0.4), KIT.std(0x7d9ec7, { roughness: 0.9 }));
-  step.position.set(12.30, 0.11, -1.55);
+  step.position.set(14.05, 0.11, 2.05);
   step.castShadow = true;
   GAME.scene.add(step);
   const board = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 16), KIT.std(0xc89a63, { roughness: 0.5 }));
-  board.position.set(12.35, 0.09, 1.30);
+  board.position.set(14.05, 0.09, 2.75);
   board.rotation.x = 0.1;
   const dome = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), KIT.std(0x37424a));
-  dome.position.set(12.35, 0.045, 1.30);
+  dome.position.set(14.05, 0.045, 2.75);
   GAME.scene.add(board, dome);
 
   // 소도구 선반 (수건·폼롤러·밴드)
@@ -769,7 +801,7 @@ function buildProps() {
   const poster = (lines, bg, col) => new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.95),
     printedMat(makeTextCanvas(lines, 512, 320, { bg, color: col, border: col, fontSize: 62 })));
   const p1 = poster(['바른 자세', '건강한 척추'], '#eaf4ea', '#2e6b3e');
-  p1.position.set(GAME.ZONE.divE + 0.11, 1.9, -8.30);
+  p1.position.set(GAME.ZONE.divE + 0.11, 1.9, -9.80);
   p1.rotation.y = Math.PI / 2;
   const p2 = poster(['오늘의 운동', '내일의 건강'], '#fdf2e9', '#a04000');
   p2.position.set(8.70, 1.9, GAME.ZONE.hydro.wallZ - 0.11);
@@ -792,19 +824,100 @@ function buildExercisePatients() {
   // p9 슬개대퇴통증은 수치료실 보행 풀로 옮겼다 (rooms/hydro.js).
   // 부하를 덜어 걷는 과제라 물속 트레드밀이 바로 그 목적의 장비다.
 
-  // p10 아킬레스건 — 천장 슬링 하네스를 매고 보행 훈련
-  exerciseStation(PATIENTS[9], 8.50, -4.00, Math.PI / 2, 'stand');
-  KIT.therapist(9.60, -4.00, -Math.PI / 2, 'handson');
+  // p10 아킬레스건 — 천장 슬링 하네스를 매고 보행 훈련.
+  // 예전에는 트랙 앞머리(8.50, −4.00)라 p7·p12 와 한 덩어리로 몰려 보였다.
+  // 트랙 건너편(−x·+z 쪽) 슬링 자리로 옮겨 실 전체에 사람이 흩어지게 한다.
+  // 좌표는 슬링 레일(중심 8.50/−1.10, 반지름 약 3.15) 위여야 로프가 머리 위에 온다.
+  exerciseStation(PATIENTS[9], SLING_P10[0], SLING_P10[1], Math.PI / 2, 'stand');
+  KIT.therapist(SLING_P10[0] + 1.15, SLING_P10[1], -Math.PI / 2, 'handson');
   // 하네스 벨트 — 도면처럼 몸통에 두르고 로프에 연결된다
   const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.30, 14, 1, true),
     KIT.std(0x37424a, { roughness: 0.7, side: THREE.DoubleSide }));
-  belt.position.set(8.50, 1.02, -4.00);
+  belt.position.set(SLING_P10[0], 1.02, SLING_P10[1]);
   GAME.scene.add(belt);
 
   // p12 족저근막염 — 리포머 캐리지(높이 0.53)에 걸터앉는다.
   // 여기도 마찬가지로 종아리가 기구에 묻히지 않도록 옆으로 다리를 낸다.
-  exerciseStation(PATIENTS[11], 9.85, -6.45, 0, 'sit', 0.03);
-  KIT.therapist(9.90, -5.35, Math.PI, 'handson');
+  // 거울 벽(+x) 쪽으로 물려 p7 과 간격을 벌렸다 — 셋이 z −5~−6.5 한 줄에
+  // 나란히 앉아 있으면 실이 넓어져도 붐벼 보인다.
+  // 거울(+x)을 마주 보고 캐리지 가장자리에 걸터앉는다 — 자세를 보며 하는
+  // 기구라 거울을 등지면 기구를 놓은 뜻이 없다.
+  exerciseStation(PATIENTS[11], 13.05, -5.60, Math.PI / 2, 'sit', 0.03);
+  KIT.therapist(13.05, -4.40, Math.PI, 'handson');
+
+  // p16 요부 불안정성 — 짐볼에 앉아 체간 협응 운동.
+  // 이 범주의 A등급 중재가 체간 근력·지구력·협응 운동인데, 불안정한 면에
+  // 앉는 것 자체가 그 훈련이라 매트 테이블보다 짐볼이 맞다.
+  // 매트가 z = 2.60 이라 +z 를 보면 코앞이 수치료실 벽이다. −z(실 안쪽)를 보게
+  // 돌려야 다가오는 학생과 마주 본다. 매트 두께만큼 띄운다.
+  exerciseStation(PATIENTS[15], MAT_BLUE[0], MAT_BLUE[1], Math.PI, 'sit', MAT_H);
+  // 치료사는 정면을 막지 않도록 비스듬히 옆에 선다 — 앞을 막으면 학생이
+  // 환자에게 다가설 자리가 없어진다. 환자 쪽으로 몸을 튼다.
+  KIT.therapist(MAT_BLUE[0] + 1.05, MAT_BLUE[1] - 0.65, -1.02, 'handson');
+  KIT.stool(MAT_BLUE[0] - 1.45, MAT_BLUE[1] - 0.35);
+
+  // p18 만성 발목 불안정성 — 평행봉 사이 워블보드 위에 선다.
+  // 발판(0.06) + 보드 상판(0.12) 만큼 띄워야 발이 판에 얹힌다.
+  // 봉을 따라(−x 쪽) 서게 해서 다가오는 학생을 마주본다.
+  exerciseStation(PATIENTS[17], 11.30, -10.10, -Math.PI / 2, 'stand', 0.18);
+  KIT.therapist(10.10, -9.30, (3 * Math.PI) / 4, 'handson');
+}
+
+// ── 균형·고유수용성 훈련 구역 ────────────────────────────────
+// 만성 발목 불안정성의 일차 중재가 균형 훈련이라 전용 자리를 냈다.
+// 환자는 워블보드 위에 서고, 넘어질 때 붙잡을 것이 반드시 있어야 한다.
+//
+// baseY — 평행봉 발판처럼 바닥이 이미 높은 곳에 올릴 때 그만큼 띄운다.
+// 붙잡을 것은 평행봉이 대신하므로 여기서 난간을 또 세우지 않는다.
+function buildBalanceZone(x, z, baseY) {
+  const g = new THREE.Group();
+  const deck = KIT.std(0x2e6b8c, { roughness: 0.55 });
+  const rubber = KIT.std(0x2b3238, { roughness: 0.9 });
+
+  // 워블보드 — 원판 + 아래 반구. 환자는 이 위에 선다.
+  const board = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.035, 24), deck);
+  board.position.y = 0.10;
+  board.castShadow = true;
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), rubber);
+  dome.position.y = 0.085;
+  g.add(board, dome);
+
+  // 폼 패드(단계 1)와 반구볼(단계 3) — 봉 사이 통로를 막지 않도록
+  // 발판 길이 방향(x)으로 나란히 늘어놓는다.
+  const foam = new THREE.Mesh(KIT.rbox(0.50, 0.10, 0.38, 0.02), KIT.std(0x5a7f92, { roughness: 0.95 }));
+  foam.position.set(-1.05, 0.05, 0);
+  foam.castShadow = true;
+  g.add(foam);
+
+  const bosu = new THREE.Mesh(new THREE.SphereGeometry(0.31, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+    KIT.std(0x3f7fa5, { roughness: 0.6 }));
+  bosu.position.set(1.15, 0.03, 0);
+  bosu.scale.y = 0.62;
+  const bbase = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.06, 20), rubber);
+  bbase.position.set(1.15, 0.03, 0);
+  g.add(bosu, bbase);
+
+  g.position.set(x, baseY || 0, z);
+  GAME.scene.add(g);
+}
+
+// ── 짐볼 (스위스볼) ──────────────────────────────────────────
+// 체간 협응 운동은 불안정한 면에 앉아서 하는 것이 기본이라, 매트 테이블보다
+// 짐볼이 그 자체로 중재를 설명한다.
+// 앉으면 눌리므로 정구가 아니라 살짝 납작하게 만든다 — 좌면이 0.57m 로,
+// 앉은 자세의 기준 좌면(STANCES.sit 의 seatY 0.56)과 맞는다.
+// baseY — 요가 매트처럼 이미 높이가 있는 바닥에 올릴 때 그만큼 띄운다.
+function buildGymBall(x, z, color, baseY) {
+  const R = 0.33, SQ = 0.86;
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(R, 26, 18),
+    KIT.std(color === undefined ? 0x5aa469 : color,
+      { roughness: 0.34, metalness: 0.02, envMapIntensity: 1.3 }));
+  ball.scale.y = SQ;
+  ball.position.set(x, (baseY || 0) + R * SQ, z);
+  ball.castShadow = true;
+  ball.receiveShadow = true;
+  GAME.scene.add(ball);
+  return ball;
 }
 
 // 기구 앞에 선/앉은 환자 한 명. 침대와 똑같이 진료 판정에 등록한다.
