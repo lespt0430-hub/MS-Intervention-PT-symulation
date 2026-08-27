@@ -163,6 +163,33 @@ function doPost(e) {
       });
       return json_({ ok: true, rows: rows });
     }
+    // 전체 기록 초기화 — 교수만. 새 학기·새 분반을 시작할 때 쓴다.
+    //
+    // 지우지 않고 '보관' 탭으로 밀어낸다. 버튼 하나로 학생 전원의 성적이
+    // 사라지는 기능이라, 잘못 눌렀을 때 되돌릴 수 없으면 안 된다.
+    // 보관 탭이 쌓이는 것이 기록이 날아가는 것보다 낫다.
+    if (req.action === 'reset') {
+      if (req.user !== PROF_ID || req.pw !== PROF_PW) {
+        return json_({ ok: false, error: '아이디 또는 비밀번호가 맞지 않습니다.' });
+      }
+      var lock = LockService.getScriptLock();
+      lock.waitLock(20000);
+      try {
+        var sh0 = sheet_();
+        var n = Math.max(0, sh0.getLastRow() - 1);       // 머리글 제외
+        if (n === 0) return json_({ ok: true, moved: 0, archive: '' });
+        var stamp = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyyMMdd_HHmm');
+        var archive = SHEET_NAME + '_보관_' + stamp;
+        sh0.setName(archive);
+        var ss2 = sh0.getParent();
+        var fresh = ss2.insertSheet(SHEET_NAME);
+        fresh.appendRow(HEADER);
+        fresh.setFrozenRows(1);
+        return json_({ ok: true, moved: n, archive: archive });
+      } finally {
+        lock.releaseLock();
+      }
+    }
     // AI 문진 사용 가능 여부 — 학생 화면이 시작할 때 물어본다 (키는 알려주지 않는다)
     if (req.action === 'ai_status') {
       return json_({ ok: true, ai: geminiKey_().length > 0, provider: aiProvider_() });

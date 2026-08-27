@@ -196,6 +196,12 @@ function useAI() { return getChatMode() === 'ai' && aiAvailable(); }
 const BUSY = /high demand|overload|unavailable|503|try again later|응답이 없습니다|quota|resource.?exhausted|rate limit|429|exceeded/i;
 // 한 모델을 기다려 주는 시간. 이게 없으면 학생 화면이 하염없이 멈춰 있는다.
 const CALL_TIMEOUT = 20000;
+// 중계(Apps Script)를 기다려 주는 시간. 직접 호출보다 한 단계를 더 거치므로
+// 조금 넉넉하게 두되, 폴백이 제때 돌 만큼은 짧아야 한다.
+const RELAY_TIMEOUT = 25000;
+// 채점 전체에 허용하는 시간. 이 안에 못 끝내면 키워드 채점으로 넘긴다 —
+// 학생을 '채점 중...' 화면에 몇 분씩 세워 두는 것보다 낫다.
+const GRADE_DEADLINE = 30000;
 
 async function callAI(system, messages, maxTokens, jsonMode, prefer) {
   const budget = maxTokens || 1024;
@@ -242,6 +248,9 @@ async function aiOnce(system, messages, maxTokens, jsonMode, model) {
   if (!hasApiKey() && AI_RELAY.ready) {
     // 중계 — 키는 교수님 스크립트 안에 있고 여기서는 질문만 보낸다.
     // 어느 회사인지도 같이 넘긴다. 서버가 회사를 알아야 부를 주소를 정한다.
+    // 중계도 직접 호출과 같은 시간만 기다린다. 예전에는 60초였는데, 그러면
+    // 한 모델이 멈췄을 때 다음 모델로 넘어가기까지 1분을 서 있었고 채점이
+    // 몇 분씩 걸렸다. 여기서 끊어야 폴백이 제때 돈다.
     const data = await COLLECT.call({
       action: 'ai',
       provider: getProvider(),
@@ -249,7 +258,7 @@ async function aiOnce(system, messages, maxTokens, jsonMode, model) {
       system, messages,
       maxTokens: budget,
       jsonMode: !!jsonMode,
-    }, 60000);
+    }, RELAY_TIMEOUT);
     return data.text || '';
   }
 
@@ -415,6 +424,28 @@ async function patientChat(patient, chatHistory) {
 }
 
 // ── 문진 평가 (채점) ──
+// 채점은 정해진 시간 안에 끝나야 한다. AI 가 늦으면 키워드 채점으로 넘긴다 —
+// 두 방식 모두 같은 형식({id, elicited})을 돌려주므로 뒤쪽 코드는 그대로 돈다.
+// 학생 입장에서 '채점 중...' 이 몇 분 걸리는 것보다, 조금 거칠어도 제때
+// 점수가 나오는 편이 낫다.
+async function evaluateHistoryBounded(patient, chatHistory, onTick) {
+  if (!useAI()) return { items: evaluateHistoryFallback(patient, chatHistory), byAI: false };
+  const t0 = Date.now();
+  const tick = onTick && setInterval(() => onTick(Math.round((Date.now() - t0) / 1000)), 1000);
+  try {
+    const items = await Promise.race([
+      evaluateHistory(patient, chatHistory),
+      new Promise((_, no) => setTimeout(() => no(new Error('채점 시간 초과')), GRADE_DEADLINE)),
+    ]);
+    return { items, byAI: true };
+  } catch (e) {
+    console.warn('[채점] AI 평가를 쓰지 못해 키워드 채점으로 넘어갑니다: ' + e.message);
+    return { items: evaluateHistoryFallback(patient, chatHistory), byAI: false };
+  } finally {
+    if (tick) clearInterval(tick);
+  }
+}
+
 async function evaluateHistory(patient, chatHistory) {
   if (!useAI()) return evaluateHistoryFallback(patient, chatHistory);
   const transcript = chatHistory
@@ -423,13 +454,19 @@ async function evaluateHistory(patient, chatHistory) {
   const itemList = patient.keyHistory
     .map((k) => `- id:"${k.id}" — ${k.label}`)
     .join('\n');
+  // 근거 문장(evidence)은 예전에 같이 받았는데 화면에도 성적표에도 쓰지 않았다.
+  // 항목이 열 개 넘게 있으니 그만큼을 매번 지어내느라 채점이 느렸다 —
+  // 출력 토큰이 대기 시간을 좌우한다. id 와 참/거짓만 받는다.
   const system = `너는 물리치료 교육 평가자다. 학생과 가상환자의 문진 대화를 보고, 학생이 각 핵심 문진 항목을 질문을 통해 이끌어냈는지(elicited) 판정한다.
 - 직접적 질문이 아니어도 해당 정보가 학생의 질문으로 대화에 드러났으면 elicited=true.
 - 환자가 먼저 자발적으로 말한 것만 있고 학생이 묻지 않았으면 false.
-- 반드시 JSON만 출력한다. 다른 텍스트 금지.
-형식: {"items":[{"id":"...","elicited":true,"evidence":"근거가 된 학생 질문 발췌(간단히)"}]}`;
+- 설명·근거를 쓰지 말고 JSON만 출력한다. 다른 텍스트 금지.
+형식: {"items":[{"id":"...","elicited":true}]}`;
   const user = `[핵심 문진 항목]\n${itemList}\n\n[문진 대화]\n${transcript}`;
-  const raw = await callAI(system, [{ role: 'user', content: user }], 4096, true, judgeModel());
+  // 한도는 항목 수에 맞춰 잡는다. 4096 을 늘 요구하면 '생각'에 그만큼 쓰는
+  // 모델이 있어 느려지고, 너무 작게 잡으면 잘려서 3배로 재시도하느라 더 느리다.
+  const budget = Math.max(600, patient.keyHistory.length * 60 + 300);
+  const raw = await callAI(system, [{ role: 'user', content: user }], budget, true, judgeModel());
   let parsed;
   try { parsed = JSON.parse(raw); }
   catch (e) {

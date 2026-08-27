@@ -497,6 +497,49 @@ UI.bindCollect = function () {
 
   loginBtn.addEventListener('click', load);
   document.getElementById('btn-collect-refresh').addEventListener('click', load);
+
+  // ── 전체 학생 기록 초기화 ──
+  // 버튼 하나로 학생 전원의 성적이 화면에서 사라지는 기능이다. 그래서
+  //   ① 교수 로그인을 마친 뒤에만 보이고(showTools)
+  //   ② 확인 문구를 직접 입력받고
+  //   ③ 서버는 지우지 않고 보관 탭으로 옮긴다
+  // 셋을 다 건다. 실수로 눌렀을 때 되돌릴 수 없는 것이 가장 위험하다.
+  const resetAllBtn = document.getElementById('btn-reset-all');
+  if (resetAllBtn) resetAllBtn.addEventListener('click', async () => {
+    const rmsg = document.getElementById('reset-all-msg');
+    const id = document.getElementById('inp-prof-id').value.trim();
+    const pw = document.getElementById('inp-prof-pw').value;
+    if (!UI.profVerified) {
+      rmsg.className = 'err';
+      rmsg.textContent = '먼저 「결과 불러오기」로 교수 로그인을 해 주세요.';
+      return;
+    }
+    const typed = prompt(
+      '구글 시트에 모인 모든 학생의 제출 기록을 비웁니다.\n' +
+      '(지워지지 않고 「결과_보관_날짜시간」 탭으로 옮겨집니다)\n\n' +
+      '계속하려면 아래에 초기화 라고 입력하세요.');
+    if (typed === null) return;
+    if (typed.trim() !== '초기화') {
+      rmsg.className = 'err';
+      rmsg.textContent = '입력이 「초기화」와 달라 취소했습니다.';
+      return;
+    }
+    resetAllBtn.disabled = true;
+    rmsg.className = ''; rmsg.textContent = '초기화하는 중…';
+    try {
+      const r = await COLLECT.call({ action: 'reset', user: id, pw }, 30000);
+      rmsg.className = 'ok';
+      rmsg.textContent = r.moved
+        ? '✓ ' + r.moved + '건을 「' + r.archive + '」 탭으로 옮기고 새로 시작합니다.'
+        : '✓ 비울 기록이 없었습니다. 이미 비어 있습니다.';
+      await load();      // 빈 목록으로 화면 갱신
+    } catch (e) {
+      rmsg.className = 'err';
+      rmsg.textContent = '초기화 실패: ' + e.message +
+        ' — 앱스크립트가 예전 버전이면 reset 기능이 없습니다. Code.gs 를 새 버전으로 교체하고 새 버전으로 배포하세요.';
+    }
+    resetAllBtn.disabled = false;
+  });
   document.getElementById('inp-prof-pw').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') load();
   });
@@ -685,9 +728,15 @@ UI.submit = async function () {
 
   const p = UI.cur;
   // 1) 문진 평가
-  let histItems;
-  try { histItems = await evaluateHistory(p, UI.apiChat); }
-  catch (e) { histItems = evaluateHistoryFallback(p, UI.apiChat); }
+  // 몇 초째 기다리는지 보여 준다. 아무 변화가 없으면 학생은 멈춘 줄 알고
+  // 새로고침해 버리는데, 그러면 진료 내용이 통째로 날아간다.
+  const grade = await evaluateHistoryBounded(p, UI.apiChat, (sec) => {
+    btn.textContent = '채점 중... (AI가 문진을 평가하고 있습니다 · ' + sec + '초)';
+  });
+  let histItems = grade.items;
+  if (!grade.byAI && useAI()) {
+    UI.toast('AI 채점이 늦어 키워드 채점으로 처리했습니다. 점수는 정상적으로 기록됩니다.', 6000);
+  }
   // 누락 항목 보정 (평가에 빠진 id는 미유도 처리)
   histItems = p.keyHistory.map((k) => {
     const found = histItems.find((i) => i.id === k.id);
