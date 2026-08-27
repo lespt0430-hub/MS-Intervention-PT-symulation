@@ -8,7 +8,7 @@
 
 window.PTSIM_CONFIG = {
   // 구글 Apps Script 웹 앱 주소 (…/exec 로 끝납니다)
-  collectUrl: 'https://script.google.com/macros/s/AKfycbynw4SGVhokBJMWzmleWD-kKvtgIoN3TC_nFmq4waYBF7P-v2CFUprgbuj8EhqGxGb00w/exec',
+  collectUrl: 'https://script.google.com/macros/s/AKfycbx3DcU-uxYsYsec96vJMumfxnK4W9sN9mYVJcFN8i8Cm8-wXYAO75RnXi1TOpM5zKG7Iw/exec',
 
   // 분반 기본값. 학생이 입장할 때 분반 칸에 미리 채워져 나옵니다.
   // (학생이 직접 고쳐 넣을 수도 있습니다. 비워 두면 학생이 매번 입력합니다.)

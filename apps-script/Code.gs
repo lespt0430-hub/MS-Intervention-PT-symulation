@@ -1,6 +1,52 @@
-var PROF_ID = 'lespt0430';
-var PROF_PW = 'CHANGE_ME';
-var SHEET_NAME = '결과';
+// ════════════════════════════════════════════════════════════
+//  ① 여기 세 줄만 고치면 됩니다
+// ════════════════════════════════════════════════════════════
+
+var PROF_ID = 'lespt0430';        // 교수 모드 로그인 아이디
+var PROF_PW = 'CHANGE_ME';        // ← 반드시 실제 비밀번호로 바꾸세요
+
+// 결과를 적을 구글 시트.
+//   · 시트에서 [확장 프로그램 → Apps Script] 로 만든 스크립트라면 비워 두세요.
+//   · 별도 프로젝트로 만들었다면 시트 주소의 가운데 긴 문자열을 넣으세요.
+//     https://docs.google.com/spreadsheets/d/<< 이 부분 >>/edit
+//
+// 예전에는 getActiveSpreadsheet() 만 썼는데, 그건 시트에 붙어 있는
+// 스크립트에서만 동작한다. 별도 프로젝트로 만들면 null 이 돌아와 배포는
+// 되는데 모든 요청이 오류가 났다 — 원인을 찾기 어려운 실패였다.
+var SHEET_ID = '';
+
+var SHEET_NAME = '결과';          // 시트 안의 탭 이름
+
+// ════════════════════════════════════════════════════════════
+//  ② 아래는 건드리지 않아도 됩니다
+// ════════════════════════════════════════════════════════════
+
+// 편집기에서 이 함수를 골라 [실행] 을 누르면 설정이 맞는지 알려 준다.
+// 배포하기 전에 한 번 돌려 보면 "배포는 됐는데 왜 안 되지" 를 피할 수 있다.
+// (실행 로그는 편집기 아래 '실행 로그' 에 뜬다)
+function 설정확인() {
+  var out = [];
+  try {
+    var sh = sheet_();
+    out.push('✓ 시트 연결됨 — ' + sh.getParent().getName() + ' / 탭 「' + sh.getName() + '」');
+  } catch (e) {
+    out.push('✗ 시트에 연결하지 못했습니다: ' + e);
+    out.push('   → 시트에 붙은 스크립트가 아니라면 위 SHEET_ID 를 채우세요.');
+  }
+  out.push(PROF_PW === 'CHANGE_ME'
+    ? '✗ PROF_PW 가 아직 CHANGE_ME 입니다 — 실제 비밀번호로 바꾸세요.'
+    : '✓ 교수 비밀번호가 설정돼 있습니다 (아이디: ' + PROF_ID + ')');
+  var k = geminiKey_();
+  out.push(k
+    ? '✓ AI 키가 등록돼 있습니다 (' + aiProvider_() + ', ' + k.length + '자)'
+    : '· AI 키는 아직 없습니다 — 웹 화면의 교수 모드에서 「AI 문진 켜기」로 넣으면 됩니다.');
+  out.push('');
+  out.push('배포 후 확인: 웹앱 주소(/exec)를 브라우저 주소창에 그냥 붙여넣어');
+  out.push('{"ok":true,...} 가 보이면 성공입니다. 로그인 화면이 뜨면');
+  out.push('배포의 「액세스 권한이 있는 사용자」가 “모든 사용자” 가 아닙니다.');
+  Logger.log(out.join('\n'));
+  return out.join('\n');
+}
 
 // AI 문진 중계 —— 학생 브라우저에 키를 심지 않기 위한 장치.
 //
@@ -46,7 +92,12 @@ function aiProbe_(provider, key) {
 var HEADER = ['제출시각', '분반', '학번', '이름', '환자번호', '환자명', '주호소', '문진(10)', '검사(10)', '진단(10)', '치료(10)', '총점(40)', '진단정답', '선택한 진단', '선택한 치료', '시행검사수', '누락필수검사', '문진질문수', 'PC식별자'];
 var KEYS = ['submittedAt', 'className', 'studentId', 'student', 'patientId', 'patientName', 'condition', 'histScore', 'examScore', 'dxScore', 'txScore', 'total', 'dxCorrect', 'dxChosen', 'txChosen', 'examCount', 'examMissed', 'chatTurns', 'clientId'];
 function sheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  // SHEET_ID 를 적었으면 그 시트를, 안 적었으면 이 스크립트가 붙어 있는 시트를 쓴다.
+  var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error('시트를 찾지 못했습니다. 이 스크립트가 시트에 붙어 있지 않다면 ' +
+                    '맨 위 SHEET_ID 에 스프레드시트 주소의 긴 문자열을 넣으세요.');
+  }
   var sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
@@ -244,6 +295,20 @@ function doPost(e) {
     return json_({ ok: false, error: String(err) });
   }
 }
+// 배포가 제대로 됐는지 브라우저에서 바로 확인하는 창구.
+// 웹앱 주소(/exec)를 주소창에 붙여넣었을 때
+//   · JSON 이 보이면  → 익명 접근 허용됨. 학생 브라우저에서도 된다.
+//   · 로그인 화면이면 → 「액세스 권한이 있는 사용자」가 “모든 사용자” 가 아니다.
+// 키 자체는 절대 내보내지 않는다 — 있는지 없는지만 알린다.
 function doGet() {
-  return json_({ ok: true, msg: '가상환자시뮬레이션 수집기가 동작 중입니다.' });
+  var sheetOk = false, sheetErr = '';
+  try { sheet_(); sheetOk = true; } catch (e) { sheetErr = String(e); }
+  return json_({
+    ok: true,
+    msg: '가상환자시뮬레이션 수집기가 동작 중입니다.',
+    sheet: sheetOk ? 'ok' : ('오류: ' + sheetErr),
+    profPwSet: PROF_PW !== 'CHANGE_ME',
+    ai: geminiKey_().length > 0,
+    provider: aiProvider_(),
+  });
 }
