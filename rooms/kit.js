@@ -552,7 +552,7 @@ KIT.tractionUnit = function (x, z, yaw, mode) {
   const g = new THREE.Group();
   const cervical = mode !== 'lumbar';
   const { dark } = KIT._trolley(g, 0.44, 0.78, 0.46,
-    cervical ? '경추 견인 CERVICAL' : '요추 견인 LUMBAR');
+    cervical ? '목뼈 견인 CERVICAL' : '허리뼈 견인 LUMBAR');
   const chrome = KIT.steel(0xc6cfd5);
 
   // 상단 조작 디스플레이 — 견인력(kg)·유지/휴식 시간을 띄운다
@@ -576,7 +576,7 @@ KIT.tractionUnit = function (x, z, yaw, mode) {
   g.add(knob, stop);
 
   // 견인 기둥과 도르래 — 로프가 여기서 꺾여 환자 쪽으로 내려간다.
-  // 경추는 앉거나 누운 머리 높이(≈1.25m), 요추는 침대 위 골반 높이(≈0.80m).
+  // 목뼈는 앉거나 누운 머리 높이(≈1.25m), 허리뼈는 침대 위 골반 높이(≈0.80m).
   const armY = cervical ? 1.52 : 1.16;
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, armY - 0.87, 10), chrome);
   post.position.set(0, (armY + 0.87) / 2, -0.02);
@@ -598,7 +598,7 @@ KIT.tractionUnit = function (x, z, yaw, mode) {
     ]), 18, 0.008, 6), KIT.std(0xe8e2d4, { roughness: 0.9 }));
   g.add(rope);
 
-  // 하네스 — 경추는 후두-하악 스트랩, 요추는 골반 벨트
+  // 하네스 — 목뼈는 뒤통수-아래턱 스트랩, 허리뼈는 골반 벨트
   const strap = KIT.std(0x455a64, { roughness: 0.85, side: THREE.DoubleSide });
   if (cervical) {
     const yoke = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.014, 8, 18, Math.PI), strap);

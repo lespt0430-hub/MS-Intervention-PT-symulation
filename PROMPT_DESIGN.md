@@ -31,7 +31,7 @@
 
 ### 공통 규칙 (모든 환자 공유)
 - 너는 물리치료 실습교육용 **가상환자**다. 아래 시나리오의 인물을 일관되게 연기한다.
-- **일반인의 언어**로 말한다. 의학용어(예: 회전근개, 신경근병증)를 모른다.
+- **일반인의 언어**로 말한다. 의학용어(예: 돌림근띠, 신경뿌리병증)를 모른다.
 - 답변은 **1~3문장**으로 짧게. 묻지 않은 정보는 먼저 말하지 않는다.
   (단, 첫 인사에는 주호소 한 마디는 자연스럽게 말할 수 있다)
 - **진단명을 절대 말하지 않는다.** 진단을 물으면 "그건 선생님이 봐주셔야죠"라고 답한다.
@@ -71,32 +71,32 @@ JSON만 출력: {"items":[{"id":"...","elicited":true/false,"evidence":"근거 �
 ### CPG 원문(번역본 PDF) 반영 수준
 
 - **치료계획**: 각 CPG의 "권고사항 요약(Summary of Recommendations)" 중재 항목을 환자별로 그대로 반영.
-  - 단계 구분: 목통증(급성/아급성/만성별 권고), 발목염좌(급성·보호 단계 → 점진적 부하·감각운동 단계 → 복귀 단계), 오십견(자극성 irritability 단계).
-  - 용량 명시: 고관절 OA 도수치료 6-12주 주1-3회 / 운동 주1-5회 / 초음파 1MHz·1W/cm²·2주 10회, ACL 재건 후 운동 6-10개월 주2-3회, 야간부목 1-3개월, Alfredson 원심성 프로토콜 등.
-  - CPG 명시적 비권고를 오답 선택지로 포함: 급성 발목염좌 초음파("사용하지 않도록 한다"), 족저근막염 드라이니들링·초음파, 요통 견인·겁주는 병리해부학 교육, 아킬레스 야간부목(원심성보다 열등), 고관절 OA 일차치료 보조기 등.
-  - 해당 환자의 "단계/유형에 맞지 않는" 권고 중재도 함정 선택지로 포함 (예: 아급성 목통증 환자에게 만성용 드라이니들링·견인 패키지, 방사통 없는 요통 환자에게 신경 가동술).
-- **이학적 검사**: CPG 권고 평가도구 추가 — CFRT·목굽힘근 지구력(목), 30초 의자 일어서기·TUG·낙상위험 균형평가(고관절 OA), hop test 배터리·ACL-RSI(무릎 인대), figure-of-8 부종측정·CAIT(발목), VISA-A(아킬레스), Foot Posture Index·BMI(족저근막염).
-- **진단 해설**: CPG의 진단/분류 기준을 명시 (목통증 4범주 분류, 요통 ICF 분류 기준, 고관절 OA 임상 진단기준(내회전<15°+굴곡≤115°), 족저근막염 8개 진단기준, 아킬레스건병증 진단 소견, CPG 명시 위험요인).
+  - 단계 구분: 목통증(급성/아급성/만성별 권고), 발목삠(급성·보호 단계 → 점진적 부하·감각운동 단계 → 복귀 단계), 오십견(자극성 irritability 단계).
+  - 용량 명시: 엉덩관절 OA 도수치료 6-12주 주1-3회 / 운동 주1-5회 / 초음파 1MHz·1W/cm²·2주 10회, ACL 재건 후 운동 6-10개월 주2-3회, 야간부목 1-3개월, Alfredson 원심성 프로토콜 등.
+  - CPG 명시적 비권고를 오답 선택지로 포함: 급성 발목삠 초음파("사용하지 않도록 한다"), 발바닥근막염 드라이니들링·초음파, 허리통증 견인·겁주는 병리해부학 교육, 아킬레스 야간부목(원심성보다 열등), 엉덩관절 OA 일차치료 보조기 등.
+  - 해당 환자의 "단계/유형에 맞지 않는" 권고 중재도 함정 선택지로 포함 (예: 아급성 목통증 환자에게 만성용 드라이니들링·견인 패키지, 방사통 없는 허리통증 환자에게 신경 가동술).
+- **이학적 검사**: CPG 권고 평가도구 추가 — CFRT·목굽힘근 지구력(목), 30초 의자 일어서기·TUG·낙상위험 균형평가(엉덩관절 OA), hop test 배터리·ACL-RSI(무릎 인대), figure-of-8 부종측정·CAIT(발목), VISA-A(아킬레스), Foot Posture Index·BMI(발바닥근막염).
+- **진단 해설**: CPG의 진단/분류 기준을 명시 (목통증 4범주 분류, 허리통증 ICF 분류 기준, 엉덩관절 OA 임상 진단기준(안쪽돌림<15°+굽힘≤115°), 발바닥근막염 8개 진단기준, 발꿈치힘줄병증 진단 소견, CPG 명시 위험요인).
 
 ## 5. 환자 구성 (CPG ↔ 환자 매핑)
 
 | 베드 | 환자 | 진단 | 근거 CPG (영문 원본) |
 |---|---|---|---|
 | 1 | 김미영 (45F, 사무직) | 가동성 결핍 동반 목통증 | Neck Pain: Revision 2017 |
-| 2 | 박순자 (56F, 주부, 당뇨) | 유착성 관절낭염(오십견) | Shoulder Pain and Mobility Deficits: Adhesive Capsulitis |
+| 2 | 박순자 (56F, 주부, 당뇨) | 유착관절주머니염(오십견) | Shoulder Pain and Mobility Deficits: Adhesive Capsulitis |
 | 3 | 윤정심 (49F, 마트 계산원) | 손목터널증후군 (경도~중등도) | Hand Pain and Sensory Deficits: Carpal Tunnel Syndrome 2019 |
-| 4 | 이재현 (38M, 택배기사) | 급성 요통(가동성 결핍) | Low Back Pain (+ ACP/APS Joint Guideline) |
-| 5 | 정우진 (27M, 축구동호회) | 비관절염성 고관절통(FAI) | Nonarthritic Hip Joint Pain |
-| 6 | 최영숙 (68F, 은퇴) | 고관절 골관절염 | Hip Pain and Mobility Deficits — Hip OA: Revision 2017 |
-| 7 | 강대호 (52M, 등산애호가) | 내측 반월판 손상 | Knee Meniscal and Articular Cartilage Lesions: Revision 2018 |
-| 8 | 한지수 (22F, 축구선수) | 전방십자인대 염좌 | Knee Ligament Sprain 2017 + ACL 부상 예방 CPG 2018 + Fitzgerald 비수술 재활 2000 (통합) |
-| 9 | 문가영 (24F, 러닝 초보) | 슬개대퇴 통증 증후군 | Patellofemoral Pain 2019 |
-| 10 | 오민석 (35M, 마라토너) | 아킬레스건병증(중간부) | Achilles Pain, Stiffness, and Muscle Power Deficits |
-| 11 | 임태양 (19M, 농구동아리) | 외측 발목염좌 2도 | Ankle Stability and Movement Coordination Impairments |
-| 12 | 서혜란 (48F, 교사) | 족저근막염 | Heel Pain — Plantar Fasciitis: Revision 2014 |
+| 4 | 이재현 (38M, 택배기사) | 급성 허리통증(가동성 결핍) | Low Back Pain (+ ACP/APS Joint Guideline) |
+| 5 | 정우진 (27M, 축구동호회) | 비관절염성 엉덩관절통(FAI) | Nonarthritic Hip Joint Pain |
+| 6 | 최영숙 (68F, 은퇴) | 엉덩관절 골관절염 | Hip Pain and Mobility Deficits — Hip OA: Revision 2017 |
+| 7 | 강대호 (52M, 등산애호가) | 안쪽 반달연골 손상 | Knee Meniscal and Articular Cartilage Lesions: Revision 2018 |
+| 8 | 한지수 (22F, 축구선수) | 앞십자인대 삠 | Knee Ligament Sprain 2017 + ACL 부상 예방 CPG 2018 + Fitzgerald 비수술 재활 2000 (통합) |
+| 9 | 문가영 (24F, 러닝 초보) | 무릎넙다리 통증 증후군 | Patellofemoral Pain 2019 |
+| 10 | 오민석 (35M, 마라토너) | 발꿈치힘줄병증(중간부) | Achilles Pain, Stiffness, and Muscle Power Deficits |
+| 11 | 임태양 (19M, 농구동아리) | 가쪽 발목삠 2도 | Ankle Stability and Movement Coordination Impairments |
+| 12 | 서혜란 (48F, 교사) | 발바닥근막염 | Heel Pain — Plantar Fasciitis: Revision 2014 |
 
-- 참고 문헌 PDF 중 질환 CPG가 아닌 논문(도수치료 용어 표준화, 기능적 능력 평가 지침, 건병증 병태생리 업데이트 등)은 환자 생성 대상에서 제외.
-- 같은 질환의 중복 PDF(반월판 2종, 고관절 OA 2종, 족저근막염 2종, 슬개대퇴 2종 등)는 최신 개정판 기준으로 한 환자에 통합.
+- 참고 문헌 PDF 중 질환 CPG가 아닌 논문(도수치료 용어 표준화, 기능적 능력 평가 지침, 힘줄병증 병태생리 업데이트 등)은 환자 생성 대상에서 제외.
+- 같은 질환의 중복 PDF(반달연골 2종, 엉덩관절 OA 2종, 발바닥근막염 2종, 무릎넙다리 2종 등)는 최신 개정판 기준으로 한 환자에 통합.
 
 ## 6. 기술 사양
 - 단일 폴더 정적 웹앱 (index.html + js/css) — 브라우저에서 바로 실행, 서버 불필요

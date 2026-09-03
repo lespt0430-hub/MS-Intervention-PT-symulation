@@ -17,12 +17,12 @@ function buildElectroRoom() {
   // device: 그 베이에 붙는 기기. 'laser'·'eswt' 는 전기치료기 카트를 대신한다.
   const roster = {
     'L0': { p: PATIENTS[2] },                        // p3  손목터널증후군
-    'L1': { p: PATIENTS[13], device: 'ctrac' },      // p14 경추 신경근병증 — 간헐적 경추 견인
+    'L1': { p: PATIENTS[13], device: 'ctrac' },      // p14 목뼈 신경뿌리병증 — 간헐적 목뼈 견인
     'L2': { p: PATIENTS[7], device: 'laser' },       // p8  ACL 재건 후 — 무릎에 고출력 레이저
-    'L3': { p: PATIENTS[14], device: 'ltrac' },      // p15 요추 신경근병증 — 엎드린 간헐 요추 견인
-    'R0': { p: PATIENTS[16] },                       // p17 MCL 염좌 — 급성기 한랭·전기치료
-    'R1': { p: PATIENTS[5] },                        // p6  고관절 골관절염
-    'R3': { p: PATIENTS[10], device: 'eswt' },       // p11 발목 염좌 — 발목에 체외충격파
+    'L3': { p: PATIENTS[14], device: 'ltrac' },      // p15 허리뼈 신경뿌리병증 — 엎드린 간헐 허리뼈 견인
+    'R0': { p: PATIENTS[16] },                       // p17 MCL 삠 — 급성기 한랭·전기치료
+    'R1': { p: PATIENTS[5] },                        // p6  엉덩관절 골관절염
+    'R3': { p: PATIENTS[10], device: 'eswt' },       // p11 발목 삠 — 발목에 체외충격파
     // R2 는 비워 둔다 — 케이스를 더 넣을 때 쓰는 자리다.
   };
   let num = 1;
@@ -53,15 +53,15 @@ function buildElectroRoom() {
   KIT.therapist(E.bankR - 0.30, E.bayZ[1] - 1.00, 0, 'handson');
   KIT.therapist(E.bankL + 0.20, E.bayZ[2] - 1.00, 0, 'handson');   // 레이저 베이
   // 견인 베이 둘 — 견인력을 올리는 동안 환자 옆을 지킨다
-  KIT.therapist(E.bankL + 0.35, E.bayZ[1] + 0.95, Math.PI, 'handson');   // 경추 견인
-  KIT.therapist(E.bankL + 0.35, E.bayZ[3] + 0.95, Math.PI, 'handson');   // 요추 견인
+  KIT.therapist(E.bankL + 0.35, E.bayZ[1] + 0.95, Math.PI, 'handson');   // 목뼈 견인
+  KIT.therapist(E.bankL + 0.35, E.bayZ[3] + 0.95, Math.PI, 'handson');   // 허리뼈 견인
   KIT.therapist(E.bankR - 0.35, E.bayZ[0] + 0.95, Math.PI, 'handson');   // MCL 급성기 베이
   // 체외충격파 베이 — 발끝(복도) 쪽에 서서 발목에 핸드피스를 댄다
   KIT.therapist(E.bankR - 1.30, E.bayZ[3], Math.PI / 2, 'handson');
 
   // 특수치료 안내 — 복도에서 어느 베이가 무엇인지 읽힌다
   const spec = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.60),
-    printedMat(makeTextCanvas(['특수치료 베이', '② 경추견인 ③ 레이저 ④ 요추견인 ⑦ 충격파'], 512, 200,
+    printedMat(makeTextCanvas(['특수치료 베이', '② 목뼈견인 ③ 레이저 ④ 허리뼈견인 ⑦ 충격파'], 512, 200,
       { bg: '#22506b', color: '#ffffff', fontSize: 54 }),
       { roughness: 0.35, envMapIntensity: 1.1 }));
   spec.position.set(Z.divM + 0.11, 2.05, E.bayZ[2]);

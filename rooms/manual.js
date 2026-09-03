@@ -31,13 +31,13 @@ function buildManualRoom() {
   buildManualCorridor();
 
   // ── 방 4개 ──
-  // 배정: 경추·견관절·요추·고관절 — 도수치료 적응증인 환자를 넣는다.
+  // 배정: 목뼈·어깨관절·허리뼈·엉덩관절 — 도수치료 적응증인 환자를 넣는다.
   const roster = [
     { p: PATIENTS[0], side: 1 },    // p1  목통증 — 가동성 결핍
     { p: PATIENTS[1], side: -1 },   // p2  오십견
-    { p: PATIENTS[3], side: 1 },    // p4  급성 요통
-    { p: PATIENTS[4], side: -1 },   // p5  고관절 FAI
-    { p: PATIENTS[12], side: 1 },   // p13 경인성 두통 — 상부경추 도수기법·C1-2 SNAG
+    { p: PATIENTS[3], side: 1 },    // p4  급성 허리통증
+    { p: PATIENTS[4], side: -1 },   // p5  엉덩관절 FAI
+    { p: PATIENTS[12], side: 1 },   // p13 목인성 두통 — 위목뼈 도수기법·C1-2 SNAG
   ];
   roster.forEach((r, i) => buildManualBay(r.p, i + 1, M.roomZ[i], r.side));
 }

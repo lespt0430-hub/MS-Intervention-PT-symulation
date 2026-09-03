@@ -88,21 +88,21 @@ const PATIENT_POSES = {
   p1: { armR: 'neck', props: ['neckroll', 'blanket'] },                                        // 목통증 — 목에 손, 목 베개
   p2: { armR: 'belly', props: ['blanket'] },                                                   // 오십견 — 아픈 팔을 배 위에
   p3: { armR: 'belly', armL: 'belly', props: ['blanket'] },                                    // 손목터널 — 양손을 배 위에 모아 쉬는 자세
-  p4: { roll: -1.2, lift: 0.2, legR: { hip: 1.0, knee: 1.3 }, legL: { hip: 0.9, knee: 1.25 }, armR: 'forward', armL: 'forward' }, // 급성 요통 — 옆으로 웅크림
-  p5: { legR: { hip: 0.6, knee: 1.0, abd: 0.5 }, armR: 'hip' },                                // 고관절 FAI — 다리 굽혀 벌림, 손은 사타구니
-  p6: { legR: { hip: 0.15, knee: 0.25, abd: 0.35 }, armR: 'hip', armL: 'belly' },              // 고관절 OA — 다리 바깥 돌림, 손은 고관절
-  p7: { legR: { hip: 0.7, knee: 1.25 }, armR: 'knee' },                                        // 반월판 — 무릎 세우고 손으로 잡음
+  p4: { roll: -1.2, lift: 0.2, legR: { hip: 1.0, knee: 1.3 }, legL: { hip: 0.9, knee: 1.25 }, armR: 'forward', armL: 'forward' }, // 급성 허리통증 — 옆으로 웅크림
+  p5: { legR: { hip: 0.6, knee: 1.0, abd: 0.5 }, armR: 'hip' },                                // 엉덩관절 FAI — 다리 굽혀 벌림, 손은 사타구니
+  p6: { legR: { hip: 0.15, knee: 0.25, abd: 0.35 }, armR: 'hip', armL: 'belly' },              // 엉덩관절 OA — 다리 바깥 돌림, 손은 엉덩관절
+  p7: { legR: { hip: 0.7, knee: 1.25 }, armR: 'knee' },                                        // 반달연골 — 무릎 세우고 손으로 잡음
   p8: { legR: { hip: 0.22, knee: 0.44 }, props: ['bolsterKneeR', 'wrapKneeR', 'iceKneeR'] },   // ACL — 무릎 받침 + 압박붕대 + 얼음
-  p9: { legR: { hip: 0.35, knee: 0.6 }, legL: { hip: 0.35, knee: 0.6 }, armR: 'knee' },        // 슬개대퇴통증 — 양무릎 살짝 세우고 손은 무릎 앞
-  p10: { roll: Math.PI, lift: 0.2, foot: 'prone' },                                            // 아킬레스건 — 엎드린 자세
-  p11: { legR: { hip: 0.26, knee: 0.14 }, props: ['pillowAnkleR', 'wrapAnkleR', 'iceAnkleR'] }, // 발목염좌 — 다리 거상 + 붕대 + 얼음
-  p12: { legR: { hip: 0.12, knee: 0.24 }, legL: { hip: 0.12, knee: 0.24 }, armR: 'belly', props: ['bolsterKnees'] }, // 족저근막염 — 무릎 아래 쿠션, 발 노출
+  p9: { legR: { hip: 0.35, knee: 0.6 }, legL: { hip: 0.35, knee: 0.6 }, armR: 'knee' },        // 무릎넙다리통증 — 양무릎 살짝 세우고 손은 무릎 앞
+  p10: { roll: Math.PI, lift: 0.2, foot: 'prone' },                                            // 발꿈치힘줄 — 엎드린 자세
+  p11: { legR: { hip: 0.26, knee: 0.14 }, props: ['pillowAnkleR', 'wrapAnkleR', 'iceAnkleR'] }, // 발목 삠 — 다리 올림 + 붕대 + 얼음
+  p12: { legR: { hip: 0.12, knee: 0.24 }, legL: { hip: 0.12, knee: 0.24 }, armR: 'belly', props: ['bolsterKnees'] }, // 발바닥근막염 — 무릎 아래 쿠션, 발 노출
   // 하위분류 확장분(patients3.js). 누워서 받는 네 명만 여기에 있고,
   // 나머지 셋(p16·p18·p19)은 서거나 걷는 자세라 STANCES 를 쓴다.
-  p13: { armR: 'neck', props: ['neckroll', 'blanket'] },                                       // 경인성 두통 — 뒷목을 짚음
-  p14: { armL: 'neck', props: ['blanket'] },                                                   // 경추 신경근병증 — 환측 팔을 머리에 얹는 어깨외전 완화 자세
-  p15: { legR: { hip: 0.55, knee: 1.05 }, legL: { hip: 0.5, knee: 1.0 }, armR: 'belly', props: ['blanket'] }, // 요추 신경근병증 — 무릎 세워 신경 긴장을 던 자세
-  p17: { legR: { hip: 0.20, knee: 0.40 }, props: ['bolsterKneeR', 'wrapKneeR', 'iceKneeR'] },  // MCL 염좌 — 무릎 받침 + 압박붕대 + 얼음
+  p13: { armR: 'neck', props: ['neckroll', 'blanket'] },                                       // 목인성 두통 — 뒷목을 짚음
+  p14: { armL: 'neck', props: ['blanket'] },                                                   // 목뼈 신경뿌리병증 — 환측 팔을 머리에 얹는 어깨벌림 완화 자세
+  p15: { legR: { hip: 0.55, knee: 1.05 }, legL: { hip: 0.5, knee: 1.0 }, armR: 'belly', props: ['blanket'] }, // 허리뼈 신경뿌리병증 — 무릎 세워 신경 긴장을 던 자세
+  p17: { legR: { hip: 0.20, knee: 0.40 }, props: ['bolsterKneeR', 'wrapKneeR', 'iceKneeR'] },  // MCL 삠 — 무릎 받침 + 압박붕대 + 얼음
 };
 
 // 서 있는/앉아 있는 사람의 자세. 누운 리그를 그대로 세워서 쓴다.
@@ -111,7 +111,7 @@ const PATIENT_POSES = {
 const STANCES = {
   stand:  { legR: { hip: 0.04 }, legL: { hip: -0.04 }, armR: 'hang', armL: 'hang' },
   walk:   { legR: { hip: 0.42, knee: 0.10 }, legL: { hip: -0.30, knee: 0.30 }, armR: 'swingB', armL: 'swingF' },
-  // 앉기: 고관절·무릎 90°. seatY 는 골반뼈가 와야 할 높이(m) — 매트베드·리포머
+  // 앉기: 엉덩관절·무릎 90°. seatY 는 골반뼈가 와야 할 높이(m) — 매트베드·리포머
   // 캐리지가 0.50~0.53 이라 그 위에 걸터앉는 높이로 잡았다. (사람 모델 전용:
   // 인형은 원점이 머리라 아래 upright.position.y 로 따로 맞춘다.)
   sit:    { legR: { hip: 1.52, knee: 1.52 }, legL: { hip: 1.52, knee: 1.52 }, armR: 'lap', armL: 'lap', seatY: 0.56 },
@@ -353,7 +353,7 @@ function buildPatientFigure(patient, opts) {
   // 귀 — 머리카락(반지름 0.115) 바깥으로 나오도록 살짝 벌려 붙인다
   [-1, 1].forEach((s) => ellip(V(s * 0.108, 0.140, 0.030), 0.016, 0.030, 0.022, M.skin));
 
-  // 왼쪽 가슴 명찰 (치료사용) — 흉곽 타원면 위에 붙인다
+  // 왼쪽 가슴 명찰 (치료사용) — 가슴우리 타원면 위에 붙인다
   if (o.badge) {
     const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.036),
       new THREE.MeshStandardMaterial({
@@ -369,7 +369,7 @@ function buildPatientFigure(patient, opts) {
   }
 
   // ── 몸통 ──
-  // 예전에는 흉곽 타원체 + 골반 타원체 + 어깨 공 2개, 넷을 따로 놓았다.
+  // 예전에는 가슴우리 타원체 + 골반 타원체 + 어깨 공 2개, 넷을 따로 놓았다.
   // 그래서 허리에 이음매가 지고 어깨가 얹어 놓은 공처럼 보였다 — 사람이
   // 아니라 눈사람으로 읽히던 가장 큰 원인이다.
   //
@@ -425,7 +425,7 @@ function buildPatientFigure(patient, opts) {
 
   // ── 상의 ──
   // 몸통 위에 한 장짜리 옷을 덧씌운다. 이게 이음매가 남아 있을 만한 자리
-  // (어깨·허리·고관절)를 통째로 덮어 버린다. 실제로도 환자는 환자복을,
+  // (어깨·허리·엉덩관절)를 통째로 덮어 버린다. 실제로도 환자는 환자복을,
   // 치료사는 스크럽을 입고 있으니 현실감과 구조가 같은 방향이다.
   // 치료사 상의는 엉덩이 위에서 끝나고 통이 곧다(스크럽).
   // 환자복은 조금 더 길고 밑단이 살짝 퍼진다.
@@ -451,7 +451,7 @@ function buildPatientFigure(patient, opts) {
     [0.265, 1.060],                      // 환자복 밑단 — 살짝 퍼짐
   ], M.gown, 0.52, 0.10, 24);
 
-  // 다리 (고관절 굴곡 hip / 무릎 굴곡 knee / 벌림 abd, 라디안)
+  // 다리 (엉덩관절 굽힘 hip / 무릎 굽힘 knee / 벌림 abd, 라디안)
   const joints = {};
   [['R', 1, pose.legR], ['L', -1, pose.legL]].forEach(([key, s, L]) => {
     const hip = L.hip || 0, knee = L.knee || 0, abd = L.abd || 0;
