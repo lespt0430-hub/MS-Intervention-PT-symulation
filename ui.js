@@ -337,23 +337,14 @@ UI.bindCollect = function () {
   const toolsEl = document.getElementById('prof-tools');
   if (!loginBtn) return;
 
-  // 교수 전용 도구는 로그인 전에는 화면에 아예 없다.
-  //
-  // 예전에는 시작 화면에 초기화 버튼이 그냥 놓여 있어서, 학생이 자기 진행을
-  // 통째로 날리거나 다음 학생이 앞사람 기록을 지우고 시작하는 사고가 날 수
-  // 있었다. 서버가 아이디·비밀번호를 확인해 준 뒤에만 나타난다 (브라우저에서
-  // 비교하면 소스가 공개된 정적 사이트에서는 아무 의미가 없다).
+  // 서버 기록을 다루는 교수 전용 도구만 로그인 뒤에 표시한다.
+  // 이 PC의 개인 진행 기록 초기화는 시작 화면에서 학생이 직접 사용할 수 있다.
   UI.profVerified = false;
   const showTools = (on) => { if (toolsEl) toolsEl.style.display = on ? '' : 'none'; };
   showTools(false);
 
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      if (!UI.profVerified) {
-        msgEl.className = 'err';
-        msgEl.textContent = '먼저 교수 아이디·비밀번호로 로그인하세요.';
-        return;
-      }
       const n = Object.keys(UI.state.records || {}).length;
       if (!confirm('이 컴퓨터에 저장된 진료 기록 ' + n + '건을 모두 지웁니다.\n' +
                    '(구글 시트에 이미 제출된 기록은 그대로 남습니다)\n\n계속할까요?')) return;

@@ -94,6 +94,7 @@ html, body {
   background: none; color: var(--muted); font-size: 12.5px; cursor: pointer;
 }
 #btn-reset:hover { color: var(--red); }
+.reset-hint { text-align: center; margin-bottom: 4px; }
 #start-msg { margin-top: 12px; font-size: 13px; color: var(--red); min-height: 18px; text-align: center; }
 #start-msg.err { color: var(--red); }
 .controls-help {
