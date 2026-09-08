@@ -75,8 +75,9 @@ function buildManualBay(patient, num, cz, side) {
   // ── 가구 ──
   // 머리맡 협탁 + 탁상 조명 (도면의 노란 불빛)
   KIT.lampTable(inX + 0.32, cz - side * 0.95, Math.PI / 2);
-  // 문 옆 옷장 (키 큰 목재장)
-  KIT.cabinet(doorX - 0.30, cz - side * 0.95, -Math.PI / 2, 1.15, 2.00, 0.55);
+  // 키 큰 목재장은 출입구 옆이 아니라 칸막이 벽의 안쪽 모서리에 둔다.
+  // 문 중심과 진입 동선을 비워 복도에서 각 치료실로 곧바로 들어갈 수 있다.
+  KIT.cabinet(doorX - 0.75, cz - side * (hd - 0.32), 0, 1.15, 2.00, 0.55);
   // 반대편 낮은 수납장
   KIT.cabinet(M.bedX + 0.30, cz + side * hd - side * 0.22, 0, 1.20, 0.78, 0.40);
   // 창가 커튼 한 폭 (외벽 창을 반쯤 가린다)
