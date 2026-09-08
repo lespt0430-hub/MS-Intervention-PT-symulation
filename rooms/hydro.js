@@ -408,6 +408,34 @@ function buildGaitPool(G) {
   acryl.renderOrder = 4;
   g.add(acryl);
 
+  // The reference unit uses a framed, watertight observation door rather than
+  // a single floating glass sheet. The frame, hinges and latch stay inexpensive
+  // but give the tank a believable manufactured scale at walking distance.
+  const doorFrame = new THREE.Group();
+  const frameMat = KIT.steel(0xb8c2c8);
+  [[0, WIN_Y0, WIN_HW * 2 + 0.10, 0.045], [0, WIN_Y1, WIN_HW * 2 + 0.10, 0.045],
+   [-WIN_HW - 0.025, (WIN_Y0 + WIN_Y1) / 2, 0.045, WIN_Y1 - WIN_Y0],
+   [ WIN_HW + 0.025, (WIN_Y0 + WIN_Y1) / 2, 0.045, WIN_Y1 - WIN_Y0]].forEach(([x, y, sw, sh]) => {
+    const part = new THREE.Mesh(KIT.rbox(sw, sh, 0.055, 0.008), frameMat);
+    part.position.set(x, y, fz - 0.025); doorFrame.add(part);
+  });
+  [-0.34, 0.34].forEach((dy) => {
+    const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 12), frameMat);
+    hinge.position.set(-WIN_HW - 0.075, (WIN_Y0 + WIN_Y1) / 2 + dy, fz - 0.07);
+    hinge.rotation.x = Math.PI / 2; doorFrame.add(hinge);
+  });
+  const latch = new THREE.Mesh(KIT.rbox(0.055, 0.25, 0.07, 0.012), dark);
+  latch.position.set(WIN_HW - 0.12, (WIN_Y0 + WIN_Y1) / 2, fz - 0.07);
+  doorFrame.add(latch); g.add(doorFrame);
+
+  // Water-depth marks on the inside edge are readable as physical ticks and
+  // avoid an extra texture/draw-call-heavy label in mobile quality modes.
+  for (let i = 0; i < 5; i++) {
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(i % 2 ? 0.09 : 0.15, 0.008, 0.012), dark);
+    tick.position.set(WIN_HW - 0.14, 0.53 + i * 0.16, fz - 0.055);
+    g.add(tick);
+  }
+
   // 상단 림 — 광택 스테인리스 띠
   const rim = new THREE.Mesh(KIT.rbox(W + 0.07, 0.09, D + 0.07, 0.02), steel);
   rim.position.y = H + 0.01;
@@ -499,6 +527,13 @@ function buildGaitPool(G) {
   pscr.position.set(0, 1.235, 0.045);
   pscr.rotation.x = -0.5;
   con.add(stand, cbase, panel, pscr);
+  const stopCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.018, 14), KIT.std(0xf0c735, { roughness: 0.5 }));
+  stopCollar.rotation.x = Math.PI / 2;
+  stopCollar.position.set(0.15, 1.10, 0.065);
+  const emergencyStop = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.043, 0.035, 14), KIT.std(0xc9342f, { roughness: 0.55 }));
+  emergencyStop.rotation.x = Math.PI / 2;
+  emergencyStop.position.set(0.15, 1.10, 0.088);
+  con.add(stopCollar, emergencyStop);
   // 수중 카메라 모니터 — 물속 다리 움직임을 실시간으로 본다
   const monArm = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.46, 8), steel);
   monArm.position.y = 1.62;

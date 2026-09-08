@@ -146,52 +146,81 @@ KIT.cache = function (key, make) {
   return KIT._cache[key];
 };
 
-KIT.std = (color, opt) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.7 }, opt || {}));
-KIT.steel = (color) => KIT.std(color || 0xb8c2c8, { metalness: 0.85, roughness: 0.22, envMapIntensity: 1.35 });
-KIT.screen = (color) => new THREE.MeshStandardMaterial({
-  color: 0x000000, emissive: color, emissiveIntensity: 0.9, roughness: 1,
+KIT.std = (color, opt) => {
+  const settings = Object.assign({ color, roughness: 0.7 }, opt || {});
+  const key = 'std:' + Object.keys(settings).sort().map((k) => {
+    const value = settings[k];
+    return k + ':' + (value && value.uuid ? value.uuid : JSON.stringify(value));
+  }).join('|');
+  return KIT.cache(key, () => new THREE.MeshStandardMaterial(settings));
+};
+KIT.steel = (color) => KIT.cache('steel:' + (color || 0xb8c2c8), () =>
+  KIT.std(color || 0xb8c2c8, { metalness: 0.72, roughness: 0.36, envMapIntensity: 0.9 }));
+// Static instrument displays: a shared small texture adds readable controls without
+// extra meshes, lights or per-frame canvas work. The graphics are decorative only.
+KIT.screen = (color) => KIT.cache('screen:' + color, () => {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 160;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#142b32'; c.fillRect(0, 0, 256, 160);
+  c.fillStyle = '#29414a'; c.fillRect(0, 0, 256, 25);
+  c.fillStyle = '#d5e5e7'; c.font = '600 12px sans-serif';
+  c.fillText('THERAPY', 12, 17);
+  c.fillStyle = '#8bcebb'; c.beginPath(); c.arc(236, 13, 3, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#edfaf8'; c.font = '300 33px sans-serif'; c.fillText('00:00', 14, 68);
+  c.fillStyle = '#91b4ba'; c.font = '10px sans-serif'; c.fillText('STANDBY', 16, 86);
+  c.strokeStyle = '#47707a'; c.lineWidth = 1;
+  for (let y = 107; y < 145; y += 12) { c.beginPath(); c.moveTo(14, y); c.lineTo(242, y); c.stroke(); }
+  c.strokeStyle = '#' + new THREE.Color(color).getHexString(); c.lineWidth = 2;
+  c.beginPath(); c.moveTo(14, 126);
+  for (let x = 14; x < 243; x += 3) c.lineTo(x, 126 + Math.sin(x * 0.065) * 7);
+  c.stroke();
+  c.strokeStyle = '#7db4b8'; c.lineWidth = 5; c.beginPath(); c.arc(208, 61, 23, -1.5, 3.6); c.stroke();
+  const tex = RENDER.colorTex(cv);
+  return new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff,
+    emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.3, roughness: 0.52 });
 });
 
 // 실내 도장벽 — 도면의 벽은 따뜻한 아이보리다. 미세 요철(오렌지필)만 준다.
 KIT.paint = () => KIT.cache('paint', () => RENDER.pbrMaterial(
   (g, S) => {
-    g.fillStyle = '#efe9dd'; g.fillRect(0, 0, S, S);
-    for (let i = 0; i < 2400; i++) {
-      g.fillStyle = 'rgba(212,203,187,' + (Math.random() * 0.30) + ')';
-      g.fillRect(Math.random() * S, Math.random() * S, 2.2, 2.2);
+    g.fillStyle = '#f1f0ea'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 550; i++) {
+      g.fillStyle = 'rgba(200,198,188,' + (Math.random() * 0.06) + ')';
+      g.fillRect(Math.random() * S, Math.random() * S, 1, 1);
     }
   },
-  { size: [256, 256], repeat: [4, 1], normalStrength: 0.8, normalScale: 0.32,
-    rough: { base: 0.90, dark: 0.95 }, envMapIntensity: 0.7 }
+  { size: [256, 256], repeat: [4, 1], normalStrength: 0.12, normalScale: 0.08,
+    rough: { base: 0.91, dark: 0.94 }, envMapIntensity: 0.65 }
 ));
 
 // 목재 — 도면의 문선·헤더·수납장은 전부 밝은 오크다.
 // 결은 촘촘하고 얕아야 한다. 굵고 깊게 그리면 가까이서 볼 때
 // 나뭇결이 아니라 흐르는 물결무늬처럼 보인다(문선·옷장처럼 큰 면에서 특히).
 KIT._drawWood = function (g, S, dark) {
-  g.fillStyle = dark ? '#8a8a8a' : '#c69c68';
+  g.fillStyle = dark ? '#808080' : '#cbb899';
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 160; i++) {
     const y = Math.random() * S;
-    const a = 0.04 + Math.random() * 0.09;
-    g.strokeStyle = dark ? 'rgba(74,74,74,' + a + ')' : 'rgba(126,88,50,' + a + ')';
-    g.lineWidth = 0.5 + Math.random() * 1.4;
+    const a = 0.018 + Math.random() * 0.04;
+    g.strokeStyle = dark ? 'rgba(96,96,96,' + a + ')' : 'rgba(114,92,62,' + a + ')';
+    g.lineWidth = 0.45 + Math.random() * 0.65;
     g.beginPath();
     g.moveTo(0, y);
-    for (let x = 0; x <= S; x += 16) g.lineTo(x, y + Math.sin((x / S) * Math.PI * 2.4 + i) * 1.6);
+    for (let x = 0; x <= S; x += 16) g.lineTo(x, y + Math.sin((x / S) * Math.PI * 1.4 + i) * 1.2);
     g.stroke();
   }
 };
 KIT.wood = () => KIT.cache('wood', () => RENDER.pbrMaterial(
   (g, S) => KIT._drawWood(g, S, false),
-  { size: [256, 256], repeat: [3, 3], normalStrength: 0.7, normalScale: 0.22,
-    rough: { base: 0.45, dark: 0.58 }, envMapIntensity: 0.9,
+  { size: [256, 256], repeat: [2, 2], normalStrength: 0.25, normalScale: 0.10,
+    rough: { base: 0.66, dark: 0.72 }, envMapIntensity: 0.75,
     height: (g, S) => KIT._drawWood(g, S, true) }
 ));
 // 치료대 인조가죽 — 도면의 베드 매트는 전부 짙은 남색이다.
 // 레자는 표면에 얇은 코팅이 있어 조명이 길게 미끄러진다. 러프니스를 낮추고
 // 환경 반사를 올려야 천이 아니라 인조가죽으로 읽힌다.
-KIT.leather = (color) => KIT.std(color || 0x2f3d58, { roughness: 0.34, metalness: 0.06, envMapIntensity: 1.35 });
+KIT.leather = (color) => KIT.cache('upholstery:' + (color || 0x426365), () =>
+  KIT.std(color || 0x426365, { roughness: 0.68, metalness: 0, envMapIntensity: 0.75 }));
 
 // 프라이버시 커튼 — 도면은 크림색 주름 원단이다. (예전의 청·적 격자는 뺐다)
 const CURTAIN_CACHE = {};
@@ -211,23 +240,30 @@ function curtainMaterial(widthMeters, heightMeters) {
   // 주름 골도 완만하게 폈다. 예전 값(normalStrength 1.8)은 골이 너무 깊어
   // 천이 아니라 골판지로 보였다.
   const draw = (g, S, dark) => {
-    g.fillStyle = dark ? '#808080' : '#e4e9e2';
+    g.fillStyle = dark ? '#808080' : '#ddd5c8';
     g.fillRect(0, 0, S, S);
     for (let x = 0; x < S; x++) {           // 주름: 부드러운 사인 음영
       const f = Math.sin((x / S) * Math.PI * 2 * 5);
       if (dark) {
-        const v = Math.round(128 + f * 24);
+        const v = Math.round(128 + f * 7);
         g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
       } else {
-        g.fillStyle = 'rgba(96,116,102,' + (0.12 - f * 0.085) + ')';
+        g.fillStyle = 'rgba(118,101,82,' + (0.050 - f * 0.024) + ')';
       }
       g.fillRect(x, 0, 1, S);
     }
     for (let i = 0; i < S; i += 4) {        // 직조 결 — 아주 약하게
-      g.fillStyle = dark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.07)';
+      g.fillStyle = dark ? 'rgba(255,255,255,0.012)' : 'rgba(255,255,255,0.025)';
       g.fillRect(0, i, S, 1);
-      g.fillStyle = dark ? 'rgba(0,0,0,0.03)' : 'rgba(118,132,120,0.05)';
+      g.fillStyle = dark ? 'rgba(0,0,0,0.012)' : 'rgba(118,132,120,0.018)';
       g.fillRect(0, i + 2, S, 1);
+    }
+    // Add the denser privacy band visible on the lower half of the reference curtain.
+    if (!dark) {
+      g.fillStyle = 'rgba(137,119,96,0.16)';
+      g.fillRect(0, S * 0.48, S, S * 0.52);
+      g.fillStyle = 'rgba(255,255,255,0.10)';
+      g.fillRect(0, S * 0.47, S, 2);
     }
   };
 
@@ -236,13 +272,13 @@ function curtainMaterial(widthMeters, heightMeters) {
     {
       // 주름 폭·직조 결의 실치수를 커튼 크기와 무관하게 유지한다.
       size: [256, 256], repeat: [widthMeters / 1.2, H / 1.5],
-      normalStrength: 1.15, normalScale: 0.55,
+      normalStrength: 0.32, normalScale: 0.18,
       rough: { base: 0.92, dark: 0.98 }, envMapIntensity: 0.6,
       side: THREE.DoubleSide,
       // 실제 프라이버시 커튼은 폴리에스터 메시라 빛을 조금 통과시킨다.
       // 완전 불투명하면 베이 안이 새까매져 커튼이 콘크리트 칸막이로 보인다.
-      transparent: true, opacity: 0.93, depthWrite: true,
-      color: 0xeaefe8,
+      transparent: false, opacity: 1, depthWrite: true,
+      color: 0xffffff,
       height: (g, S) => draw(g, S, true),
     }
   );
@@ -290,22 +326,22 @@ KIT.wallRun = function (opt) {
     // 이게 없으면 실내 벽만 아무 결이 없는 흰 판이라 방이 미완성으로 보인다.
     if (opt.skirt !== false) {
       const sk = new THREE.Mesh(new THREE.BoxGeometry(sx + 0.02, 0.14, sz + 0.02),
-        KIT.cache('skirt', () => KIT.std(0x97a196, { roughness: 0.5, metalness: 0.05 })));
+        KIT.cache('skirt', () => KIT.std(0xb3bcb4, { roughness: 0.72, metalness: 0 })));
       sk.position.set(m.position.x, 0.07, m.position.z);
       GAME.scene.add(sk);
 
       const wsX = axisX ? sx : t + 0.04;
       const wsZ = axisX ? t + 0.04 : sz;
       const ws = new THREE.Mesh(new THREE.BoxGeometry(wsX, 0.96, wsZ),
-        KIT.cache('wainscot', () => KIT.std(0xdce1da, { roughness: 0.55, envMapIntensity: 0.8 })));
+        KIT.cache('wainscot', () => KIT.std(0xe1e5dc, { roughness: 0.78, envMapIntensity: 0.65 })));
       ws.position.set(m.position.x, 0.62, m.position.z);
       ws.receiveShadow = true;
       GAME.scene.add(ws);
 
       const capX = axisX ? sx : t + 0.09;
       const capZ = axisX ? t + 0.09 : sz;
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(capX, 0.05, capZ),
-        KIT.cache('wainCap', () => KIT.std(0xb6bfb6, { roughness: 0.45, envMapIntensity: 0.9 })));
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(capX, 0.025, capZ),
+        KIT.cache('wainCap', () => KIT.std(0xc8cfc5, { roughness: 0.65, envMapIntensity: 0.65 })));
       cap.position.set(m.position.x, 1.12, m.position.z);
       GAME.scene.add(cap);
     }
@@ -339,21 +375,21 @@ KIT.portal = function (x, z, yaw, w, label, opt) {
   const wood = KIT.wood();
 
   [-1, 1].forEach((s) => {
-    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.16, H + 0.34, T), wood);
-    jamb.position.set(s * (w / 2 + 0.08), (H + 0.34) / 2, 0);
+    const jamb = new THREE.Mesh(KIT.rbox(0.10, H + 0.22, T, 0.01), wood);
+    jamb.position.set(s * (w / 2 + 0.05), (H + 0.22) / 2, 0);
     jamb.castShadow = true;
     g.add(jamb);
   });
-  const head = new THREE.Mesh(new THREE.BoxGeometry(w + 0.32, 0.34, T), wood);
-  head.position.set(0, H + 0.17, 0);
+  const head = new THREE.Mesh(KIT.rbox(w + 0.20, 0.22, T, 0.01), wood);
+  head.position.set(0, H + 0.11, 0);
   head.castShadow = true;
   g.add(head);
 
   if (label) {
-    const tex = makeTextCanvas([label], 512, 128, { bg: '#2b3239', color: '#f2f5f7', fontSize: 74 });
+    const tex = makeTextCanvas([label], 512, 128, { bg: '#28484b', color: '#f5f6ef', fontSize: 66 });
     const pw = Math.min(w * 0.66, 1.75);
     [1, -1].forEach((s) => {
-      const pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, pw / 4), printedMat(tex, { roughness: 0.4, envMapIntensity: 1.0 }));
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, pw / 4), printedMat(tex, { roughness: 0.72, envMapIntensity: 0.7 }));
       pl.position.set(0, H + 0.17, s * (T / 2 + 0.012));
       pl.rotation.y = s > 0 ? 0 : Math.PI;
       g.add(pl);
@@ -372,21 +408,34 @@ KIT.bed = function (opt) {
   const W = o.w || 0.88, L = o.l || 2.05, H = o.h || 0.66;
   const g = new THREE.Group();
 
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(W, 0.11, L),
-    KIT.std(0xeef1f3, { roughness: 0.35, metalness: 0.30, envMapIntensity: 1.1 }));
+  const coating = KIT.std(0xe7eae6, { roughness: 0.64, metalness: 0.08, envMapIntensity: 0.75 });
+  const rubber = KIT.std(0x354548, { roughness: 0.84 });
+  const frame = new THREE.Mesh(KIT.rbox(W - 0.035, 0.07, L - 0.045, 0.01), coating);
   frame.position.y = H - 0.11;
   frame.castShadow = true;
   g.add(frame);
 
-  const legMat = KIT.steel(0xa7b2ba);
+  const legMat = coating;
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, H - 0.16, 10), legMat);
+    const leg = new THREE.Mesh(KIT.rbox(0.055, H - 0.16, 0.055, 0.006), legMat);
     leg.position.set(sx * (W / 2 - 0.09), (H - 0.16) / 2 + 0.05, sz * (L / 2 - 0.12));
     g.add(leg);
-    const caster = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 6), KIT.std(0x39434a, { roughness: 0.6 }));
+    const caster = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.035, 10), rubber);
+    caster.rotation.z = Math.PI / 2;
     caster.position.set(sx * (W / 2 - 0.09), 0.048, sz * (L / 2 - 0.12));
     g.add(caster);
   });
+
+  // Low tubular base and diagonal lift mechanism establish a treatment table's
+  // construction while retaining the exact support surface used by patient poses.
+  [-1, 1].forEach((sx) => {
+    const base = new THREE.Mesh(KIT.rbox(0.055, 0.045, L - 0.26, 0.006), coating);
+    base.position.set(sx * (W / 2 - 0.09), 0.115, 0); g.add(base);
+  });
+  KIT.armLinkage(g, [[-0.22, 0.16, -0.56], [-0.22, H - 0.16, 0.53]], 0.022, coating);
+  KIT.armLinkage(g, [[0.22, 0.16, 0.56], [0.22, H - 0.16, -0.53]], 0.022, coating);
+  const lift = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.037, 0.34, 10), KIT.steel());
+  lift.position.set(0, 0.30, -0.04); lift.rotation.x = 0.57; g.add(lift);
 
   // 매트리스 — 등판/좌판 2단으로 나누면 치료대처럼 보인다
   const mat = KIT.leather(o.color);
@@ -401,17 +450,18 @@ KIT.bed = function (opt) {
   // 베개 (머리쪽) — 도면의 베개도 같은 남색 계열이다
   const headZ = -(L / 2 - 0.30);
   const pillow = new THREE.Mesh(KIT.rbox(0.52, 0.10, 0.34, 0.03),
-    KIT.std(o.pillow === undefined ? 0x3b4c6b : o.pillow, { roughness: 0.6 }));
+    KIT.leather(o.pillow === undefined ? 0x66817d : o.pillow));
   pillow.position.set(0, H + 0.115, headZ - 0.06);
   pillow.castShadow = true;
   g.add(pillow);
 
   // 하부 수납 바구니
   if (o.basket !== false) {
-    const basket = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.16, 0.32),
-      KIT.std(0x9aa3ab, { roughness: 0.55, envMapIntensity: 0.8 }));
-    basket.position.set(0, 0.13, 0.42);
-    g.add(basket);
+    const basket = new THREE.Mesh(KIT.rbox(0.44, 0.08, 0.32, 0.012),
+      KIT.std(0xc5cec8, { roughness: 0.85, envMapIntensity: 0.6 }));
+    basket.position.set(0, 0.17, 0.42);
+    const linen = new THREE.Mesh(KIT.rbox(0.33, 0.045, 0.23, 0.008), KIT.std(0xe6ebe6, { roughness: 0.95 }));
+    linen.position.set(0, 0.227, 0.42); g.add(basket, linen);
   }
 
   return { group: g, H, headZ, W, L };
@@ -427,17 +477,18 @@ KIT.bed = function (opt) {
 // 알약 모양이 된다. 분할은 2면 충분하다(3 이상은 삼각형만 늘고 차이가 없다).
 KIT.rbox = function (w, h, d, r, seg) {
   const rad = Math.min(r === undefined ? 0.02 : r, Math.min(w, h, d) / 6);
-  if (!window.TX || !TX.RoundedBoxGeometry || rad <= 0.001) {
-    return new THREE.BoxGeometry(w, h, d);
-  }
-  return new TX.RoundedBoxGeometry(w, h, d, seg || 2, rad);
+  const key = 'rbox:' + [w, h, d, rad, seg || 2].join(',');
+  return KIT.cache(key, () => {
+    if (!window.TX || !TX.RoundedBoxGeometry || rad <= 0.001) return new THREE.BoxGeometry(w, h, d);
+    return new TX.RoundedBoxGeometry(w, h, d, seg || 2, rad);
+  });
 };
 
 // ── 이동식 전기치료기 카트 ───────────────────────────────────
 // 전기치료실 도면의 베드 옆마다 서 있는 흰 기기 + 바구니 달린 카트.
 KIT.etCart = function (x, z, yaw) {
   const g = new THREE.Group();
-  const body = KIT.std(0xf2f5f7, { roughness: 0.35, metalness: 0.08, envMapIntensity: 1.1 });
+  const body = KIT.std(0xf0f1eb, { roughness: 0.6, metalness: 0.04, envMapIntensity: 0.75 });
   const pole = KIT.steel(0xb4bec4);
 
   const box = new THREE.Mesh(KIT.rbox(0.40, 0.26, 0.30, 0.022), body);
@@ -445,7 +496,7 @@ KIT.etCart = function (x, z, yaw) {
   box.castShadow = true;
   g.add(box);
   const face = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.15),
-    new THREE.MeshStandardMaterial({ color: 0x101c22, emissive: 0x2f86a4, emissiveIntensity: 0.8, roughness: 1 }));
+    KIT.screen(0x73b5af));
   face.position.set(0, 0.97, 0.151);
   g.add(face);
   // 다이얼 두 개
@@ -460,7 +511,8 @@ KIT.etCart = function (x, z, yaw) {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.80, 6), pole);
     leg.position.set(px, 0.42, pz);
     g.add(leg);
-    const wheel = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), KIT.std(0x39434a, { roughness: 0.6 }));
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.023, 8), KIT.std(0x39434a, { roughness: 0.8 }));
+    wheel.rotation.z = Math.PI / 2;
     wheel.position.set(px, 0.03, pz);
     g.add(wheel);
   });
@@ -513,16 +565,24 @@ KIT.armLinkage = function (parent, pts, r, mat) {
 // 바퀴 달린 흰 트롤리 본체 — 두 치료기의 공통 뼈대.
 // (h = 몸통 높이. 캐스터 0.06 위에 얹힌다)
 KIT._trolley = function (g, w, h, d, label) {
-  const shell = KIT.std(0xf3f6f8, { roughness: 0.30, metalness: 0.10, envMapIntensity: 1.2 });
-  const dark = KIT.std(0x39434a, { roughness: 0.35, metalness: 0.2 });
+  const shell = KIT.std(0xf0f1eb, { roughness: 0.6, metalness: 0.04, envMapIntensity: 0.75 });
+  const dark = KIT.std(0x354b4d, { roughness: 0.6, metalness: 0.1 });
   const body = new THREE.Mesh(KIT.rbox(w, h, d, 0.03), shell);
   body.position.y = 0.09 + h / 2;
   body.castShadow = true;
   g.add(body);
   // 허리 띠 — 흰 상자 하나로 두면 냉장고처럼 보인다
-  const belt = new THREE.Mesh(KIT.rbox(w + 0.008, 0.05, d + 0.008, 0.01), dark);
+  const belt = new THREE.Mesh(KIT.rbox(w + 0.008, 0.018, d + 0.008, 0.003), dark);
   belt.position.y = 0.09 + h * 0.42;
   g.add(belt);
+  const ventTex = KIT.cache('deviceVents', () => {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 64;
+    const c = cv.getContext('2d'); c.fillStyle = '#f0f1eb'; c.fillRect(0, 0, 128, 64);
+    c.fillStyle = '#b6c2bd'; for (let y = 6; y < 61; y += 8) c.fillRect(10, y, 108, 2);
+    return RENDER.colorTex(cv);
+  });
+  const vents = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.65, h * 0.2), printedMat(ventTex));
+  vents.position.set(0, 0.09 + h * 0.63, d / 2 + 0.003); g.add(vents);
   // 바퀴 4개
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
     const caster = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 10), dark);
@@ -795,11 +855,11 @@ KIT.laserUnit = function (x, z, yaw) {
 // ── 소가구 ───────────────────────────────────────────────────
 KIT.stool = function (x, z) {
   const g = new THREE.Group();
-  const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 14), KIT.std(0x2f3d58, { roughness: 0.7 }));
+  const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.16, 0.06, 20), KIT.leather());
   seat.position.y = 0.52; seat.castShadow = true;
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.42, 8), KIT.steel());
   post.position.y = 0.28;
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.21, 0.035, 12), KIT.steel(0x9aa6ad));
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.20, 0.035, 16), KIT.std(0xbfc8c2, { roughness: 0.66, metalness: 0.12 }));
   base.position.y = 0.04;
   g.add(seat, post, base);
   g.position.set(x, 0, z);
@@ -816,17 +876,23 @@ KIT.cabinet = function (x, z, yaw, w, h, d) {
   body.position.y = H / 2;
   body.castShadow = true; body.receiveShadow = true;
   g.add(body);
-  const top = new THREE.Mesh(KIT.rbox(W + 0.04, 0.03, D + 0.04, 0.006), KIT.std(0xe8e2d6, { roughness: 0.45 }));
+  const top = new THREE.Mesh(KIT.rbox(W + 0.04, 0.03, D + 0.04, 0.006), KIT.std(0xeeeee7, { roughness: 0.6 }));
   top.position.y = H + 0.015;
   g.add(top);
+  const fronts = new THREE.Mesh(KIT.rbox(W - 0.035, H - 0.10, 0.022, 0.003),
+    KIT.std(H > 1.4 ? 0xe4e7dd : 0xd6dfd5, { roughness: 0.76 }));
+  fronts.position.set(0, H / 2 + 0.028, D / 2 + 0.006); g.add(fronts);
+  const toe = new THREE.Mesh(new THREE.BoxGeometry(W - 0.10, 0.055, D - 0.04),
+    KIT.std(0x7e8e86, { roughness: 0.8 }));
+  toe.position.set(0, 0.028, 0.014); g.add(toe);
   const nDoor = W > 1.2 ? 3 : 2;
   for (let i = 0; i < nDoor; i++) {
     const hx = -W / 2 + W / nDoor * (i + 0.5);
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.14, 0.02), KIT.steel(0x9aa6ad));
-    handle.position.set(hx + W / nDoor * 0.32, H * 0.6, D / 2 + 0.012);
+    const handle = new THREE.Mesh(KIT.rbox(0.012, 0.16, 0.028, 0.002), KIT.std(0x60736d, { roughness: 0.6, metalness: 0.3 }));
+    handle.position.set(hx + W / nDoor * 0.32, H * 0.6, D / 2 + 0.036);
     g.add(handle);
-    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.008, H - 0.06, 0.006), KIT.std(0x9c7c50));
-    seam.position.set(-W / 2 + W / nDoor * (i + 1), H / 2, D / 2 + 0.006);
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.004, H - 0.10, 0.002), KIT.std(0xaebdb2));
+    seam.position.set(-W / 2 + W / nDoor * (i + 1), H / 2 + 0.028, D / 2 + 0.018);
     if (i < nDoor - 1) g.add(seam);
   }
   g.position.set(x, 0, z);
@@ -840,9 +906,9 @@ KIT.cabinet = function (x, z, yaw, w, h, d) {
 // 협탁 + 탁상 스탠드 (도수 룸의 머리맡 — 도면의 따뜻한 조명)
 KIT.lampTable = function (x, z, yaw) {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.58, 0.40), KIT.wood());
+  const body = new THREE.Mesh(KIT.rbox(0.46, 0.58, 0.40, 0.012), KIT.wood());
   body.position.y = 0.29; body.castShadow = true;
-  const top = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.03, 0.44), KIT.std(0xe8e2d6, { roughness: 0.45 }));
+  const top = new THREE.Mesh(KIT.rbox(0.50, 0.03, 0.44, 0.006), KIT.std(0xeeeee7, { roughness: 0.6 }));
   top.position.y = 0.595;
   const handle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.018, 0.018), KIT.steel(0x9aa6ad));
   handle.position.set(0, 0.40, 0.205);
@@ -852,7 +918,7 @@ KIT.lampTable = function (x, z, yaw) {
   stand.position.y = 0.68;
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.14, 0.20, 16, 1, true),
     new THREE.MeshStandardMaterial({
-      color: 0xf7ecd6, emissive: 0xffd9a0, emissiveIntensity: 0.9,
+      color: 0xf4eddf, emissive: 0xffe9bf, emissiveIntensity: 0.38,
       roughness: 0.95, side: THREE.DoubleSide,
     }));
   shade.position.y = 0.86;
@@ -866,23 +932,28 @@ KIT.lampTable = function (x, z, yaw) {
 
 // 액자 (도수 룸 벽의 풍경화)
 KIT.frameArt = function (x, y, z, yaw, w, h) {
-  const cv = document.createElement('canvas');
-  cv.width = 256; cv.height = 160;
-  const c = cv.getContext('2d');
-  const sky = c.createLinearGradient(0, 0, 0, 160);
-  sky.addColorStop(0, '#bcd8e8'); sky.addColorStop(1, '#e6eede');
-  c.fillStyle = sky; c.fillRect(0, 0, 256, 160);
-  c.fillStyle = 'rgba(126,150,132,0.75)';
-  c.beginPath(); c.moveTo(0, 118); c.lineTo(70, 66); c.lineTo(140, 118); c.closePath(); c.fill();
-  c.fillStyle = 'rgba(100,128,112,0.8)';
-  c.beginPath(); c.moveTo(96, 122); c.lineTo(176, 58); c.lineTo(256, 122); c.closePath(); c.fill();
-  c.fillStyle = '#cfd8c4'; c.fillRect(0, 118, 256, 42);
-  c.fillStyle = 'rgba(150,170,150,0.5)';
-  for (let i = 0; i < 9; i++) c.fillRect(i * 30, 122 + (i % 3) * 5, 22, 4);
+  const tex = KIT.cache('botanicalPrint', () => {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 320;
+    const c = cv.getContext('2d'); c.fillStyle = '#faf8f0'; c.fillRect(0, 0, 512, 320);
+    c.fillStyle = '#e9e7da'; c.fillRect(25, 25, 462, 270);
+    c.fillStyle = '#f5f2e8'; c.fillRect(33, 33, 446, 254);
+    c.fillStyle = '#e5d9bc'; c.beginPath(); c.arc(346, 116, 63, 0, Math.PI * 2); c.fill();
+    [[194, 246, -0.17], [268, 253, 0.35], [330, 248, 0.1]].forEach(([x, y, rot], index) => {
+      c.save(); c.translate(x, y); c.rotate(rot); c.strokeStyle = '#7c8e7c'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(0, 0); c.bezierCurveTo(-16, -52, 13, -118, -7, -173); c.stroke();
+      for (let i = 0; i < 6; i++) {
+        const yy = -21 - i * 24, side = i % 2 ? 1 : -1;
+        c.fillStyle = ['#8fa391', '#acb8a2', '#738f80'][(i + index) % 3];
+        c.beginPath(); c.ellipse(side * 16, yy, 27 - i * 1.4, 9, side * -0.5, 0, Math.PI * 2); c.fill();
+      }
+      c.restore();
+    });
+    return RENDER.colorTex(cv);
+  });
   const g = new THREE.Group();
-  const art = new THREE.Mesh(new THREE.PlaneGeometry(w, h), printedMat(RENDER.colorTex(cv), { roughness: 0.55 }));
+  const art = new THREE.Mesh(new THREE.PlaneGeometry(w, h), printedMat(tex, { roughness: 0.88 }));
   art.position.z = 0.022;
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.07, h + 0.07, 0.04), KIT.wood());
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.025, h + 0.025, 0.04), KIT.wood());
   g.add(art, frame);
   g.position.set(x, y, z);
   g.rotation.y = yaw;
@@ -894,12 +965,12 @@ KIT.frameArt = function (x, y, z, yaw, w, h) {
 // 실루엣(가장자리)이 자로 자른 듯 곧게 나온다. 실제로 접힌 면을 만들어야
 // 빛이 주름을 타고 흐르고 옆에서 봤을 때 두께감이 생긴다.
 KIT.foldedPlane = function (w, h, folds) {
-  const seg = Math.max(10, Math.round(w * 9));
+  const seg = Math.max(20, Math.round(w * 20));
   const g = new THREE.PlaneGeometry(w, h, seg, 1);
   const pos = g.attributes.position;
   const n = folds || Math.max(4, Math.round(w * 2.6));
   for (let i = 0; i < pos.count; i++) {
-    pos.setZ(i, Math.sin((pos.getX(i) / w) * Math.PI * 2 * n) * 0.038);
+    pos.setZ(i, Math.sin((pos.getX(i) / w) * Math.PI * 2 * n) * 0.034);
   }
   pos.needsUpdate = true;
   g.computeVertexNormals();
@@ -1002,24 +1073,47 @@ KIT.waterPurifier = function (x, z, yaw) {
 // 화분
 KIT.plant = function (x, z, flip) {
   const s = GAME.scene;
-  const potMat = KIT.std(0xb9b3a8, { roughness: 0.55, envMapIntensity: 0.9 });
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.145, 0.34, 14), potMat);
+  const potMat = KIT.std(0xd4d4c8, { roughness: 0.86, envMapIntensity: 0.55 });
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.16, 0.34, 20), potMat);
   pot.position.set(x, 0.17, z); pot.castShadow = true;
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.212, 0.212, 0.04, 14), potMat);
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.204, 0.204, 0.014, 20), potMat);
   rim.position.set(x, 0.335, z);
   const soil = new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.185, 0.03, 12), KIT.std(0x4b3a2c, { roughness: 1.0 }));
   soil.position.set(x, 0.345, z);
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.032, 0.42, 8), KIT.std(0x5c7a4a, { roughness: 0.85 }));
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.016, 0.42, 7), KIT.std(0x657761, { roughness: 0.9 }));
   stem.position.set(x, 0.56, z);
   s.add(pot, rim, soil, stem);
-  [[0.00, 0.90, 0.00, 0.30, 0x4e8d5b], [0.17, 0.76, 0.10, 0.21, 0x5b9c64],
-   [-0.14, 0.80, -0.12, 0.18, 0x437c50]].forEach(([dx, y, dz, r, col]) => {
-    const leaf = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), KIT.std(col, { roughness: 0.88, envMapIntensity: 0.6 }));
-    leaf.position.set(x + dx * (flip || 1), y, z + dz);
-    leaf.scale.y = 0.78;
-    leaf.castShadow = true;
-    s.add(leaf);
+  // One instanced draw per plant, with curved blades instead of spherical clumps.
+  const leafGeo = KIT.cache('plantBlade', () => {
+    const positions = [], indices = [], uv = [];
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8, width = Math.sin(t * Math.PI) * 0.235;
+      const bend = Math.sin(t * Math.PI * 0.9) * 0.22;
+      positions.push(-width, t, bend, 0, t, bend + width * 0.2, width, t, bend);
+      uv.push(0, t, 0.5, t, 1, t);
+      if (i < 8) {
+        const k = i * 3;
+        indices.push(k, k + 3, k + 1, k + 1, k + 3, k + 4,
+          k + 1, k + 4, k + 2, k + 2, k + 4, k + 5);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(indices); geo.computeVertexNormals(); return geo;
   });
+  const blades = new THREE.InstancedMesh(leafGeo,
+    KIT.std(0x6e8b72, { roughness: 0.82, envMapIntensity: 0.65, side: THREE.DoubleSide }), 12);
+  const node = new THREE.Object3D();
+  for (let i = 0; i < 12; i++) {
+    const angle = i * 2.39996 * (flip || 1);
+    node.position.set(x, 0.53 + (i % 4) * 0.072, z);
+    node.rotation.set(0.45 + (i % 3) * 0.28, angle, 0);
+    const len = 0.36 + (i % 4) * 0.045; node.scale.set(len, len, len);
+    node.updateMatrix(); blades.setMatrixAt(i, node.matrix);
+    blades.setColorAt(i, new THREE.Color([0xc9d5bf, 0xaebfa5, 0xe1e4c8][i % 3]));
+  }
+  blades.castShadow = true; blades.instanceMatrix.needsUpdate = true; s.add(blades);
   KIT.solid(x, z, 0.24, 0.24);
 };
 

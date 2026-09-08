@@ -17,7 +17,8 @@ const RENDER = {
   fill: null,
   maxAniso: 4,
   _envRT: null,
-  _fps: { frames: 0, t0: 0, avg: 60, downgrades: 0 },
+  _fps: { frames: 0, t0: 0, avg: 60, downgrades: 0, upgrades: 0,
+    goodWindows: 0, badWindows: 0, lastChange: 0 },
 };
 
 // ── 화질 프리셋 ──────────────────────────────────────────────
@@ -37,20 +38,20 @@ const RENDER = {
 RENDER.PRESETS = {
   low: {
     pixelRatio: 1, shadow: 1024,
-    ceilingCount: 3, ceilingIntensity: 1.8,
-    hemi: 0.26, sun: 0.34, envIntensity: 0.68,
+    ceilingCount: 0, ceilingIntensity: 1.15,
+    hemi: 0.20, sun: 1.08, envIntensity: 0.48,
     post: false, aniso: 4, reflect: 0,
   },
   medium: {
     pixelRatio: 1, shadow: 1536,
-    ceilingCount: 5, ceilingIntensity: 1.7,
-    hemi: 0.25, sun: 0.36, envIntensity: 0.72,
+    ceilingCount: 2, ceilingIntensity: 1.10,
+    hemi: 0.20, sun: 1.08, envIntensity: 0.48,
     post: false, aniso: 8, reflect: 0,
   },
   high: {
     pixelRatio: 1.25, shadow: 2048,
-    ceilingCount: 7, ceilingIntensity: 1.6,
-    hemi: 0.24, sun: 0.38, envIntensity: 0.75,
+    ceilingCount: 3, ceilingIntensity: 1.10,
+    hemi: 0.20, sun: 1.08, envIntensity: 0.48,
     // 평면 반사(Reflector)는 장면을 통째로 한 번 더 그린다. 바닥에까지 쓰면
     // 그리는 양이 두 배가 된다 — 운동재활실 벽거울 하나에만 허용한다.
     post: 'bloom', aniso: 16, reflect: 0.9,
@@ -97,13 +98,21 @@ RENDER.createRenderer = function (container) {
   // r185에서 PCFSoftShadowMap은 폐지되어 내부적으로 PCF로 되돌아간다
   // (콘솔에 경고만 남고 효과는 없었다). 처음부터 PCF로 지정한다.
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  // 가구와 환자의 포즈는 고정되어 있다. 물결은 노멀맵만 움직인다.
+  // 처음 한 번 굽고 재사용해 모바일에서 그림자용 장면 재렌더를 없앤다.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   // ACES Filmic — 하이라이트 롤오프가 부드러워 조명 주변이 '사진처럼' 잡힌다.
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // 직접광을 줄이고 환경광으로 옮긴 뒤로는 예전 노출(0.72)이면 방 전체가
   // 어둡게 가라앉는다. 광원이 점점이 박혀 있지 않으니 노출을 올려도
   // 예전처럼 특정 지점만 하얗게 타지 않는다.
-  renderer.toneMappingExposure = 0.85;
+  renderer.toneMappingExposure = 0.88;
+  // A small display-grade color correction restores the local contrast that
+  // gets flattened by the bright clinical environment map. It is effectively
+  // free compared with another WebGL post-processing pass.
+  renderer.domElement.style.filter = 'contrast(1.075) saturate(1.06)';
   container.appendChild(renderer.domElement);
   RENDER.maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy(), q.aniso);
   return renderer;
@@ -185,8 +194,8 @@ RENDER.buildLights = function (scene, room) {
   RENDER.fill = hemi;
 
   // 창으로 들어오는 낮빛 — 방향성 그림자로 물체를 바닥에 붙여준다
-  const sun = new THREE.DirectionalLight(0xffeedd, q.sun);
-  sun.position.set(7, 8, 7);
+  const sun = new THREE.DirectionalLight(0xfff3e6, q.sun);
+  sun.position.set(9, 14, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(q.shadow, q.shadow);
   // 그림자 카메라를 방 크기에 딱 맞춘다. r128 버전은 32×32m를 덮어서
@@ -194,7 +203,7 @@ RENDER.buildLights = function (scene, room) {
   const sc = sun.shadow.camera;
   sc.left = -room.w / 2 - 1; sc.right = room.w / 2 + 1;
   sc.top = room.d / 2 + 1; sc.bottom = -room.d / 2 - 1;
-  sc.near = 0.5; sc.far = 30;
+  sc.near = 0.5; sc.far = 50;
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 0.02;
   sun.target.position.set(0, 0, 0);
@@ -544,7 +553,105 @@ RENDER.setSize = function (renderer, camera) {
   if (RENDER.composer) RENDER.composer.setSize(w, h);
 };
 
+// 같은 재질의 작은 정적 부품을 4m 구역별로 합친다. 방 전체를 한 메시로
+// 합치지 않아 카메라 밖 가구는 계속 컬링된다. 원래 충돌/진료 그룹은 보존한다.
+// 인체, 투명한 물·유리, 반사면, 사용자 지정 셰이더/동작은 제외한다.
+RENDER.batchStatic = function (scene) {
+  scene.updateMatrixWorld(true);
+  const groups = new Map();
+  const position = new THREE.Vector3();
+  scene.traverseVisible((mesh) => {
+    if (mesh.type !== 'Mesh' || !mesh.geometry || !mesh.material ||
+        Array.isArray(mesh.material) || mesh.material.transparent ||
+        mesh.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender ||
+        mesh.geometry.attributes.skinIndex || Object.keys(mesh.geometry.morphAttributes).length ||
+        mesh.geometry.drawRange.start !== 0 || mesh.geometry.drawRange.count !== Infinity ||
+        mesh.matrixWorld.determinant() <= 0) return;
+    // 사용자 정의 판·물결·로프·잎은 자체 좌표 규약을 쓰는 경우가 있어
+    // 통합 대상에서 제외한다. 가구를 이루는 표준 입체만 합쳐도 효과는 충분하다.
+    if (!['BoxGeometry', 'RoundedBoxGeometry', 'CylinderGeometry', 'SphereGeometry']
+        .includes(mesh.geometry.type)) return;
+    let parent = mesh;
+    while (parent) {
+      if (parent.isBone || parent.userData.noBatch) return;
+      parent = parent.parent;
+    }
+    const attrs = mesh.geometry.attributes;
+    if (!attrs.position || !attrs.normal) return;
+    const keys = Object.keys(attrs).sort();
+    if (keys.some((k) => attrs[k].isInterleavedBufferAttribute ||
+        !(attrs[k].array instanceof Float32Array))) return;
+    position.setFromMatrixPosition(mesh.matrixWorld);
+    const signature = keys.map((k) => k + ':' + attrs[k].itemSize).join(',');
+    const key = [mesh.material.uuid, mesh.castShadow, mesh.receiveShadow,
+      mesh.renderOrder, mesh.layers.mask, Math.floor(position.x / 4),
+      Math.floor(position.z / 4), signature].join('|');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(mesh);
+  });
+  let parts = 0, batches = 0;
+  const retired = new Set();
+  for (const meshes of groups.values()) {
+    if (meshes.length < 3) continue;
+    const first = meshes[0], keys = Object.keys(first.geometry.attributes);
+    const vertices = meshes.reduce((n, m) => n + m.geometry.attributes.position.count, 0);
+    const indexCount = meshes.reduce((n, m) => n + (m.geometry.index ?
+      m.geometry.index.count : m.geometry.attributes.position.count), 0);
+    const geometry = new THREE.BufferGeometry();
+    const arrays = {};
+    keys.forEach((key) => {
+      const a = first.geometry.attributes[key];
+      arrays[key] = new Float32Array(vertices * a.itemSize);
+      geometry.setAttribute(key, new THREE.BufferAttribute(arrays[key], a.itemSize, a.normalized));
+    });
+    const indices = vertices > 65535 ? new Uint32Array(indexCount) : new Uint16Array(indexCount);
+    let vertexOffset = 0, indexOffset = 0;
+    meshes.forEach((mesh) => {
+      const transformed = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
+      const count = transformed.attributes.position.count;
+      keys.forEach((key) => {
+        arrays[key].set(transformed.attributes[key].array,
+          vertexOffset * transformed.attributes[key].itemSize);
+      });
+      const ix = transformed.index;
+      const length = ix ? ix.count : count;
+      for (let i = 0; i < length; i++) indices[indexOffset++] = vertexOffset + (ix ? ix.getX(i) : i);
+      vertexOffset += count;
+      transformed.dispose();
+      retired.add(mesh.geometry);
+      mesh.removeFromParent();
+    });
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    const batch = new THREE.Mesh(geometry, first.material);
+    batch.name = 'Clinic static furniture';
+    batch.castShadow = first.castShadow;
+    batch.receiveShadow = first.receiveShadow;
+    batch.renderOrder = first.renderOrder;
+    batch.layers.mask = first.layers.mask;
+    batch.matrixAutoUpdate = false;
+    scene.add(batch);
+    parts += meshes.length;
+    batches++;
+  }
+  // 공유 지오메트리가 남은 다른 메시에서 사용되면 해제하지 않는다.
+  scene.traverse((o) => { if (o.geometry) retired.delete(o.geometry); });
+  retired.forEach((geometry) => geometry.dispose());
+  RENDER.batchStats = { parts, batches, saved: parts - batches };
+  return RENDER.batchStats;
+};
+
+RENDER.invalidateShadows = function (renderer) {
+  renderer.shadowMap.needsUpdate = true;
+};
+
 RENDER.render = function (renderer, scene, camera) {
+  if (RENDER._preparedScene !== scene) {
+    RENDER.batchStatic(scene);
+    RENDER._preparedScene = scene;
+    RENDER.invalidateShadows(renderer);
+  }
   if (RENDER.composer) RENDER.composer.render();
   else renderer.render(scene, camera);
 };
@@ -553,7 +660,7 @@ RENDER.render = function (renderer, scene, camera) {
 // 자동(auto) 모드에서만 동작한다. 교수가 화질을 직접 고정했으면 건드리지 않는다.
 // 올리는 방향으로는 절대 바꾸지 않는다 — 오르내리며 깜빡이는 게 더 나쁘다.
 RENDER.tickPerf = function (renderer, scene, camera) {
-  if (RENDER.quality !== 'auto' || RENDER._fps.downgrades >= 2) return;
+  if (RENDER.quality !== 'auto') return;
   const f = RENDER._fps;
   const now = performance.now();
   if (!f.t0) { f.t0 = now; f.frames = 0; return; }
@@ -562,12 +669,24 @@ RENDER.tickPerf = function (renderer, scene, camera) {
   if (dt < 3000) return;                    // 3초 창으로 평균을 낸다
   f.avg = (f.frames * 1000) / dt;
   f.t0 = now; f.frames = 0;
-  if (f.avg >= 38) return;
-
-  const next = RENDER.tier === 'high' ? 'medium' : (RENDER.tier === 'medium' ? 'low' : null);
-  if (!next) return;
-  f.downgrades++;
-  RENDER._applyTierDowngrade(next, renderer, scene, camera);
+  if (now - f.lastChange < 12000) return;
+  f.badWindows = f.avg < 42 ? f.badWindows + 1 : 0;
+  f.goodWindows = f.avg > 57 ? f.goodWindows + 1 : 0;
+  if (f.badWindows >= 2) {
+    const next = RENDER.tier === 'high' ? 'medium' : (RENDER.tier === 'medium' ? 'low' : null);
+    if (next) {
+      f.downgrades++; f.badWindows = 0; f.goodWindows = 0; f.lastChange = now;
+      RENDER._applyTierDowngrade(next, renderer, scene, camera);
+    }
+    return;
+  }
+  if (f.goodWindows >= 3) {
+    const next = RENDER.tier === 'low' ? 'medium' : (RENDER.tier === 'medium' ? 'high' : null);
+    if (next) {
+      f.upgrades++; f.badWindows = 0; f.goodWindows = 0; f.lastChange = now;
+      RENDER._applyTierDowngrade(next, renderer, scene, camera);
+    }
+  }
 };
 
 RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
@@ -575,6 +694,7 @@ RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
   const q = RENDER.q = RENDER.PRESETS[tier];
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.pixelRatio));
+  RENDER.invalidateShadows(renderer);
 
   if (RENDER.sun) {
     const sh = RENDER.sun.shadow;
@@ -620,7 +740,8 @@ RENDER._applyTierDowngrade = function (tier, renderer, scene, camera) {
 };
 
 RENDER.stats = function () {
-  return { tier: RENDER.tier, pref: RENDER.quality, fps: Math.round(RENDER._fps.avg) };
+  return { tier: RENDER.tier, pref: RENDER.quality, fps: Math.round(RENDER._fps.avg),
+    upgrades: RENDER._fps.upgrades, downgrades: RENDER._fps.downgrades };
 };
 
 window.RENDER = RENDER;

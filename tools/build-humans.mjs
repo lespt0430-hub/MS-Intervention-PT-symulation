@@ -18,12 +18,14 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
-const OUT = path.join(root, 'assets', 'humans');
+const HIGH = process.argv.includes('--high');
+const OUT = path.join(root, 'assets', HIGH ? 'humans_high' : 'humans');
 const RAW = path.join(root, 'assets', 'humans', '_raw');
 
 // 감축비. 파일럿에서 0.27 이 지금 인형과 비슷한 삼각형 수(약 9~10k)로 떨어졌다.
 // 더 줄이면 얼굴이 뭉개지고, 더 두면 삼각형이 배로 뛴다.
-const RATIO = 0.27;
+const RATIO = HIGH ? 0.72 : 0.27;
+const ERROR = HIGH ? '0.002' : '0.01';
 
 const BLENDER = [
   'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe',
@@ -84,7 +86,7 @@ for (const p of people) {
   process.stdout.write(`${p.id.padEnd(8)} ${String(p.name).padEnd(9)} ${p.age}세 ${p.sex} … `);
 
   const r = spawnSync(BLENDER, [
-    '--background', '--online-mode', '--python', path.join(here, 'mpfb_make_human.py'), '--',
+    '--background', '--python', path.join(here, 'mpfb_make_human.py'), '--',
     '--out', raw,
     '--age', String(p.age),
     '--sex', p.sex,
@@ -107,7 +109,7 @@ for (const p of people) {
   }
 
   fs.rmSync(out, { force: true });
-  const s = gltf('simplify', rel(raw), rel(out), '--ratio', String(RATIO), '--error', '0.01');
+  const s = gltf('simplify', rel(raw), rel(out), '--ratio', String(RATIO), '--error', ERROR);
   if (!fs.existsSync(out)) {
     console.log('감축 실패 — 원본을 그대로 씁니다');
     const why = ((s.stdout || '') + (s.stderr || '')).replace(/\[[0-9;]*m/g, '')

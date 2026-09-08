@@ -438,7 +438,7 @@ def bake_shape_keys(obj):
 HAIR_STYLES = {
     "short": dict(line=0.42, front=0.30, thick=0.011, bun=0.0, tail=0.0),
     "crop":  dict(line=0.52, front=0.20, thick=0.006, bun=0.0, tail=0.0),   # 짧은 스포츠머리
-    "bob":   dict(line=0.28, front=0.34, thick=0.020, bun=0.0, tail=0.0),   # 귀를 덮는 단발
+    "bob":   dict(line=0.40, front=0.16, thick=0.014, bun=0.0, tail=0.0),   # 눈을 가리지 않는 단발
     "bun":   dict(line=0.38, front=0.30, thick=0.013, bun=0.42, tail=0.0),  # 뒤로 묶어 올림
     "pony":  dict(line=0.34, front=0.32, thick=0.015, bun=0.32, tail=0.55), # 낮게 묶어 늘어뜨림
 }
@@ -1031,8 +1031,8 @@ def main():
         # 넉넉히 띄우고(offset) 몸 굴곡을 더 문질러 없앤다(smooth). 얇게 붙이면
         # 가슴·배 선이 그대로 비쳐 환자복이 아니라 쫄쫄이가 된다.
         build_garment(basemesh, "gown_top", "GarmentTop", rgb,
-                      offset=0.050, flare=0.10, stripes=True, cut_below=hip_z,
-                      smooth=9, drape=0.85, seal_all=True)
+                      offset=0.036, flare=0.07, stripes=True, cut_below=hip_z,
+                      smooth=9, drape=0.62, seal_all=True)
         bpy.context.view_layer.objects.active = basemesh
         # 바지는 상의보다 얇게 띄운다 — 상의 밑단이 바지 위로 덮여야 두 벌로 보인다
         build_garment(basemesh, "gown_pants", "GarmentPants", rgb,

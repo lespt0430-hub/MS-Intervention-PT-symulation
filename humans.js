@@ -49,7 +49,54 @@ HUMANS.ALIAS = {
   p19: 'p8',    // 여 23 ← 여 22
 };
 
-HUMANS.path = (id) => 'assets/humans/' + id + '.glb';
+HUMANS.path = (id) => 'assets/' + (RENDER.tier === 'high' ? 'humans_high' : 'humans') + '/' + id + '.glb';
+HUMANS.fallbackPath = (id) => 'assets/humans/' + id + '.glb';
+
+// Reuse two tiny surface maps across the whole class roster. Their detail comes
+// from lighting, so neither a large skin image nor extra geometry is needed.
+HUMANS.surfaceMap = function (kind) {
+  const cache = HUMANS._surfaces || (HUMANS._surfaces = {});
+  if (cache[kind]) return cache[kind];
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const pixels = ctx.createImageData(64, 64);
+  let seed = kind === 'fabric' ? 91 : 47;
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 64; x++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const grain = ((seed >>> 24) / 255 - 0.5) * 18;
+      const weave = kind === 'fabric' ? ((x % 2) * 7 + (y % 2) * 5) : 0;
+      const shade = Math.round(126 + grain + weave);
+      const i = (y * 64 + x) * 4;
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = shade;
+      pixels.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(pixels, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(kind === 'fabric' ? 36 : 18, kind === 'fabric' ? 36 : 18);
+  texture.anisotropy = 2;
+  cache[kind] = texture;
+  return texture;
+};
+
+function finishHumanVisuals(root) {
+  root.updateMatrixWorld(true);
+  root.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    // SkinnedMesh owns these bounds in r185: clones can therefore share their
+    // geometry while retaining different bounds for standing/lying/seated poses.
+    if (mesh.isSkinnedMesh && typeof mesh.computeBoundingSphere === 'function') {
+      mesh.computeBoundingBox();
+      mesh.computeBoundingSphere();
+      if (mesh.boundingSphere) mesh.boundingSphere.radius += 0.015;
+      mesh.frustumCulled = true;
+    }
+  });
+  return root;
+}
 
 // ── 불러오기 ────────────────────────────────────────────────
 // 장면은 동기로 지어지는데 .glb 는 비동기로 온다. 장면을 짓는 도중에
@@ -63,8 +110,7 @@ HUMANS.preload = function (onProgress) {
   const loader = new TX.GLTFLoader();
   let done = 0;
   const one = (id) => new Promise((resolve) => {
-    loader.load(HUMANS.path(id),
-      (gltf) => {
+    const accept = (gltf) => {
         gltf.scene.traverse((o) => {
           if (!o.isMesh) return;
           o.castShadow = true;
@@ -72,12 +118,45 @@ HUMANS.preload = function (onProgress) {
           // 스킨드 메시는 뼈가 움직이면 경계상자가 실제와 어긋나, 화면 안에
           // 있는데도 컬링으로 사라지는 일이 생긴다.
           o.frustumCulled = false;
+          const materials = Array.isArray(o.material) ? o.material : [o.material];
+          materials.forEach((mat) => {
+            if (!mat || !mat.isMeshStandardMaterial) return;
+            const name = mat.name || '';
+            if (/PT_Skin/.test(name)) {
+              mat.roughness = 0.64;
+              mat.metalness = 0;
+              mat.bumpMap = HUMANS.surfaceMap('skin');
+              mat.bumpScale = 0.00055;
+              mat.envMapIntensity = 0.42;
+            } else if (/Garment/.test(name)) {
+              mat.roughness = 0.86;
+              mat.metalness = 0;
+              mat.bumpMap = HUMANS.surfaceMap('fabric');
+              mat.bumpScale = 0.00115;
+              mat.envMapIntensity = 0.28;
+            } else if (/Hair/.test(name)) {
+              mat.roughness = 0.68;
+              mat.envMapIntensity = 0.38;
+            } else if (/Eye/.test(name)) {
+              mat.roughness = 0.20;
+              mat.envMapIntensity = 0.85;
+            }
+          });
         });
         HUMANS.models[id] = gltf.scene;
         resolve(true);
-      },
-      undefined,
-      () => { HUMANS.missing.push(id); resolve(false); });
+    };
+    const missing = () => { HUMANS.missing.push(id); resolve(false); };
+    const primary = HUMANS.path(id);
+    loader.load(primary, accept, undefined, () => {
+      // A high-detail model may still be building or absent in an older release.
+      // Keep the simulation usable by retrying the proven mobile asset.
+      if (primary !== HUMANS.fallbackPath(id)) {
+        loader.load(HUMANS.fallbackPath(id), accept, undefined, missing);
+      } else {
+        missing();
+      }
+    });
   }).then((ok) => {
     done += 1;
     if (onProgress) onProgress(done, HUMANS.IDS.length);
@@ -350,7 +429,7 @@ HUMANS.build = function (patient, opts) {
     // 서서 허공에 손을 뻗었다 — 인형은 팔이 좌우 대칭이라 티가 안 났을 뿐이다.
     const g = new THREE.Group();
     g.add(model);
-    return g;
+    return finishHumanVisuals(g);
   }
 
   // 누운 사람.
@@ -388,7 +467,7 @@ HUMANS.build = function (patient, opts) {
   if (props.length && typeof buildPatientProps === 'function') {
     out.add(buildPatientProps(props, jointsFromBones(bones, out)));
   }
-  return out;
+  return finishHumanVisuals(out);
 };
 
 window.HUMANS = HUMANS;

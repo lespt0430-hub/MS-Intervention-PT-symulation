@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' data: blob:; img-src 'self' data: blob:; form-action 'none'; object-src 'none'; base-uri 'self'">
+  <base href="../">
+  <title>물리치료실 · 로컬 그래픽 검증</title>
+  <link rel="icon" href="data:,">
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#dae4e8;font:13px/1.5 system-ui,sans-serif;color:#213c45}
+    #canvas-wrap{position:fixed;inset:0}canvas{display:block;touch-action:none}
+    .review-panel{position:fixed;z-index:5;top:12px;left:12px;width:min(380px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;padding:15px;border:1px solid #b8cdd0;border-radius:14px;background:#f9fcf9ed;box-shadow:0 4px 24px #14373f1a;backdrop-filter:blur(10px)}
+    h1{font-size:16px;margin:0 0 4px}p{margin:5px 0 10px}.muted{font-size:11px;color:#53727a}button,select{font:inherit;color:inherit;padding:6px 9px;border:1px solid #b4c9cb;border-radius:7px;background:#fff;cursor:pointer}button:hover,button:focus-visible{background:#dfefec;border-color:#3b8b81}button[aria-pressed=true]{background:#246e65;color:white}select{width:100%}.buttons{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0}details{margin-top:9px;border-top:1px solid #d6e3e2;padding-top:7px}summary{cursor:pointer;font-weight:600}.patient{display:grid;grid-template-columns:1fr auto auto;gap:5px;align-items:center;margin:5px 0}.patient span{font-size:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.6 ui-monospace,monospace;margin:6px 0}#review-errors{color:#a52830}#review-status{font-weight:600}#review-view{padding:6px 0;color:#216d62}.compat-hud{display:none!important}.capture .review-panel{visibility:hidden;pointer-events:none}
+    @media(max-width:650px){.review-panel{max-height:46vh;font-size:12px}h1{font-size:14px}button{padding:5px 7px}}
+  </style>
+  <!-- This test entry point deliberately omits config.js, collect.js, api.js and ui.js. -->
+  <script src="test/graphics-review.js?v=20260907-2"></script>
+  <script defer src="vendor/three-lib.js"></script>
+  <script defer src="render.js?v=20260907-2"></script>
+  <script defer src="exams.js"></script>
+  <script defer src="patients1.js"></script>
+  <script defer src="patients2.js"></script>
+  <script defer src="patients3.js"></script>
+  <script defer src="game.js"></script>
+  <script defer src="humans.js?v=20260907-1"></script>
+  <script defer src="rooms/kit.js?v=20260907-1"></script>
+  <script defer src="rooms/layout.js"></script>
+  <script defer src="rooms/manual.js"></script>
+  <script defer src="rooms/electro.js"></script>
+  <script defer src="rooms/exercise.js"></script>
+  <script defer src="rooms/hydro.js"></script>
+</head>
+<body>
+  <div id="canvas-wrap"></div>
+  <div class="compat-hud" id="hud-hint"></div>
+  <div class="compat-hud" id="hud-prompt"></div>
+  <div class="compat-hud" id="hud-perf"></div>
+  <aside class="review-panel" aria-label="그래픽 검증 도구">
+    <h1>물리치료실 · 그래픽 검증</h1>
+    <p class="muted">로컬 검증 전용 · 성적 저장 및 AI 통신 없음<br>화면 클릭 / WASD 이동 · ESC 잠금 해제 · H 검증 UI 표시/숨김</p>
+    <p id="review-status" role="status">3D 소스를 불러오는 중…</p>
+    <label for="review-quality">화질 선택 (변경 시 새로 불러오기)</label>
+    <select id="review-quality"><option value="low">low · 낮음</option><option value="medium">medium · 보통</option><option value="high">high · 높음</option><option value="auto">auto · 자동</option></select>
+    <div class="buttons"><button id="review-hide">캡처: UI 숨김 (H로 복원)</button><button id="review-refresh">측정 새로 시작</button></div>
+    <div id="review-view" aria-live="polite">현재 시점: 입구</div>
+    <pre id="review-metrics" aria-label="최근 프레임 그래픽 계측">첫 프레임 대기 중…</pre>
+    <details open><summary>구역 / 장비 / 접수 직원</summary><div class="buttons" id="review-zones"></div></details>
+    <details><summary id="review-patients-title">환자 가까이 보기</summary><div id="review-patients"></div></details>
+    <details><summary id="review-staff-title">스태프 가까이 보기</summary><div class="buttons" id="review-staff"></div></details>
+    <details><summary>모델 / 장면 검사</summary><pre id="review-assets"></pre></details>
+    <details open><summary id="review-error-title">오류 / 경고 0</summary><pre id="review-errors">없음</pre></details>
+  </aside>
+</body>
+</html>
