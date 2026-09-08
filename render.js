@@ -38,20 +38,20 @@ const RENDER = {
 RENDER.PRESETS = {
   low: {
     pixelRatio: 1, shadow: 1024,
-    ceilingCount: 0, ceilingIntensity: 1.15,
-    hemi: 0.20, sun: 1.08, envIntensity: 0.48,
+    ceilingCount: 0, ceilingIntensity: 1.25,
+    hemi: 0.32, sun: 1.16, envIntensity: 0.62,
     post: false, aniso: 4, reflect: 0,
   },
   medium: {
     pixelRatio: 1, shadow: 1536,
-    ceilingCount: 2, ceilingIntensity: 1.10,
-    hemi: 0.20, sun: 1.08, envIntensity: 0.48,
+    ceilingCount: 2, ceilingIntensity: 1.30,
+    hemi: 0.34, sun: 1.16, envIntensity: 0.64,
     post: false, aniso: 8, reflect: 0,
   },
   high: {
     pixelRatio: 1.25, shadow: 2048,
-    ceilingCount: 3, ceilingIntensity: 1.10,
-    hemi: 0.20, sun: 1.08, envIntensity: 0.48,
+    ceilingCount: 3, ceilingIntensity: 1.35,
+    hemi: 0.36, sun: 1.18, envIntensity: 0.66,
     // 평면 반사(Reflector)는 장면을 통째로 한 번 더 그린다. 바닥에까지 쓰면
     // 그리는 양이 두 배가 된다 — 운동재활실 벽거울 하나에만 허용한다.
     post: 'bloom', aniso: 16, reflect: 0.9,
@@ -108,11 +108,11 @@ RENDER.createRenderer = function (container) {
   // 직접광을 줄이고 환경광으로 옮긴 뒤로는 예전 노출(0.72)이면 방 전체가
   // 어둡게 가라앉는다. 광원이 점점이 박혀 있지 않으니 노출을 올려도
   // 예전처럼 특정 지점만 하얗게 타지 않는다.
-  renderer.toneMappingExposure = 0.88;
+  renderer.toneMappingExposure = 1.02;
   // A small display-grade color correction restores the local contrast that
   // gets flattened by the bright clinical environment map. It is effectively
   // free compared with another WebGL post-processing pass.
-  renderer.domElement.style.filter = 'contrast(1.075) saturate(1.06)';
+  renderer.domElement.style.filter = 'contrast(1.04) saturate(1.035)';
   container.appendChild(renderer.domElement);
   RENDER.maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy(), q.aniso);
   return renderer;
