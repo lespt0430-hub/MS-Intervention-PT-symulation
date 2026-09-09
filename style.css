@@ -471,25 +471,39 @@ html, body {
 }
 .rx-ref { font-weight: normal; font-size: 12.5px; color: var(--ink-2); margin-top: 5px; line-height: 1.65; }
 /* 항목마다 가로선으로 끊어 어디까지가 한 묶음인지 한눈에 보이게 한다 */
-.rx-field { padding: 12px 0; border-top: 1px solid var(--line-2); }
-.rx-field:first-of-type { border-top: none; padding-top: 0; }
+.rx-field { padding: 18px 0; border-top: 1px solid var(--line-2); }
+.rx-field:first-of-type { border-top: none; padding-top: 2px; }
 .rx-field-head {
-  font-size: 13px; font-weight: bold; color: var(--navy); margin-bottom: 7px;
+  font-size: 13.5px; font-weight: bold; color: var(--navy); margin-bottom: 11px;
 }
 .rx-hint { display: block; font-weight: normal; font-size: 12px; color: var(--muted); margin-top: 3px; }
 /* 선택지를 옆으로 흘리면 길이가 제각각이라 줄이 어긋나 지저분해진다.
-   한 줄에 하나씩 놓아 위아래로 훑으며 고르게 한다. */
-.rx-opts { display: flex; flex-direction: column; gap: 4px; }
+   한 줄에 하나씩, 사이를 충분히 벌려 위아래로 훑으며 고르게 한다. */
+.rx-opts { display: flex; flex-direction: column; gap: 9px; }
 .rx-opt {
-  display: flex; align-items: center; gap: 9px; background: #fff;
+  display: flex; align-items: center; gap: 13px; background: #fff;
   border: 1px solid var(--line); border-radius: var(--r);
-  padding: 9px 13px; font-size: 13px; cursor: pointer; line-height: 1.5;
+  padding: 12px 16px; font-size: 13.5px; cursor: pointer; line-height: 1.5;
 }
 .rx-opt:hover { border-color: var(--blue); background: #fafcfe; }
-.rx-opt.on { border-color: var(--blue); background: var(--blue-l); }
+.rx-opt.on { border-color: var(--blue); background: var(--blue-l); box-shadow: inset 0 0 0 1px var(--blue); }
 .rx-opt.on .rx-opt-label { font-weight: bold; }
-.rx-opt input { flex: none; accent-color: var(--blue); }
 .rx-opt-label { flex: 1; }
+
+/* 기본 라디오는 작고 테두리가 얇아 어디를 골랐는지 한눈에 안 들어온다.
+   직접 그려서 크고 두껍게 만든다. */
+.rx-opt input {
+  flex: none; appearance: none; -webkit-appearance: none; margin: 0;
+  width: 19px; height: 19px; border: 2.5px solid #9fb0bd; border-radius: 50%;
+  background: #fff; cursor: pointer; position: relative;
+}
+.rx-opt:hover input { border-color: var(--blue); }
+.rx-opt input:checked { border-color: var(--blue); border-width: 3px; }
+.rx-opt input:checked::after {
+  content: ''; position: absolute; inset: 3px;
+  border-radius: 50%; background: var(--blue);
+}
+.rx-opt input:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 /* 부연 설명은 오른쪽 끝에 붙여 선택지 본문과 눈으로 구분되게 한다 */
 .rx-opt-note {
   flex: none; max-width: 45%; text-align: right;
@@ -497,7 +511,7 @@ html, body {
 }
 @media (max-width: 700px) {
   .rx-opt { align-items: flex-start; flex-wrap: wrap; }
-  .rx-opt-note { max-width: none; text-align: left; width: 100%; padding-left: 24px; }
+  .rx-opt-note { max-width: none; text-align: left; width: 100%; padding-left: 32px; }
 }
 .rx-card-foot { text-align: right; }
 .rx-clear {
