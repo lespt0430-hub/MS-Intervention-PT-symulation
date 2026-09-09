@@ -396,7 +396,7 @@ html, body {
 }
 
 /* 진단·치료 */
-#dx-list, #tx-list { overflow-y: auto; }
+#dx-list, #tx-list, #rx-list { overflow-y: auto; }
 .dx-opt, .tx-opt {
   display: block; background: #fff; border: 1px solid var(--line); border-radius: var(--r);
   padding: 13px 16px; margin: 8px 0; font-size: 14.5px; cursor: pointer;
@@ -407,6 +407,98 @@ html, body {
 }
 .dx-opt input, .tx-opt input { margin-right: 9px; transform: scale(1.15); accent-color: var(--blue); }
 .pane-desc { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+
+/* 진단 탭 — 진단명 / 단계 / 자극성 세 묶음 */
+.dx-section { margin-bottom: 20px; }
+.dx-section h4 {
+  font-size: 13.5px; color: var(--navy); margin-bottom: 8px;
+  padding-bottom: 5px; border-bottom: 2px solid var(--line-2);
+}
+.dx-note { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-bottom: 8px; }
+/* 감별진단이 14개라 한 줄씩 놓으면 단계·자극성이 화면 밖으로 밀린다 */
+.dx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dx-grid .dx-opt { margin: 0; padding: 10px 13px; font-size: 13.5px; line-height: 1.45; }
+@media (max-width: 780px) { .dx-grid { grid-template-columns: 1fr; } }
+.dx-inline { display: flex; flex-wrap: wrap; gap: 8px; }
+.dx-chip {
+  background: #fff; border: 1px solid var(--line); border-radius: 999px;
+  padding: 9px 16px; font-size: 13.5px; cursor: pointer;
+}
+.dx-chip:hover { border-color: var(--blue); }
+.dx-chip:has(input:checked) { border-color: var(--blue); background: var(--blue-l); font-weight: bold; }
+.dx-chip input { margin-right: 7px; accent-color: var(--blue); }
+
+/* ⑤ 중재 처방 */
+.tab-badge {
+  display: inline-block; min-width: 17px; height: 17px; line-height: 17px; margin-left: 6px;
+  border-radius: 9px; font-size: 11px; font-weight: bold; text-align: center; padding: 0 4px;
+}
+.tab-badge.warn { background: var(--amber); color: #fff; }
+.rx-empty {
+  padding: 34px 20px; text-align: center; color: var(--muted); font-size: 13.5px; line-height: 1.8;
+  background: var(--bg-2); border-radius: var(--r);
+}
+.rx-summary {
+  font-size: 13px; font-weight: bold; color: var(--ink-2);
+  background: var(--bg-2); border-radius: var(--r); padding: 9px 13px; margin-bottom: 4px;
+}
+.rx-card {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r);
+  padding: 0; margin: 9px 0;
+}
+.rx-card.complete { border-color: var(--green); }
+.rx-card > summary {
+  display: flex; align-items: center; gap: 9px; padding: 12px 15px;
+  font-size: 14px; font-weight: normal; color: var(--ink);
+}
+.rx-cat {
+  flex: none; font-size: 11px; font-weight: bold; color: var(--navy);
+  background: var(--bg-2); border-radius: 3px; padding: 3px 7px;
+}
+.rx-tx-name { flex: 1; font-weight: bold; color: var(--navy-d); line-height: 1.45; }
+.rx-progress {
+  flex: none; font-size: 12px; font-weight: bold; color: var(--muted);
+  background: var(--line-2); border-radius: 999px; padding: 3px 9px;
+}
+.rx-card.complete .rx-progress { background: var(--green); color: #fff; }
+.rx-body { padding: 0 15px 14px; }
+.rx-proto {
+  font-size: 13px; font-weight: bold; color: var(--navy); background: var(--bg-2);
+  border-radius: var(--r); padding: 10px 13px; margin-bottom: 12px;
+}
+.rx-ref { font-weight: normal; font-size: 12.5px; color: var(--ink-2); margin-top: 5px; line-height: 1.65; }
+.rx-field { margin-bottom: 13px; }
+.rx-field-head { font-size: 13px; font-weight: bold; color: var(--ink-2); margin-bottom: 6px; }
+.rx-hint { display: block; font-weight: normal; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.rx-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.rx-opt {
+  display: flex; align-items: baseline; gap: 6px; background: #fff;
+  border: 1px solid var(--line); border-radius: var(--r);
+  padding: 8px 12px; font-size: 13px; cursor: pointer; line-height: 1.5;
+}
+.rx-opt:hover { border-color: var(--blue); }
+.rx-opt.on { border-color: var(--blue); background: var(--blue-l); font-weight: bold; }
+.rx-opt input { accent-color: var(--blue); }
+.rx-opt-note { font-size: 11.5px; font-weight: normal; color: var(--muted); }
+.rx-card-foot { text-align: right; }
+.rx-clear {
+  background: none; border: 1px solid var(--line); border-radius: var(--r);
+  padding: 5px 11px; font-size: 12px; color: var(--muted); cursor: pointer;
+}
+.rx-clear:hover { border-color: var(--red); color: var(--red); }
+
+/* 처방 결과 */
+.rx-result {
+  border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--r);
+  padding: 11px 14px; margin: 10px 0;
+}
+.rx-result.good { border-left-color: var(--green); }
+.rx-result.mid { border-left-color: var(--amber); }
+.rx-result.bad { border-left-color: var(--red); }
+.rx-result.unscored { border-left-color: var(--line-2); opacity: .78; }
+.rx-result-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13.5px; }
+.rx-result-score { flex: none; font-size: 12.5px; font-weight: bold; color: var(--ink-2); }
+.rx-result-proto { font-size: 12px; color: var(--muted); margin-top: 3px; }
 
 /* 제출 */
 .cm-footer {
@@ -449,8 +541,10 @@ details p { font-size: 13.5px; margin: 7px 0; line-height: 1.65; }
 .tx-table th, .tx-table td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
 .tx-table th { background: var(--bg-2); color: var(--navy); }
 .tx-table tr.ok td { background: #eef8f2; }
+.tx-table tr.warn td { background: #fcf6e4; }
 .tx-table tr.miss td { background: #fdf6e9; }
 .tx-table tr.bad-pick td { background: #fdeeef; }
+.tx-table td i { color: var(--muted); }
 .cpg-ref { font-size: 12px; color: var(--muted); font-style: italic; }
 .result-actions { padding-top: 14px; text-align: center; }
 .btn-primary {

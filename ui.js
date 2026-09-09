@@ -6,7 +6,10 @@ const UI = {
   apiChat: [], // API 전송용 (user부터 시작)
   performed: [], // 시행한 검사 id
   selDx: null,
+  selStage: null,
+  selIrr: null,
   selTx: [],
+  selRx: {},
   busy: false,
 };
 
@@ -627,7 +630,10 @@ UI.openConsult = function (patient) {
   UI.apiChat = [];
   UI.performed = [];
   UI.selDx = null;
+  UI.selStage = null;
+  UI.selIrr = null;
   UI.selTx = [];
+  UI.selRx = {};
   UI.renderChat();
   UI.renderExams();
   UI.renderDx();
@@ -715,14 +721,44 @@ UI.doExam = function (id) {
 };
 
 // ── ③ 진단 ──
+// 진단명 하나만 고르는 게 아니라 단계와 자극성까지 판정하게 한다.
+// 같은 진단이라도 단계·자극성이 다르면 CPG 권고 중재와 용량이 달라지기
+// 때문이고, 이 판정이 그대로 ⑤ 처방의 근거가 된다.
+UI.STAGES = [
+  { v: 'acute', label: '급성 (6주 미만)' },
+  { v: 'subacute', label: '아급성 (6~12주)' },
+  { v: 'chronic', label: '만성 (12주 초과 · 재발성)' },
+];
+UI.IRRITABILITY = [
+  { v: 'high', label: '높음 — 안정 시·야간 통증, 가벼운 활동에도 유발되고 오래 간다' },
+  { v: 'moderate', label: '중간 — 중등도 활동에서 유발되고 몇 분 안에 가라앉는다' },
+  { v: 'low', label: '낮음 — 강한 활동에서만 나타나고 곧바로 가라앉는다' },
+];
+
 UI.renderDx = function () {
   const wrap = document.getElementById('dx-list');
-  wrap.innerHTML = UI.cur.diagnosisOptions.map((d) =>
-    '<label class="dx-opt"><input type="radio" name="dx" value="' + d.id + '"> ' + d.name + '</label>'
+  const radios = (name, opts, cls) => opts.map((o) =>
+    '<label class="' + cls + '"><input type="radio" name="' + name + '" value="' + o.v + '"> ' + o.label + '</label>'
   ).join('');
-  wrap.querySelectorAll('input').forEach((r) => {
-    r.addEventListener('change', () => { UI.selDx = r.value; });
-  });
+
+  wrap.innerHTML =
+    '<div class="dx-section"><h4>1) 감별진단 — 가장 가능성 높은 진단 하나 (' +
+    UI.cur.diagnosisOptions.length + '개 중 택 1)</h4><div class="dx-grid">' +
+    UI.cur.diagnosisOptions.map((d) =>
+      '<label class="dx-opt"><input type="radio" name="dx" value="' + d.id + '"> ' + d.name + '</label>'
+    ).join('') + '</div></div>' +
+    '<div class="dx-section"><h4>2) 단계 — 발병 후 경과</h4>' +
+    '<div class="dx-inline">' + radios('stage', UI.STAGES, 'dx-chip') + '</div></div>' +
+    '<div class="dx-section"><h4>3) 자극성 (irritability) — 조직이 자극에 얼마나 예민한가</h4>' +
+    '<div class="dx-note">치료 강도를 정하는 기준입니다. 자극성이 높으면 낮은 등급의 가동술과 통증 없는 범위의 운동으로, 낮으면 끝범위·고부하로 갑니다.</div>' +
+    radios('irr', UI.IRRITABILITY, 'dx-opt') + '</div>';
+
+  wrap.querySelectorAll('input[name="dx"]').forEach((r) =>
+    r.addEventListener('change', () => { UI.selDx = r.value; }));
+  wrap.querySelectorAll('input[name="stage"]').forEach((r) =>
+    r.addEventListener('change', () => { UI.selStage = r.value; }));
+  wrap.querySelectorAll('input[name="irr"]').forEach((r) =>
+    r.addEventListener('change', () => { UI.selIrr = r.value; }));
 };
 
 // ── ④ 치료계획 ──
@@ -734,15 +770,147 @@ UI.renderTx = function () {
   wrap.querySelectorAll('input').forEach((c) => {
     c.addEventListener('change', () => {
       UI.selTx = [...wrap.querySelectorAll('input:checked')].map((x) => x.value);
+      UI.renderRx();   // 고른 중재가 바뀌면 처방 화면도 따라간다
     });
   });
+  UI.renderRx();
+};
+
+// ── ⑤ 중재 처방 ──
+// ④에서 고른 중재마다 실제 적용 조건(강도·시간·횟수·표적)을 정하게 한다.
+// 선택은 UI.selRx[중재id][항목id] = 값 으로 모인다.
+UI.renderRx = function () {
+  const wrap = document.getElementById('rx-list');
+  if (!wrap || !UI.cur) return;
+  const p = UI.cur;
+  const chosen = p.treatments.filter((t) => UI.selTx.includes(t.id));
+
+  if (!chosen.length) {
+    wrap.innerHTML = '<div class="rx-empty">④ 치료계획에서 중재를 먼저 선택하세요.<br>' +
+      '선택한 중재가 여기에 하나씩 카드로 나타나고, 카드마다 적용 조건을 정하게 됩니다.</div>';
+    UI.updateRxBadge();
+    return;
+  }
+
+  // 카드를 전부 펼쳐 두면 스크롤이 수천 픽셀이 된다.
+  // 아직 안 끝난 것 중 첫 번째만 열고 나머지는 접어 둔다.
+  const firstOpen = chosen.find((t) => {
+    const cur = UI.selRx[t.id] || {};
+    return RX.spec(p, t).fields.some((f) => cur[f.id] == null);
+  });
+  const totalFields = chosen.reduce((s, t) => s + RX.spec(p, t).fields.length, 0);
+  const doneFields = chosen.reduce((s, t) => {
+    const cur = UI.selRx[t.id] || {};
+    return s + RX.spec(p, t).fields.filter((f) => cur[f.id] != null).length;
+  }, 0);
+
+  wrap.innerHTML = '<div class="rx-summary">처방 ' + chosen.length + '건 · 항목 ' +
+    doneFields + '/' + totalFields + ' 작성' +
+    (firstOpen ? '' : ' — <b class="ok">모두 완료</b>') + '</div>' +
+    chosen.map((t) => {
+    const spec = RX.spec(p, t);
+    const cur = UI.selRx[t.id] || {};
+    const fields = spec.fields.map((f) => {
+      const opts = f.opts.map((o) => {
+        const on = cur[f.id] === o.v;
+        return '<label class="rx-opt' + (on ? ' on' : '') + '">' +
+          '<input type="radio" name="rx-' + t.id + '-' + f.id + '" value="' + o.v + '"' + (on ? ' checked' : '') + '>' +
+          '<span class="rx-opt-label">' + o.label + '</span>' +
+          (o.note ? '<span class="rx-opt-note">' + o.note + '</span>' : '') + '</label>';
+      }).join('');
+      return '<div class="rx-field" data-tx="' + t.id + '" data-field="' + f.id + '">' +
+        '<div class="rx-field-head">' + f.label +
+        (f.hint ? '<span class="rx-hint">' + f.hint + '</span>' : '') + '</div>' +
+        '<div class="rx-opts">' + opts + '</div></div>';
+    }).join('');
+
+    const total = spec.fields.length;
+    const done = spec.fields.filter((f) => cur[f.id] != null).length;
+    return '<details class="rx-card' + (done === total ? ' complete' : '') + '"' +
+      (firstOpen && firstOpen.id === t.id ? ' open' : '') + '>' +
+      '<summary><span class="rx-cat">' + spec.cat + '</span>' +
+      '<span class="rx-tx-name">' + t.name + '</span>' +
+      '<span class="rx-progress">' + done + '/' + total + '</span></summary>' +
+      '<div class="rx-body"><div class="rx-proto">' + spec.name +
+      (spec.ref ? '<div class="rx-ref">' + spec.ref + '</div>' : '') + '</div>' +
+      fields +
+      '<div class="rx-card-foot"><button type="button" class="rx-clear" data-tx="' + t.id + '">이 처방 초기화</button></div>' +
+      '</div></details>';
+  }).join('');
+
+  wrap.querySelectorAll('.rx-field input').forEach((r) => {
+    r.addEventListener('change', () => {
+      const fld = r.closest('.rx-field');
+      const txId = fld.dataset.tx;
+      if (!UI.selRx[txId]) UI.selRx[txId] = {};
+      UI.selRx[txId][fld.dataset.field] = r.value;
+      fld.querySelectorAll('.rx-opt').forEach((l) => l.classList.toggle('on', l.contains(r)));
+      UI.refreshRxProgress(txId);
+      UI.updateRxBadge();
+    });
+  });
+  wrap.querySelectorAll('.rx-clear').forEach((b) => {
+    b.addEventListener('click', () => { delete UI.selRx[b.dataset.tx]; UI.renderRx(); });
+  });
+  UI.updateRxBadge();
+};
+
+// 카드를 다시 그리지 않고 진행 표시만 갱신한다 (열어 둔 카드가 닫히지 않도록)
+UI.refreshRxProgress = function (txId) {
+  const t = UI.cur.treatments.find((x) => x.id === txId);
+  if (!t) return;
+  const spec = RX.spec(UI.cur, t);
+  const cur = UI.selRx[txId] || {};
+  const done = spec.fields.filter((f) => cur[f.id] != null).length;
+  const card = document.querySelector('.rx-field[data-tx="' + txId + '"]').closest('.rx-card');
+  card.querySelector('.rx-progress').textContent = done + '/' + spec.fields.length;
+  card.classList.toggle('complete', done === spec.fields.length);
+
+  // 위쪽 요약 줄도 같이 갱신한다 (카드를 다시 그리지 않으므로 직접 고친다)
+  const sum = document.querySelector('.rx-summary');
+  if (!sum) return;
+  const chosen = UI.cur.treatments.filter((x) => UI.selTx.includes(x.id));
+  let tot = 0, got = 0;
+  chosen.forEach((x) => {
+    const sp = RX.spec(UI.cur, x); const c = UI.selRx[x.id] || {};
+    tot += sp.fields.length;
+    got += sp.fields.filter((f) => c[f.id] != null).length;
+  });
+  sum.innerHTML = '처방 ' + chosen.length + '건 · 항목 ' + got + '/' + tot + ' 작성' +
+    (got === tot ? ' — <b class="ok">모두 완료</b>' : '');
+};
+
+// 미완성 처방 개수 = 탭 배지
+UI.rxIncomplete = function () {
+  if (!UI.cur) return [];
+  return UI.cur.treatments.filter((t) => UI.selTx.includes(t.id)).filter((t) => {
+    const spec = RX.spec(UI.cur, t);
+    const cur = UI.selRx[t.id] || {};
+    return spec.fields.some((f) => cur[f.id] == null);
+  });
+};
+
+UI.updateRxBadge = function () {
+  const el = document.getElementById('rx-badge');
+  if (!el) return;
+  const n = UI.rxIncomplete().length;
+  el.textContent = n ? String(n) : '';
+  el.className = 'tab-badge' + (n ? ' warn' : '');
 };
 
 // ── 채점 ──
 UI.submit = async function () {
   if (!UI.cur || UI.busy) return;
-  if (!UI.selDx) { alert('진단을 선택하세요. (③ 진단 탭)'); UI.showTab('dx'); return; }
+  if (!UI.selDx) { alert('진단명을 선택하세요. (③ 진단 탭)'); UI.showTab('dx'); return; }
+  if (!UI.selStage) { alert('단계(급성/아급성/만성)를 판정하세요. (③ 진단 탭)'); UI.showTab('dx'); return; }
+  if (!UI.selIrr) { alert('자극성(irritability)을 판정하세요. (③ 진단 탭)'); UI.showTab('dx'); return; }
   if (UI.selTx.length === 0) { alert('치료계획을 1개 이상 선택하세요. (④ 치료계획 탭)'); UI.showTab('tx'); return; }
+  const incomplete = UI.rxIncomplete();
+  if (incomplete.length) {
+    if (!confirm('처방이 끝나지 않은 중재가 ' + incomplete.length + '개 있습니다.\n\n' +
+      incomplete.map((t) => '· ' + t.name).join('\n') +
+      '\n\n비워 둔 항목은 0점으로 처리됩니다. 이대로 제출할까요?')) { UI.showTab('rx'); return; }
+  }
   if (UI.apiChat.length < 2) {
     if (!confirm('문진 대화가 거의 없습니다. 이대로 제출할까요? (문진 점수가 낮아집니다)')) return;
   }
@@ -776,12 +944,17 @@ UI.submit = async function () {
     ? (UI.performed.filter((id) => relevant.has(id)).length / UI.performed.length) * 2 : 0;
   const examScore = round1(base + eff);
 
-  // 3) 진단 채점
-  let dxScore = 0;
-  if (UI.selDx === p.correctDx) dxScore = 10;
-  else if (p.partialDx.includes(UI.selDx)) dxScore = 5;
+  // 3) 진단 채점 — 진단명 7점 + 단계 1.5점 + 자극성 1.5점
+  let dxNameScore = 0;
+  if (UI.selDx === p.correctDx) dxNameScore = 7;
+  else if (p.partialDx.includes(UI.selDx)) dxNameScore = 3.5;
+  const gradePick = (pick, right, partial) =>
+    pick === right ? 1.5 : ((partial || []).includes(pick) ? 0.75 : 0);
+  const stageScore = gradePick(UI.selStage, p.correctStage, p.partialStage);
+  const irrScore = gradePick(UI.selIrr, p.correctIrritability, p.partialIrritability);
+  const dxScore = round1(dxNameScore + stageScore + irrScore);
 
-  // 4) 치료 채점
+  // 4) 치료 채점 — 무엇을 할지
   const recTx = p.treatments.filter((t) => t.recommended);
   const gradeW = { A: 3, B: 2, C: 1 };
   const maxW = recTx.reduce((s, t) => s + (gradeW[t.grade] || 1), 0);
@@ -789,12 +962,35 @@ UI.submit = async function () {
   const badCount = p.treatments.filter((t) => !t.recommended && UI.selTx.includes(t.id)).length;
   const txScore = round1(Math.max(0, Math.min(10, (earned / maxW) * 10 - badCount * 2)));
 
+  // 5) 처방 채점 — 어떻게 할지
+  // 고른 중재 중 "권고 중재이면서 정답 용량이 정의된 것"만 채점한다.
+  // 비권고 중재를 고른 벌점은 ④에서 이미 매겨졌으므로 여기서 또 깎지 않는다.
+  const rxDetail = [];
+  p.treatments.forEach((t) => {
+    if (!UI.selTx.includes(t.id)) return;
+    const spec = RX.spec(p, t);
+    const chosenRx = UI.selRx[t.id] || {};
+    const acc = t.recommended ? RX.scoreOne(spec, chosenRx) : null;
+    rxDetail.push({
+      txId: t.id, txName: t.name, proto: spec.proto, protoName: spec.name,
+      recommended: !!t.recommended, accuracy: acc, chosen: Object.assign({}, chosenRx),
+    });
+  });
+  const graded = rxDetail.filter((d) => d.accuracy != null);
+  const rxScore = graded.length
+    ? round1((graded.reduce((s, d) => s + d.accuracy, 0) / graded.length) * 10) : 0;
+
   const record = {
     done: true, when: new Date().toISOString(),
     chat: UI.chat, performed: UI.performed.slice(),
-    dx: UI.selDx, tx: UI.selTx.slice(),
+    dx: UI.selDx, stage: UI.selStage, irritability: UI.selIrr,
+    tx: UI.selTx.slice(), rx: JSON.parse(JSON.stringify(UI.selRx)), rxDetail,
     histItems,
-    scores: { hist: histScore, exam: examScore, dx: dxScore, tx: txScore, total: round1(histScore + examScore + dxScore + txScore) },
+    scores: {
+      hist: histScore, exam: examScore, dx: dxScore, tx: txScore, rx: rxScore,
+      dxName: dxNameScore, dxStage: stageScore, dxIrr: irrScore,
+      total: round1(histScore + examScore + dxScore + txScore + rxScore),
+    },
   };
   UI.state.records[p.id] = record;
   UI.save();
@@ -830,7 +1026,9 @@ function bar(score, max) {
 
 UI.renderResult = function (r) {
   const p = UI.cur;
-  const s = r.scores;
+  // ⑤ 처방 단계가 생기기 전에 저장된 기록도 열 수 있어야 한다.
+  // 그 시절 기록에는 rx·stage·irritability 가 아예 없으므로 0으로 채운다.
+  const s = Object.assign({ rx: 0, dxName: r.scores.dx, dxStage: 0, dxIrr: 0 }, r.scores);
   const missedExams = p.requiredExams.filter((id) => !r.performed.includes(id));
   const relevant = new Set([...p.requiredExams, ...p.relatedExams]);
   const unnecessary = r.performed.filter((id) => !relevant.has(id));
@@ -839,12 +1037,13 @@ UI.renderResult = function (r) {
   const gradeLabel = { A: 'A(강력 권고)', B: 'B(권고)', C: 'C(약한 근거)', X: '비권고/부적절' };
 
   let html = '<div class="result-head"><h3>진료 결과 리포트 — ' + p.name + '</h3>' +
-    '<div class="total-score">' + s.total + ' <small>/ 40점</small></div></div>';
+    '<div class="total-score">' + s.total + ' <small>/ 50점</small></div></div>';
 
   html += '<div class="score-row"><span class="score-label">① 문진</span>' + bar(s.hist, 10) + '</div>';
   html += '<div class="score-row"><span class="score-label">② 이학적 검사</span>' + bar(s.exam, 10) + '</div>';
   html += '<div class="score-row"><span class="score-label">③ 진단</span>' + bar(s.dx, 10) + '</div>';
   html += '<div class="score-row"><span class="score-label">④ 치료계획</span>' + bar(s.tx, 10) + '</div>';
+  html += '<div class="score-row"><span class="score-label">⑤ 중재 처방</span>' + bar(s.rx == null ? 0 : s.rx, 10) + '</div>';
 
   // 문진 상세
   html += '<details open><summary>① 문진 상세 — 핵심 항목 ' + r.histItems.filter((i) => i.elicited).length + '/' + r.histItems.length + ' 유도</summary><ul>';
@@ -865,11 +1064,21 @@ UI.renderResult = function (r) {
   }
   html += '</details>';
 
-  // 진단 상세
-  html += '<details open><summary>③ 진단 해설</summary>';
-  html += '<p>선택한 진단: <b class="' + (s.dx === 10 ? 'ok' : s.dx === 5 ? 'warn' : 'miss') + '">' + (dxChosen ? dxChosen.name : '-') + '</b></p>';
-  if (s.dx < 10) html += '<p>정답: <b class="ok">' + dxCorrect.name + '</b></p>';
-  html += '<p class="explain">' + p.dxExplanation + '</p></details>';
+  // 진단 상세 — 진단명 · 단계 · 자극성
+  const labelOf = (list, v) => { const o = list.find((x) => x.v === v); return o ? o.label : '(미선택)'; };
+  const verdict = (got, full) => got === full ? 'ok' : got > 0 ? 'warn' : 'miss';
+  html += '<details open><summary>③ 진단 해설 — ' + s.dx + '/10 ' +
+    '(진단명 ' + s.dxName + '/7 · 단계 ' + s.dxStage + '/1.5 · 자극성 ' + s.dxIrr + '/1.5)</summary>';
+  html += '<p>선택한 진단: <b class="' + verdict(s.dxName, 7) + '">' + (dxChosen ? dxChosen.name : '-') + '</b></p>';
+  if (s.dxName < 7) html += '<p>정답: <b class="ok">' + dxCorrect.name + '</b></p>';
+  html += '<p class="explain">' + p.dxExplanation + '</p>';
+
+  html += '<table class="tx-table"><tr><th>판정 항목</th><th>내가 고른 것</th><th>정답</th><th>해설</th></tr>' +
+    '<tr class="' + verdict(s.dxStage, 1.5) + '"><td>단계</td><td>' + labelOf(UI.STAGES, r.stage) + '</td>' +
+    '<td>' + labelOf(UI.STAGES, p.correctStage) + '</td><td>' + p.stageNote + '</td></tr>' +
+    '<tr class="' + verdict(s.dxIrr, 1.5) + '"><td>자극성</td><td>' + labelOf(UI.IRRITABILITY, r.irritability) + '</td>' +
+    '<td>' + labelOf(UI.IRRITABILITY, p.correctIrritability) + '</td><td>' + p.irritabilityNote + '</td></tr>' +
+    '</table></details>';
 
   // 치료 상세
   html += '<details open><summary>④ 치료계획 상세 (CPG 권고등급 기준)</summary><table class="tx-table"><tr><th>중재</th><th>등급</th><th>선택</th><th>비고</th></tr>';
@@ -880,6 +1089,41 @@ UI.renderResult = function (r) {
       (sel ? '✔' : '—') + '</td><td>' + t.note + '</td></tr>';
   });
   html += '</table><p class="cpg-ref">근거: ' + p.cpgRef + '</p></details>';
+
+  // 처방 상세 — 항목별로 내가 고른 값과 CPG 권장 용량을 나란히 놓는다
+  const detail = r.rxDetail || [];
+  const gradedRx = detail.filter((d) => d.accuracy != null);
+  html += '<details open><summary>⑤ 중재 처방 상세 — ' + (s.rx == null ? 0 : s.rx) + '/10' +
+    (gradedRx.length ? ' (채점 대상 ' + gradedRx.length + '건)' : '') + '</summary>';
+  if (!detail.length) {
+    html += '<p class="miss">처방한 중재가 없습니다.</p>';
+  } else {
+    detail.forEach((d) => {
+      const t = p.treatments.find((x) => x.id === d.txId);
+      if (!t) return;
+      const spec = RX.spec(p, t);
+      const pct = d.accuracy == null ? null : Math.round(d.accuracy * 100);
+      html += '<div class="rx-result' + (d.accuracy == null ? ' unscored' : pct >= 80 ? ' good' : pct >= 50 ? ' mid' : ' bad') + '">' +
+        '<div class="rx-result-head"><b>' + t.name + '</b>' +
+        '<span class="rx-result-score">' + (pct == null ? '채점 제외 (이 환자에게 권고되지 않는 중재)' : '처방 정확도 ' + pct + '%') + '</span></div>' +
+        '<div class="rx-result-proto">' + spec.name + '</div>';
+      html += '<table class="tx-table"><tr><th>항목</th><th>내 처방</th><th>CPG 권장</th></tr>';
+      spec.fields.forEach((f) => {
+        const mine = (d.chosen || {})[f.id];
+        const hasKey = spec.best[f.id] != null;
+        const cls = !hasKey ? '' : RX.scoreField(spec, f.id, mine) === 1 ? 'ok'
+          : RX.scoreField(spec, f.id, mine) === 0.5 ? 'warn' : 'miss';
+        const bestV = hasKey ? (Array.isArray(spec.best[f.id]) ? spec.best[f.id][0] : spec.best[f.id]) : null;
+        html += '<tr class="' + cls + '"><td>' + f.label + '</td>' +
+          '<td>' + (mine ? RX.label(spec, f.id, mine) : '<i>미선택</i>') + '</td>' +
+          '<td>' + (hasKey ? RX.label(spec, f.id, bestV) : '—') + '</td></tr>';
+      });
+      html += '</table>';
+      if (spec.tip) html += '<p class="explain">' + spec.tip + '</p>';
+      html += '</div>';
+    });
+  }
+  html += '</details>';
 
   document.getElementById('pane-result').innerHTML =
     '<div class="result-scroll">' + html + '</div>' +
@@ -893,18 +1137,19 @@ UI.showFinal = function () {
   let total = 0;
   let rows = PATIENTS.map((p, i) => {
     const r = UI.state.records[p.id];
-    const s = r ? r.scores : { hist: '-', exam: '-', dx: '-', tx: '-', total: 0 };
+    const s = r ? r.scores : { hist: '-', exam: '-', dx: '-', tx: '-', rx: '-', total: 0 };
     total += r ? s.total : 0;
     return '<tr><td>' + (i + 1) + '</td><td>' + p.name + '</td><td>' + p.cpgRef.split(':')[0] + '</td>' +
-      '<td>' + s.hist + '</td><td>' + s.exam + '</td><td>' + s.dx + '</td><td>' + s.tx + '</td><td><b>' + s.total + '</b></td></tr>';
+      '<td>' + s.hist + '</td><td>' + s.exam + '</td><td>' + s.dx + '</td><td>' + s.tx + '</td>' +
+      '<td>' + (s.rx == null ? '-' : s.rx) + '</td><td><b>' + s.total + '</b></td></tr>';
   }).join('');
   const avg = round1(total / PATIENTS.length);
-  const grade = avg >= 36 ? 'A' : avg >= 32 ? 'B' : avg >= 28 ? 'C' : avg >= 24 ? 'D' : 'F';
+  const grade = avg >= 45 ? 'A' : avg >= 40 ? 'B' : avg >= 35 ? 'C' : avg >= 30 ? 'D' : 'F';
   document.getElementById('final-body').innerHTML =
     '<h2>종합 성적표</h2><p class="final-student">' + UI.studentLabel() + ' · ' + new Date().toLocaleDateString('ko-KR') + '</p>' +
-    '<table class="final-table"><tr><th>베드</th><th>환자</th><th>질환(CPG)</th><th>문진</th><th>검사</th><th>진단</th><th>치료</th><th>총점/40</th></tr>' +
+    '<table class="final-table"><tr><th>베드</th><th>환자</th><th>질환(CPG)</th><th>문진</th><th>검사</th><th>진단</th><th>치료</th><th>처방</th><th>총점/50</th></tr>' +
     rows + '</table>' +
-    '<div class="final-total">평균 <b>' + avg + '</b> / 40점 — 등급 <b class="final-grade">' + grade + '</b></div>' +
+    '<div class="final-total">평균 <b>' + avg + '</b> / 50점 — 등급 <b class="final-grade">' + grade + '</b></div>' +
     '<div class="result-actions">' +
     '<button class="btn-primary" onclick="UI.downloadReport()">결과 다운로드 (.txt)</button> ' +
     '<button class="btn-secondary" onclick="window.print()">인쇄</button> ' +
@@ -922,13 +1167,19 @@ UI.downloadReport = function () {
     const s = r.scores;
     total += s.total;
     txt += '\n[베드 ' + (i + 1) + '] ' + p.name + ' — ' + p.cpgRef + '\n';
-    txt += '  문진 ' + s.hist + '/10, 검사 ' + s.exam + '/10, 진단 ' + s.dx + '/10, 치료 ' + s.tx + '/10 → 총점 ' + s.total + '/40\n';
+    txt += '  문진 ' + s.hist + '/10, 검사 ' + s.exam + '/10, 진단 ' + s.dx + '/10, 치료 ' + s.tx + '/10, 처방 ' +
+      (s.rx == null ? 0 : s.rx) + '/10 → 총점 ' + s.total + '/50\n';
     const missed = r.histItems.filter((h) => !h.elicited).map((h) => h.label);
     if (missed.length) txt += '  · 놓친 문진: ' + missed.join(' / ') + '\n';
     const missedEx = p.requiredExams.filter((id) => !r.performed.includes(id)).map((id) => findExam(p.region, id).name);
     if (missedEx.length) txt += '  · 놓친 필수검사: ' + missedEx.join(' / ') + '\n';
+    if (r.stage !== p.correctStage) txt += '  · 단계 판정 오답 (정답: ' + p.correctStage + ')\n';
+    if (r.irritability !== p.correctIrritability) txt += '  · 자극성 판정 오답 (정답: ' + p.correctIrritability + ')\n';
+    (r.rxDetail || []).filter((d) => d.accuracy != null && d.accuracy < 0.8).forEach((d) => {
+      txt += '  · 처방 용량 미흡: ' + d.txName + ' (' + Math.round(d.accuracy * 100) + '%)\n';
+    });
   });
-  txt += '\n' + '='.repeat(60) + '\n평균: ' + round1(total / PATIENTS.length) + ' / 40\n';
+  txt += '\n' + '='.repeat(60) + '\n평균: ' + round1(total / PATIENTS.length) + ' / 50\n';
   const blob = new Blob(['﻿' + txt], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

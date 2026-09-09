@@ -209,7 +209,8 @@
       ① <b>WASD</b>로 이동, <b>마우스</b>로 둘러보기 → 환자에게 다가가 <b>E</b>키로 진료 시작<br>
       &nbsp;&nbsp;&nbsp;휴대폰·태블릿은 <b>화면을 밀어</b> 둘러보고, <b>왼쪽 아래</b> 버튼으로 이동,
       <b>오른쪽 아래</b> 버튼으로 시점·진료를 조작합니다<br>
-      ② <b>문진</b>(자유 대화) → <b>이학적 검사</b> 선택 → <b>진단</b> → <b>치료계획</b> 수립 → 채점<br>
+      ② <b>문진</b>(자유 대화) → <b>이학적 검사</b> → <b>진단</b>(진단명·단계·자극성) →
+      <b>치료계획</b>(무엇을 할지) → <b>중재 처방</b>(강도·시간·횟수까지) → 채점<br>
       ③ 19명 모두 진료하면 종합 성적표가 열립니다
     </div>
   </div>
@@ -227,6 +228,7 @@
       <button class="cm-tab" data-tab="exam">② 이학적 검사</button>
       <button class="cm-tab" data-tab="dx">③ 진단</button>
       <button class="cm-tab" data-tab="tx">④ 치료계획</button>
+      <button class="cm-tab" data-tab="rx">⑤ 중재 처방<span id="rx-badge" class="tab-badge"></span></button>
       <button class="cm-tab" data-tab="result" style="display:none">📋 결과</button>
     </div>
     <div class="cm-body">
@@ -242,12 +244,17 @@
         <div id="exam-log"></div>
       </div>
       <div class="cm-pane" id="pane-dx">
-        <div class="pane-desc">문진과 검사 결과를 종합하여 가장 가능성 높은 진단을 선택하세요.</div>
+        <div class="pane-desc">문진과 검사 결과를 종합해 <b>진단명 · 단계 · 자극성</b> 세 가지를 모두 판정하세요.
+          단계와 자극성이 ⑤ 중재 처방의 강도를 결정합니다.</div>
         <div id="dx-list"></div>
       </div>
       <div class="cm-pane" id="pane-tx">
-        <div class="pane-desc">이 환자에게 적용할 중재를 모두 선택하세요. (CPG 권고 여부가 채점에 반영됩니다)</div>
+        <div class="pane-desc">이 환자에게 적용할 중재를 모두 선택하세요. 선택한 중재는 <b>⑤ 중재 처방</b>에서 용량까지 정합니다. (CPG 권고 여부가 채점에 반영됩니다)</div>
         <div id="tx-list"></div>
+      </div>
+      <div class="cm-pane" id="pane-rx">
+        <div class="pane-desc">④에서 고른 중재마다 <b>실제 적용 조건</b>을 정하세요. 강도·시간·횟수·표적 부위까지 정해야 처방이 됩니다.</div>
+        <div id="rx-list"></div>
       </div>
       <div class="cm-pane" id="pane-result"></div>
     </div>
@@ -269,9 +276,12 @@
 <script src="render.js?v=20260908-2"></script>
 <script src="collect.js"></script>
 <script src="exams.js"></script>
-<script src="patients1.js"></script>
-<script src="patients2.js"></script>
-<script src="patients3.js"></script>
+<!-- 중재 처방 — 원형 라이브러리가 먼저 오고(RX 정의), 환자별 정답표가 뒤에 온다 -->
+<script src="rx-library.js?v=20260909-1"></script>
+<script src="rx-plans.js?v=20260909-1"></script>
+<script src="patients1.js?v=20260909-1"></script>
+<script src="patients2.js?v=20260909-1"></script>
+<script src="patients3.js?v=20260909-1"></script>
 <script src="api.js"></script>
 <script src="game.js"></script>
 <script src="humans.js?v=20260908-1"></script>

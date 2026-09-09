@@ -73,6 +73,10 @@ COLLECT.buildRow = function (patient, record, who) {
     return t ? t.name : id;
   });
   const missed = (patient.requiredExams || []).filter((id) => !(record.performed || []).includes(id));
+  // 처방 정확도 — 채점 대상(권고 중재)만 평균 낸다
+  const rxGraded = (record.rxDetail || []).filter((d) => d.accuracy != null);
+  const rxAvg = rxGraded.length
+    ? Math.round((rxGraded.reduce((a, d) => a + d.accuracy, 0) / rxGraded.length) * 100) : '';
   return {
     submittedAt: record.when || new Date().toISOString(),
     // 분반은 학생이 입력한 값을 우선한다. 비어 있을 때만 config.js 값을 쓴다.
@@ -83,9 +87,13 @@ COLLECT.buildRow = function (patient, record, who) {
     patientId: patient.id,
     patientName: patient.name,
     condition: patient.chiefComplaint || '',
-    histScore: s.hist, examScore: s.exam, dxScore: s.dx, txScore: s.tx, total: s.total,
+    histScore: s.hist, examScore: s.exam, dxScore: s.dx, txScore: s.tx, rxScore: s.rx, total: s.total,
     dxChosen: dxOpt ? dxOpt.name : (record.dx || ''),
     dxCorrect: record.dx === patient.correctDx ? 'O' : 'X',
+    stageCorrect: record.stage ? (record.stage === patient.correctStage ? 'O' : 'X') : '',
+    irrCorrect: record.irritability ? (record.irritability === patient.correctIrritability ? 'O' : 'X') : '',
+    rxAccuracy: rxAvg,
+    rxCount: rxGraded.length,
     txChosen: txNames.join(' / '),
     examCount: (record.performed || []).length,
     examMissed: missed.length,
@@ -286,8 +294,13 @@ COLLECT.HEADER = [
   { key: 'examScore', label: '검사(10)' },
   { key: 'dxScore', label: '진단(10)' },
   { key: 'txScore', label: '치료(10)' },
-  { key: 'total', label: '총점(40)' },
+  { key: 'rxScore', label: '처방(10)' },
+  { key: 'total', label: '총점(50)' },
   { key: 'dxCorrect', label: '진단정답' },
+  { key: 'stageCorrect', label: '단계정답' },
+  { key: 'irrCorrect', label: '자극성정답' },
+  { key: 'rxAccuracy', label: '처방정확도(%)' },
+  { key: 'rxCount', label: '채점처방수' },
   { key: 'dxChosen', label: '선택한 진단' },
   { key: 'txChosen', label: '선택한 치료' },
   { key: 'examCount', label: '시행검사수' },

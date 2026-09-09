@@ -130,8 +130,10 @@ function aiProbe_(provider, key) {
     'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=' + encodeURIComponent(key),
     { muteHttpExceptions: true });
 }
-var HEADER = ['제출시각', '분반', '학번', '이름', '환자번호', '환자명', '주호소', '문진(10)', '검사(10)', '진단(10)', '치료(10)', '총점(40)', '진단정답', '선택한 진단', '선택한 치료', '시행검사수', '누락필수검사', '문진질문수', 'PC식별자'];
-var KEYS = ['submittedAt', 'className', 'studentId', 'student', 'patientId', 'patientName', 'condition', 'histScore', 'examScore', 'dxScore', 'txScore', 'total', 'dxCorrect', 'dxChosen', 'txChosen', 'examCount', 'examMissed', 'chatTurns', 'clientId'];
+// 열 구성을 바꾸면 sheet_() 가 기존 시트를 "_이전_날짜"로 보관하고 새 시트를 만든다.
+// 예전 학기 자료는 그대로 남으니 안심하고 고쳐도 된다.
+var HEADER = ['제출시각', '분반', '학번', '이름', '환자번호', '환자명', '주호소', '문진(10)', '검사(10)', '진단(10)', '치료(10)', '처방(10)', '총점(50)', '진단정답', '단계정답', '자극성정답', '처방정확도(%)', '채점처방수', '선택한 진단', '선택한 치료', '시행검사수', '누락필수검사', '문진질문수', 'PC식별자'];
+var KEYS = ['submittedAt', 'className', 'studentId', 'student', 'patientId', 'patientName', 'condition', 'histScore', 'examScore', 'dxScore', 'txScore', 'rxScore', 'total', 'dxCorrect', 'stageCorrect', 'irrCorrect', 'rxAccuracy', 'rxCount', 'dxChosen', 'txChosen', 'examCount', 'examMissed', 'chatTurns', 'clientId'];
 function sheet_() {
   // SHEET_ID 를 적었으면 그 시트를, 안 적었으면 이 스크립트가 붙어 있는 시트를 쓴다.
   var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
@@ -181,8 +183,10 @@ function doPost(e) {
           r.submittedAt || new Date().toISOString(), r.className || '',
           r.studentId || '', r.student || '',
           r.patientId || '', r.patientName || '', r.condition || '',
-          num_(r.histScore), num_(r.examScore), num_(r.dxScore), num_(r.txScore), num_(r.total),
-          r.dxCorrect || '', r.dxChosen || '', r.txChosen || '',
+          num_(r.histScore), num_(r.examScore), num_(r.dxScore), num_(r.txScore), num_(r.rxScore), num_(r.total),
+          r.dxCorrect || '', r.stageCorrect || '', r.irrCorrect || '',
+          num_(r.rxAccuracy), num_(r.rxCount),
+          r.dxChosen || '', r.txChosen || '',
           num_(r.examCount), num_(r.examMissed), num_(r.chatTurns), r.clientId || ''
         ]);
       } finally {
