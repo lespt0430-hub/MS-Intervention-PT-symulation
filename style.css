@@ -396,7 +396,10 @@ html, body {
 }
 
 /* 진단·치료 */
-#dx-list, #tx-list, #rx-list { overflow-y: auto; }
+/* 부모(.cm-pane)가 overflow:hidden 이므로 flex:1 과 min-height:0 을 함께 줘야
+   목록이 남는 높이만 차지하고 넘치는 만큼 스크롤된다. flex:1 만 있으면
+   내용 길이가 최소 높이가 되어 버려 잘린 채 스크롤바가 생기지 않는다. */
+#dx-list, #tx-list, #rx-list { flex: 1; min-height: 0; overflow-y: auto; padding-right: 6px; }
 .dx-opt, .tx-opt {
   display: block; background: #fff; border: 1px solid var(--line); border-radius: var(--r);
   padding: 13px 16px; margin: 8px 0; font-size: 14.5px; cursor: pointer;
@@ -467,19 +470,35 @@ html, body {
   border-radius: var(--r); padding: 10px 13px; margin-bottom: 12px;
 }
 .rx-ref { font-weight: normal; font-size: 12.5px; color: var(--ink-2); margin-top: 5px; line-height: 1.65; }
-.rx-field { margin-bottom: 13px; }
-.rx-field-head { font-size: 13px; font-weight: bold; color: var(--ink-2); margin-bottom: 6px; }
-.rx-hint { display: block; font-weight: normal; font-size: 12px; color: var(--muted); margin-top: 2px; }
-.rx-opts { display: flex; flex-wrap: wrap; gap: 6px; }
-.rx-opt {
-  display: flex; align-items: baseline; gap: 6px; background: #fff;
-  border: 1px solid var(--line); border-radius: var(--r);
-  padding: 8px 12px; font-size: 13px; cursor: pointer; line-height: 1.5;
+/* 항목마다 가로선으로 끊어 어디까지가 한 묶음인지 한눈에 보이게 한다 */
+.rx-field { padding: 12px 0; border-top: 1px solid var(--line-2); }
+.rx-field:first-of-type { border-top: none; padding-top: 0; }
+.rx-field-head {
+  font-size: 13px; font-weight: bold; color: var(--navy); margin-bottom: 7px;
 }
-.rx-opt:hover { border-color: var(--blue); }
-.rx-opt.on { border-color: var(--blue); background: var(--blue-l); font-weight: bold; }
-.rx-opt input { accent-color: var(--blue); }
-.rx-opt-note { font-size: 11.5px; font-weight: normal; color: var(--muted); }
+.rx-hint { display: block; font-weight: normal; font-size: 12px; color: var(--muted); margin-top: 3px; }
+/* 선택지를 옆으로 흘리면 길이가 제각각이라 줄이 어긋나 지저분해진다.
+   한 줄에 하나씩 놓아 위아래로 훑으며 고르게 한다. */
+.rx-opts { display: flex; flex-direction: column; gap: 4px; }
+.rx-opt {
+  display: flex; align-items: center; gap: 9px; background: #fff;
+  border: 1px solid var(--line); border-radius: var(--r);
+  padding: 9px 13px; font-size: 13px; cursor: pointer; line-height: 1.5;
+}
+.rx-opt:hover { border-color: var(--blue); background: #fafcfe; }
+.rx-opt.on { border-color: var(--blue); background: var(--blue-l); }
+.rx-opt.on .rx-opt-label { font-weight: bold; }
+.rx-opt input { flex: none; accent-color: var(--blue); }
+.rx-opt-label { flex: 1; }
+/* 부연 설명은 오른쪽 끝에 붙여 선택지 본문과 눈으로 구분되게 한다 */
+.rx-opt-note {
+  flex: none; max-width: 45%; text-align: right;
+  font-size: 11.5px; font-weight: normal; color: var(--muted);
+}
+@media (max-width: 700px) {
+  .rx-opt { align-items: flex-start; flex-wrap: wrap; }
+  .rx-opt-note { max-width: none; text-align: left; width: 100%; padding-left: 24px; }
+}
 .rx-card-foot { text-align: right; }
 .rx-clear {
   background: none; border: 1px solid var(--line); border-radius: var(--r);

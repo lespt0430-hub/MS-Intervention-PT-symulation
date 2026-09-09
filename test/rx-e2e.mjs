@@ -102,7 +102,15 @@ ok(await ev(`typeof UI==='object' && Array.isArray(PATIENTS) && typeof RX==='obj
 ok(await ev(`PATIENTS.length===19 && PATIENTS.every(p=>p.correctStage&&p.correctIrritability)`),
   '환자 19명 모두 단계·자극성 정답을 가지고 있다');
 ok(await ev(`PATIENTS.every(p=>p.diagnosisOptions.length>=12)`), '환자마다 감별진단이 12개 이상이다');
-ok(await ev(`Object.keys(RX.plans).length===131`), '정답 용량표 131건이 실려 있다');
+// 권고 중재에는 빠짐없이 정답 용량이 있어야 한다 (개수를 박아 두면 중재를 늘릴 때마다 깨진다)
+const noPlan = await ev(`PATIENTS.flatMap(p=>p.treatments.filter(t=>t.recommended && !RX.plans[p.id+':'+t.id]).map(t=>p.id+':'+t.id)).join(', ')`);
+ok(noPlan === '', '권고 중재 전부에 정답 용량이 있다' + (noPlan ? ' — 빠진 것: ' + noPlan : ''));
+// 라이브러리에 정의만 해 두고 아무 환자도 쓰지 않는 원형이 남아 있으면 알린다
+const unusedProtos = await ev(`(()=>{
+  const used=new Set(); PATIENTS.forEach(p=>p.treatments.forEach(t=>used.add(RX.spec(p,t).proto)));
+  return Object.keys(RX.protos).filter(x=>!used.has(x)).join(', ');
+})()`);
+ok(unusedProtos === '', '모든 중재 원형이 실제 환자에게 연결돼 있다' + (unusedProtos ? ' — 미사용: ' + unusedProtos : ''));
 ok(await ev(`Object.keys(RX.protos).length >= 35`), '중재 원형이 35종 이상 실려 있다');
 
 // ── 진료 시작 (1번 환자) ──────────────────────────────────
@@ -139,12 +147,50 @@ await ev(`(()=>{
 })()`);
 await sleep(500);
 const nRec = await ev(`UI.selTx.length`);
-ok(nRec === 6, '권고 중재 ' + nRec + '건을 선택했다');
+ok(nRec === await ev(`UI.cur.treatments.filter(t=>t.recommended).length`),
+  '권고 중재 ' + nRec + '건을 모두 선택했다');
 await ev(`UI.showTab('rx')`);
 await sleep(400);
 ok(await ev(`document.querySelectorAll('#rx-list .rx-card').length`) === nRec, '처방 카드가 선택한 중재 수만큼 생성된다');
 ok(await ev(`document.getElementById('rx-badge').textContent`) === String(nRec), '탭 배지가 미완성 처방 수를 보여 준다');
 await shot('처방탭-빈상태');
+
+// 선택지가 한 줄에 하나씩 놓이는지 (가로로 흘리면 줄이 어긋나 지저분하다)
+const perRow = await ev(`(()=>{
+  const opts=[...document.querySelectorAll('#rx-list .rx-opts')][0].children;
+  const tops=new Set([...opts].map(o=>Math.round(o.getBoundingClientRect().top)));
+  return tops.size===opts.length;
+})()`);
+ok(perRow, '선택지가 한 줄에 하나씩 놓인다');
+
+// 카드를 다 펼쳤을 때 잘리지 않고 스크롤로 내려갈 수 있는지
+const scrollable = await ev(`(()=>{
+  const l=document.getElementById('rx-list');
+  document.querySelectorAll('#rx-list .rx-card').forEach(c=>c.open=true);
+  const clipped = l.scrollHeight > l.clientHeight;
+  l.scrollTop = l.scrollHeight;
+  const moved = l.scrollTop > 0;
+  const inside = l.getBoundingClientRect().bottom <= document.querySelector('.cm-body').getBoundingClientRect().bottom + 1;
+  l.scrollTop = 0;
+  return JSON.stringify({clipped, moved, inside});
+})()`);
+const sc = JSON.parse(scrollable);
+ok(sc.clipped && sc.moved, '카드를 모두 펼쳐도 스크롤로 끝까지 내려간다');
+ok(sc.inside, '목록이 진료창 밖으로 넘쳐 잘리지 않는다');
+
+// 진단 탭도 같은 구조라 함께 확인한다 (감별진단 14개 + 단계 + 자극성)
+await ev(`UI.showTab('dx')`);
+await sleep(300);
+const dxScroll = await ev(`(()=>{
+  const l=document.getElementById('dx-list');
+  l.scrollTop = l.scrollHeight;
+  const r = l.scrollTop > 0 || l.scrollHeight <= l.clientHeight;
+  const irrVisible = !!document.querySelector('#dx-list input[name="irr"]');
+  l.scrollTop = 0; return JSON.stringify({r, irrVisible});
+})()`);
+ok(JSON.parse(dxScroll).r && JSON.parse(dxScroll).irrVisible, '진단 탭도 자극성 항목까지 스크롤로 닿는다');
+await ev(`UI.showTab('rx')`);
+await sleep(300);
 
 // 첫 카드에서 실제로 라디오를 클릭해 상태가 잡히는지 확인
 await ev(`(()=>{ const r=document.querySelector('#rx-list .rx-field input'); r.click(); return 1; })()`);

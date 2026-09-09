@@ -614,4 +614,63 @@ RX.plans = {
   best: { to: 'ortho', reason: 'decision', timing: 'after_trial', pt_plan: 'continue' },
   ok: { to: ['surgeon'], reason: ['imaging', 'nonresponse'], timing: ['concurrent'] },
   tip: '이형성 확진과 수술 상담은 영상(MRA)이 필요하다. 다만 보존치료를 충분히 해 본 뒤 의뢰하는 것이 순서이며, 의뢰 후에도 운동은 이어 간다.' },
+
+// ══════════════════════════════════════════════════════════════
+// 추가 중재 — 전기치료실·수치료실 장비를 실제로 처방해 보는 항목
+// ══════════════════════════════════════════════════════════════
+
+// p1 김미영 — 근에너지기법 (아급성 목통증, 자극성 중간)
+'p1:t12': { proto: 'met',
+  best: { target: 'upper_trap', contract: 'c20', hold: 'h10', relax: 'new_barrier', reps: 'r3', sched: 'w23' },
+  ok: { target: ['scm', 'deep_ext'], contract: ['c50'], hold: ['h5'], reps: ['r8'], sched: ['daily'] },
+  tip: 'MET은 힘겨루기가 아니다. 최대의 20 % 정도의 가벼운 등척성 수축이면 수축후이완이 충분히 일어나고, 강하게 밀면 오히려 방어수축이 생긴다. 이완된 뒤 새로 생긴 제한점까지 따라 들어가는 것이 이 기법의 핵심이다.' },
+
+// p3 윤정심 — 파라핀욕 (손목터널증후군, 만성)
+'p3:t13': { proto: 'paraffin',
+  best: { method: 'dip_wrap', time: 't15', after: 'rom', sched: 'w23' },
+  ok: { method: ['immersion'], time: ['t10'], sched: ['daily'] },
+  tip: '담갔다 빼기를 반복해 층을 쌓고 감싸 두면 열이 고르게 오래 간다. 열 자체가 치료가 아니라 조직이 늘어나기 쉬운 상태를 만드는 것이므로, 식기 전에 관절가동범위 운동으로 이어 가야 의미가 있다. 감각이 떨어진 부위는 화상 위험을 먼저 확인한다.' },
+
+// p6 최영숙 — 간섭전류치료 (엉덩관절 OA, 만성·중간 자극성)
+'p6:t12': { proto: 'ifc',
+  best: { electrode: 'quad', carrier: 'c4k', amf: 'a80_100', sweep: 'wide', amp: 'strong_sub', time: 't20', sched: 'w23' },
+  ok: { electrode: ['quad_vector', 'bipolar'], carrier: ['c2k'], amf: ['a100_150', 'a20_50'], sweep: ['narrow'], amp: ['sensory'], time: ['t15', 't30'], sched: ['w35'] },
+  tip: '엉덩관절은 연부조직이 두꺼워 저주파가 그대로는 닿지 않는다. 4극을 교차시켜 병변을 교차점에 두고, 중주파 반송파로 피부 저항을 낮춰 심부까지 보낸다. 넓은 스윕은 신경이 자극에 익숙해지는 것(순응)을 막는다. 운동·도수치료와 병행할 때만 권고되며, 수동적 치료만으로 구성한 프로그램은 이 CPG의 명시적 비권고다.' },
+
+// p7 강대호 — 대조욕 (반달연골 아급성 부종)
+'p7:t9': { proto: 'contrast',
+  best: { ratio: 'r3_1', start_end: 'warm_cold', time: 't20', sched: 'daily' },
+  ok: { ratio: ['r4_1', 'r1_1'], time: ['t15', 't30'], sched: ['w35'] },
+  tip: '온 3분 : 냉 1분을 반복해 혈관의 확장–수축을 번갈아 일으킨다. 부종을 줄이는 것이 목적이면 냉으로 끝내야 하고, 운동 전 준비가 목적이면 온으로 끝낸다. 급성기에 쓰는 냉치료 단독과는 시기도 목적도 다르다.' },
+
+// p8 한지수 — 혈류제한 운동 · 도수 림프배출 (ACL 급성)
+'p8:t13': { proto: 'bfr',
+  best: { pressure: 'p80', load: 'l20', volume: 'v30_15', rest: 'r30_on', sched: 'w23' },
+  ok: { pressure: ['p40'], load: ['l50'], volume: ['v3x10'], rest: ['r60_off'], sched: ['w35'] },
+  tip: '하지는 동맥폐색압의 60~80 %로 조인다. 1RM의 20~30 %라는 가벼운 부하로도 근비대가 나오는 것이 BFR을 쓰는 이유이며, 30-15-15-15회에 30초 휴식·커프 유지가 표준 처방이다. 고부하를 견딜 수 있게 되면 일반 근력운동으로 넘어간다.' },
+'p8:t14': { proto: 'massage',
+  best: { technique: 'mld', direction: 'prox_first', time: 't10', sched: 'w23' },
+  ok: { technique: ['effleurage'], direction: ['to_heart'], time: ['t5', 't20'], sched: ['daily'] },
+  tip: '림프배출은 몸쪽 통로를 먼저 비운 뒤 먼쪽으로 내려가야 한다. 막힌 곳을 그대로 두고 먼쪽부터 밀면 갈 데가 없다. 부종은 그 자체로 넙다리네갈래근을 억제하므로, 부종 관리는 근력 회복의 앞 단계다.' },
+
+// p10 오민석 — 체외충격파 (발꿈치힘줄병증 중간부)
+'p10:t13': { proto: 'eswt',
+  best: { type: 'radial', efd: 'low', shots: 's2000', rate: 'r8', locate: 'palpate', sched: 'w1x3', anes: 'none' },
+  ok: { type: ['focused'], efd: ['mid'], shots: ['s1000', 's3000'], rate: ['r4', 'r15'], locate: ['us_guide'], sched: ['w2x3'] },
+  tip: '힘줄 중간부는 얕고 범위가 넓으므로 방사형이 맞다. 압통점을 눌러 가며 조사 지점을 찾는 것(clinical focusing)이 해부학적 표지만 보는 것보다 정확하고, 그러려면 환자의 통증 반응이 살아 있어야 하므로 국소마취를 하지 않는다. 어디까지나 원심성 부하 프로그램이 중심이고 이것은 얹는 보조다.' },
+
+// p11 임태양 — 대조욕 (급성 발목삠 · 시기가 맞지 않는 함정)
+// best 를 두지 않으므로 채점하지 않는다. 화면은 똑같이 뜬다.
+
+// p12 서혜란 — 체외충격파 (발바닥근막염)
+'p12:t14': { proto: 'eswt',
+  best: { type: 'radial', efd: 'mid', shots: 's2000', rate: 'r8', locate: 'palpate', sched: 'w1x3', anes: 'none' },
+  ok: { type: ['focused'], efd: ['low', 'high'], shots: ['s1000', 's3000'], rate: ['r4', 'r15'], locate: ['us_guide'], sched: ['w2x3'] },
+  tip: '안쪽 발꿈치뼈 결절의 압통점을 찾아 조사한다. 주 1회씩 3~5회가 일반적인 일정이며, 스트레칭·도수치료·보조기·야간부목이라는 A등급 근간을 충분히 시행한 뒤에 얹는 순서를 지켜야 한다.' },
+
+// p17 양준서 — 고전압맥동전류 (MCL 급성 부종)
+'p17:t13': { proto: 'hvpc',
+  best: { polarity: 'neg', freq: 'f120', amp: 'submotor', time: 't30', sched: 'daily' },
+  ok: { polarity: ['alt'], freq: ['f80'], amp: ['motor'], time: ['t20', 't45'], sched: ['w23', 'bid'] },
+  tip: '급성 부종에는 음극(−)을 쓴다. 혈장단백이 같은 음전하를 띠어 서로 밀려 혈관 밖으로 덜 새기 때문이다. 강도는 근수축이 나기 직전(운동 역치의 90 %)이면 충분하고, 부종 억제 효과를 보려면 30분 정도 이어서 건다. 냉치료·압박의 보조일 뿐 조기 체중부하와 가동을 미루는 이유가 되어서는 안 된다.' },
 };

@@ -544,6 +544,7 @@ PATIENTS.push({
     { id: 't5', name: '한랭치료 및 부종 관리 (급성기)', grade: 'C', recommended: true, note: '수상 4일 급성기의 통증·부종 조절 보조. 능동적 중재와 병행하는 조건에서' },
     { id: 't6', name: '단계적 복귀 기준 설정 — 근력 대칭성·한발뛰기 배터리·IKDC 재평가', grade: 'B', recommended: true, note: 'CPG: IKDC·KOOS와 한발뛰기 검사로 대칭성과 복귀 준비도를 추적. "다음 달 행사" 목표를 막연히 승인하지 말고 수치 기준으로 상담' },
     { id: 't7', name: '환자 교육 — 2도 MCL의 양호한 예후, 조기 복귀의 재손상 위험, 단계별 목표', grade: 'B', recommended: true, note: '조바심이 큰 20세 환자 — 예후가 좋다는 사실과 기준 미달 복귀의 위험을 동시에 전달해야 순응도가 확보된다' },
+    { id: 't13', name: '고전압맥동전류(HVPC) — 급성 부종 조절', grade: 'C', recommended: true, note: '수상 4일의 부종에 대해 음극 자극으로 혈장단백 유출을 억제한다. 냉치료·압박과 함께 쓰는 보조이며, 조기 체중부하와 가동을 미루는 이유가 되어서는 안 된다.' },
     { id: 't8', name: '무릎 완전 고정 (원통형 석고·장하지 부목) 4주', grade: 'X', recommended: false, note: 'CPG는 조기 가동을 권고 — 완전 고정은 관절 구축·넙다리네갈래근(사두근) 위축·인대 치유 지연을 초래' },
     { id: 't9', name: '즉시 수술적 봉합 의뢰', grade: 'X', recommended: false, note: '2도 MCL은 보존적 치료로 예후가 좋다. 수술은 3도 중 뒤안쪽 구조 동반 손상이나 만성 불안정에 한정' },
     { id: 't10', name: '급성기 외반 스트레스 방향의 도수 신장·가동술 적용', grade: 'X', recommended: false, note: '치유 중인 인대에 손상 방향 부하를 가하는 것 — 이완을 악화시킬 수 있다' },

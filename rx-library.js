@@ -103,7 +103,8 @@ RX.protos.ifc = {
       { v: 't10', label: '10분' }, { v: 't15', label: '15분' }, { v: 't20', label: '20분' }, { v: 't30', label: '30분' },
     ]},
     { id: 'sched', label: '적용 빈도', opts: [
-      { v: 'w1', label: '주 1회' }, { v: 'w23', label: '주 2~3회' }, { v: 'w45', label: '주 4~5회' },
+      { v: 'w1', label: '주 1회' }, { v: 'w23', label: '주 2~3회' },
+      { v: 'w35', label: '주 3~5회' }, { v: 'w45', label: '주 4~5회' },
     ]},
   ],
 };

@@ -121,7 +121,7 @@ python -m http.server 8000
 | `patients3.js` | 가상환자 13~19번 데이터 (같은 CPG의 다른 하위분류) |
 | `exams.js` | 부위별 이학적 검사 라이브러리 |
 | `rx-library.js` | **중재 처방 원형 라이브러리** — 치료기·기법 41종의 파라미터와 선택지, 부위별 표적 근육·분절 풀 |
-| `rx-plans.js` | **환자별 정답 용량표** — 권고 중재 131건의 CPG 근거 용량 |
+| `rx-plans.js` | **환자별 정답 용량표** — 권고 중재 140건의 CPG 근거 용량 |
 | `test/rx.test.js` | 처방 데이터 점검 (`node test/rx.test.js`) |
 | `test/rx-e2e.mjs` | 진료 한 건을 끝까지 자동 진행해 ⑤ 처방·50점 채점 확인 (`node test/rx-e2e.mjs`) |
 | `vendor/three-lib.js` | Three.js r185 + 후처리 애드온 로컬 번들 ([재생성 방법](vendor/README.md)) |
