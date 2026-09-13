@@ -99,8 +99,11 @@ await sleep(6000);
 // const 로 선언한 전역은 window 에 붙지 않으므로 이름으로 직접 확인한다
 ok(await ev(`typeof UI==='object' && Array.isArray(PATIENTS) && typeof RX==='object'`),
   'UI · PATIENTS · RX 가 모두 로드됐다');
-ok(await ev(`PATIENTS.length===19 && PATIENTS.every(p=>p.correctStage&&p.correctIrritability)`),
-  '환자 19명 모두 단계·자극성 정답을 가지고 있다');
+// 인원수를 상수로 박아 두면 환자를 늘릴 때마다 테스트가 먼저 깨진다 —
+// 아래 중재·원형 점검과 같은 규칙으로, 수가 아니라 조건을 본다.
+const nPatients = await ev(`PATIENTS.length`);
+ok(nPatients >= 12 && await ev(`PATIENTS.every(p=>p.correctStage&&p.correctIrritability)`),
+  '환자 ' + nPatients + '명 모두 단계·자극성 정답을 가지고 있다');
 ok(await ev(`PATIENTS.every(p=>p.diagnosisOptions.length>=12)`), '환자마다 감별진단이 12개 이상이다');
 // 권고 중재에는 빠짐없이 정답 용량이 있어야 한다 (개수를 박아 두면 중재를 늘릴 때마다 깨진다)
 const noPlan = await ev(`PATIENTS.flatMap(p=>p.treatments.filter(t=>t.recommended && !RX.plans[p.id+':'+t.id]).map(t=>p.id+':'+t.id)).join(', ')`);

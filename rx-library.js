@@ -1196,6 +1196,7 @@ RX.protos.orthosis = {
       { v: 'neutral', label: '중립 위치' },
       { v: 'functional', label: '기능적 위치 (약간 폄)' },
       { v: 'protective', label: '손상 조직을 짧게 두는 보호 위치' },
+      { v: 'corrective', label: '교정 위치 — 변형을 반대 방향으로 밀어 유지 (측만 브레이스 등)' },
     ]},
     { id: 'wear', label: '착용 시점', opts: [
       { v: 'night', label: '야간 착용' },
@@ -1386,6 +1387,14 @@ RX.pools = {
       { v: 'intrinsic', label: '발 내재근' },
       { v: 'hip_prox', label: '엉덩관절 몸쪽 조절근 (중간볼기근 등)' },
     ],
+    spine: [
+      { v: 'concave', label: '오목(오목쪽) 몸통 근육 — 단축·저활성 (신장 + 재활성)' },
+      { v: 'convex', label: '볼록(볼록쪽) 몸통 근육 — 신장·약화 (교정 방향 수축)' },
+      { v: 'multifidus', label: '분절 안정화근 (뭇갈래근 · 배가로근)' },
+      { v: 'ext', label: '몸통 폄근 지구력 (척주세움근)' },
+      { v: 'scap', label: '어깨가슴 안정화근 (어깨이음뼈 정렬)' },
+      { v: 'hip_glute', label: '엉덩관절 벌림근 · 폄근 (골반 정렬)' },
+    ],
     foot: [
       { v: 'intrinsic', label: '발 내재근 (짧은엄지굽힘근 · 발바닥네모근)' },
       { v: 'tib_post', label: '뒤정강근 (엎침 조절)' },
@@ -1447,6 +1456,13 @@ RX.pools = {
       { v: 'subtalar', label: '목말밑관절 · 중간발목관절' },
       { v: 'toes', label: '발허리발가락관절 (특히 엄지)' },
     ],
+    spine: [
+      { v: 'apex_thoracic', label: '주만곡 정점 등뼈 분절 (오목쪽 뒤-앞 활주)' },
+      { v: 'tl', label: '등허리 이음부 T12-L1' },
+      { v: 'lumbar', label: '허리뼈 분절 (2차 만곡 부위)' },
+      { v: 'ribs', label: '갈비뼈 · 갈비척추관절 (가슴우리 가동성 — 오목쪽 확장)' },
+      { v: 'hip', label: '엉덩관절 (골반 정렬 연관)' },
+    ],
     foot: [
       { v: 'talocrural', label: '목말종아리관절 발등굽힘 가동술' },
       { v: 'subtalar', label: '목말밑관절 · 중간발목관절' },
@@ -1505,6 +1521,13 @@ RX.pools = {
       { v: 'atfl', label: '앞목말종아리인대 주변 · 가쪽 부위' },
       { v: 'plantar', label: '발바닥근막' },
     ],
+    spine: [
+      { v: 'concave_para', label: '오목쪽 척주세움근 · 허리네모근 (단축)' },
+      { v: 'lat_ql', label: '넓은등근 · 몸통 가쪽 근막 (오목쪽 측면)' },
+      { v: 'ham', label: '넙다리뒤근육' },
+      { v: 'iliopsoas', label: '엉덩허리근' },
+      { v: 'pec', label: '큰가슴근 · 작은가슴근 (어깨 앞쪽 단축)' },
+    ],
     foot: [
       { v: 'plantar', label: '발바닥근막 (안쪽 발꿈치뼈 결절 부착부)' },
       { v: 'triceps', label: '장딴지근 · 가자미근' },
@@ -1561,6 +1584,13 @@ RX.pools = {
       { v: 'stairs', label: '계단 · 사다리 작업' },
       { v: 'hike', label: '등산 · 울퉁불퉁한 지면' },
     ],
+    spine: [
+      { v: 'adl_posture', label: '일상 자세에서 자가교정 유지 (앉기 · 서기)' },
+      { v: 'school_sit', label: '장시간 수업 중 앉은 자세' },
+      { v: 'carry', label: '가방 메기 · 물건 들기' },
+      { v: 'sport', label: '체육 · 스포츠 활동 참여' },
+      { v: 'sleep', label: '수면 자세' },
+    ],
     foot: [
       { v: 'stand', label: '장시간 서 있기 · 근무 중 체중 부하' },
       { v: 'first_step', label: '아침 첫 발 딛기 · 앉았다 일어난 직후 보행' },
@@ -1615,6 +1645,13 @@ RX.pools = {
       { v: 'prefab_orthosis', label: '기성 발보조기 (안창)' },
       { v: 'custom_orthosis', label: '맞춤 발보조기' },
       { v: 'night_splint', label: '야간 부목 (발등굽힘 유지)' },
+    ],
+    spine: [
+      { v: 'tlso', label: '경성 흉요천추 보조기 (TLSO — 쉐노형 등 맞춤 브레이스)' },
+      { v: 'soft_brace', label: '연성 보조대 · 자세 교정 밴드' },
+      { v: 'night_brace', label: '야간 전용 과교정 브레이스' },
+      { v: 'shoe_lift', label: '신발 높이 보정 (다리 길이 차)' },
+      { v: 'ergonomic', label: '책·가방·책상 조정 (양쪽 어깨 배낭 등)' },
     ],
     foot: [
       { v: 'prefab_orthosis', label: '기성 발보조기 (안창)' },

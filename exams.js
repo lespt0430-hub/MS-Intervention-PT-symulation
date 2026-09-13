@@ -26,6 +26,20 @@ const EXAM_LIBRARY = {
     { id: 'psfs_c', name: '환자 특정 기능 척도 (PSFS)', cat: '설문' },
     { id: 'vbi', name: '척추기저동맥부전 선별검사', cat: '안전성' },
     { id: 'sharp_purser', name: 'Sharp-Purser 검사 (인대 안정성)', cat: '안전성' },
+    // 가슴문증후군(흉곽출구증후군) 유발검사 — 한 검사만으로는 확진하지 못하고
+    // 병력 + 여러 검사의 조합으로 판단한다 (Adson·Roos 는 민감도는 높고 특이도가 낮다).
+    { id: 'roos', name: 'Roos 검사 (EAST — 팔 올린 스트레스 검사 3분)', cat: '특수검사' },
+    { id: 'adson', name: 'Adson 검사', cat: '특수검사' },
+    { id: 'wright', name: 'Wright 검사 (과다벌림 검사)', cat: '특수검사' },
+    { id: 'costoclav', name: '갈비빗장 압박 검사 (Costoclavicular · 군인자세)', cat: '특수검사' },
+    { id: 'cyriax', name: 'Cyriax release 검사 (어깨이음뼈 들어올림 완화)', cat: '특수검사' },
+    { id: 'first_rib', name: '첫째 갈비뼈 위치·가동성 검사', cat: '촉진' },
+    { id: 'supraclav', name: '빗장위(쇄골상) 부위 압통·Tinel 징후', cat: '촉진' },
+    { id: 'scalene_len', name: '목갈비근·작은가슴근 길이 검사', cat: 'ROM' },
+    { id: 'breath_obs', name: '호흡 양상 관찰 (윗가슴 호흡 · 보조호흡근 사용)', cat: '시진' },
+    { id: 'vasc_ue', name: '팔 혈관 선별 (맥박·색조·온도·좌우 혈압차)', cat: '안전성' },
+    { id: 'w_screen_c', name: '손목·팔꿈치 선별검사 (조임증후군 이중압박 감별)', cat: '선별' },
+    { id: 'qdash_c', name: 'QuickDASH / CBSQ (목·팔 증상 설문)', cat: '설문' },
   ],
   shoulder: [
     { id: 'sh_arom', name: '어깨 능동관절가동범위 (AROM)', cat: 'ROM' },
@@ -40,6 +54,19 @@ const EXAM_LIBRARY = {
     { id: 'sh_glide', name: '오목위팔관절(관절와상완관절) 부속 가동성 검사 (joint play)', cat: '촉진' },
     { id: 'c_screen_sh', name: '목뼈(경추) 선별검사 (연관통 배제)', cat: '선별' },
     { id: 'dash', name: 'DASH/SPADI 설문', cat: '설문' },
+    // 관절오목테두리(관절와순) 상부 병변(SLAP) 검사군 — 단독 검사의 정확도는
+    // 들쭉날쭉해서, 세 가지 이상 묶어 양성일 때 비로소 임상적 의미가 생긴다.
+    { id: 'obrien', name: "O'Brien 능동압박 검사 (Active compression)", cat: '특수검사' },
+    { id: 'crank', name: 'Crank 검사', cat: '특수검사' },
+    { id: 'biceps_load2', name: 'Biceps load Ⅱ 검사', cat: '특수검사' },
+    { id: 'comp_rot', name: '압박-돌림 검사 (Compression-rotation)', cat: '특수검사' },
+    { id: 'relocation', name: '재위치 검사 (Jobe relocation)', cat: '특수검사' },
+    { id: 'gird', name: '어깨 돌림 가동범위 측정 (GIRD · 총 돌림호)', cat: 'ROM' },
+    { id: 'post_cap_len', name: '뒤쪽 관절주머니 긴장도 검사 (수평모음 · 저각도 안쪽돌림)', cat: 'ROM' },
+    { id: 'scap_dysk', name: '어깨뼈(견갑골) 운동이상 관찰 (scapular dyskinesis)', cat: '시진' },
+    { id: 'scap_assist', name: '어깨뼈 보조·후퇴 검사 (SAT / SRT)', cat: '특수검사' },
+    { id: 'kinetic_chain', name: '운동사슬 검사 (한발 스쿼트 · 몸통 회전 · 엉덩관절 돌림)', cat: '기능' },
+    { id: 'kjoc', name: 'KJOC 설문 (던지기 선수 어깨·팔꿈치 점수)', cat: '설문' },
   ],
   lumbar: [
     { id: 'l_arom', name: '허리뼈(요추) 능동관절가동범위 (AROM)', cat: 'ROM' },
@@ -129,6 +156,26 @@ const EXAM_LIBRARY = {
     { id: 'faam', name: '발·발목 기능척도 (FAAM) 설문', cat: '설문' },
     { id: 'visa_a', name: 'VISA-A 설문 (발꿈치힘줄병증(아킬레스건병증) 특이 척도)', cat: '설문' },
     { id: 'cait', name: 'Cumberland 발목 불안정성 도구 (CAIT)', cat: '설문' },
+  ],
+  // 척추 변형(측만증) — 통증이 아니라 '변형의 크기와 진행 위험'을 재는 부위다.
+  // 그래서 ROM·근력보다 몸통 회전각·골성숙도·삶의 질이 앞에 온다.
+  spine: [
+    { id: 'trunk_asym', name: '몸통 비대칭 관찰 (어깨·어깨뼈·허리선·골반 높이)', cat: '시진' },
+    { id: 'plumb_line', name: '추선(plumb line) 검사 — 몸통 이동·시상면 균형', cat: '시진' },
+    { id: 'adams', name: 'Adams 앞으로 굽히기 검사 (전방굴곡검사)', cat: '특수검사' },
+    { id: 'scoliometer', name: '척추측만계 몸통회전각(ATR) 측정', cat: '특수검사' },
+    { id: 'lat_bend', name: '가쪽굽힘 유연성 검사 (만곡의 구조적/기능적 감별)', cat: '특수검사' },
+    { id: 'leg_length', name: '다리 길이·골반 경사 측정', cat: '기본' },
+    { id: 's_arom', name: '몸통 능동관절가동범위·좌우 대칭성', cat: 'ROM' },
+    { id: 's_muscle_len', name: '몸통·다리 근육 길이 검사 (넙다리뒤근육·엉덩허리근)', cat: 'ROM' },
+    { id: 's_endurance', name: '몸통 근지구력 검사 (Sorensen · 옆판 유지)', cat: '근력' },
+    { id: 's_palpation', name: '가시돌기(극돌기)·오목/볼록쪽 몸통 근육 촉진', cat: '촉진' },
+    { id: 's_balance', name: '자세 조절·균형 평가 (한발서기 · 압력중심 이동)', cat: '기능' },
+    { id: 'breath_func', name: '호흡 기능 평가 (가슴우리 확장 · 폐활량)', cat: '기능' },
+    { id: 'cobb', name: '방사선 Cobb각 · Lenke 만곡 분류 확인', cat: '영상' },
+    { id: 'risser', name: '골성숙도 평가 (Risser 징후 · 초경 · 성장 속도)', cat: '영상' },
+    { id: 's_neuro', name: '신경학적 선별 (반사·감각·배반사 — 비특발성 측만 감별)', cat: '신경학적' },
+    { id: 'srs22', name: 'SRS-22r 설문 (측만증 특이 삶의 질)', cat: '설문' },
   ],
   foot: [
     { id: 'f_arom', name: '발목·발가락 관절가동범위 (AROM/PROM)', cat: 'ROM' },

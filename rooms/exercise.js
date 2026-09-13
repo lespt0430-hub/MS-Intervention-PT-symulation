@@ -861,6 +861,31 @@ function buildExercisePatients() {
   // 봉을 따라(−x 쪽) 서게 해서 다가오는 학생을 마주본다.
   exerciseStation(PATIENTS[17], 11.30, -10.10, -Math.PI / 2, 'stand', 0.18);
   KIT.therapist(10.10, -9.30, (3 * Math.PI) / 4, 'handson');
+
+  // p20 척추측만증 — 늑목 앞 초록 매트. 슈로트식 자가교정은 붙잡을 것이
+  // 있어야 골반을 고정한 채 몸통만 펼 수 있어서, 늑목(11.00, 수치료실 벽)
+  // 바로 앞자리가 그대로 훈련 자리가 된다. 매트 두께만큼 띄운다.
+  // 매트 중심이 아니라 바깥쪽(+x)으로 0.45m 물려 세운다. 중심에 세우면 사람의
+  // 통행 금지 영역(±0.75)이 늑목 앞 통로를 덮어, 수치료실 벽 너머 표민아(p19)에게
+  // 닿던 자리가 사라진다 (node test/reach.mjs 가 이것을 잡아 준다).
+  // 치료사도 매트 바깥쪽에 세운다 — 안쪽(−x)에 세우면 파란 매트 p16 의
+  // 치료사와 20cm 거리라 두 사람이 겹쳐 한 덩어리로 보인다.
+  exerciseStation(PATIENTS[19], MAT_GREEN[0] + 0.45, MAT_GREEN[1], Math.PI, 'stand', MAT_H);
+  KIT.therapist(MAT_GREEN[0] + 1.45, MAT_GREEN[1] - 0.55, -1.02, 'handson');
+
+  // p21 가슴문증후군 — 빨간 매트에서 자세 재교육.
+  // 이 환자에게 필요한 것은 기구가 아니라 어깨이음뼈를 위로 받친 자세를
+  // 스스로 유지하는 훈련이라, 매트 한 장과 거울·치료사의 손이면 된다.
+  // 파란 매트(p16)와 1.9m 떨어져 있어 두 사람이 겹쳐 보이지 않는다.
+  exerciseStation(PATIENTS[20], MAT_RED[0], MAT_RED[1], Math.PI, 'stand', MAT_H);
+  KIT.therapist(MAT_RED[0] + 1.00, MAT_RED[1] - 0.60, -1.02, 'handson');
+  KIT.stool(MAT_RED[0] - 1.30, MAT_RED[1] - 0.35);
+
+  // p22 SLAP(투구 어깨) — 케이블 타워 앞. 돌림근띠·어깨가슴 강화를
+  // 저항 케이블로 하는 자리라 기구가 곧 중재를 설명한다.
+  // 타워(4.35, −0.30)를 마주 보게 세운다.
+  exerciseStation(PATIENTS[21], 5.60, -0.30, -Math.PI / 2, 'stand');
+  KIT.therapist(5.60, 0.85, Math.PI, 'handson');
 }
 
 // ── 균형·고유수용성 훈련 구역 ────────────────────────────────

@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 const ctx = vm.createContext({ console, module: {}, window: {} });
-for (const f of ['rx-library.js', 'rx-plans.js', 'patients1.js', 'patients2.js', 'patients3.js']) {
+for (const f of ['rx-library.js', 'rx-plans.js', 'patients1.js', 'patients2.js', 'patients3.js', 'patients4.js']) {
   let src = fs.readFileSync(path.join(ROOT, f), 'utf8');
   // 각 파일이 const 로 선언한 전역을 vm 컨텍스트에 남기려면 var 로 바꾼다
   src = src.replace(/^const (RX|PATIENTS|EXAM_LIBRARY) =/m, 'var $1 =');
