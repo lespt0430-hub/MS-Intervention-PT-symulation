@@ -68,6 +68,13 @@ function buildManualBay(patient, num, cz, side) {
   KIT.nameplate(g, [patient.name + ' (' + patient.sex + ', ' + patient.age + '세)'],
     0, 0.96, 1.34, 0, 0.54);
 
+  // ── 베드 위 천장 현수장치 ──
+  // 도수치료실은 도수기법만 쓰는 방이 아니다. 같은 베드에서 슬링으로
+  // 무게를 덜어 주고(감량 부하) 관절을 움직이는 치료가 이어지므로,
+  // 현수 레일은 베드 위에 있어야 환자를 옮기지 않고 바로 걸 수 있다.
+  // 쓰지 않는 동안이라 로프·슬링은 걷어 올려 정리해 둔 상태다.
+  KIT.slingRig(M.bedX, cz, 0);
+
   // ── 치료사 — 베드 어깨 옆에 서서 손을 얹는다 ──
   KIT.therapist(M.bedX - 0.55, cz + side * 0.80, side > 0 ? Math.PI : 0, 'handson');
   KIT.stool(M.bedX + 0.55, cz + side * 0.95);

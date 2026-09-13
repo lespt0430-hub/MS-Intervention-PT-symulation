@@ -852,6 +852,136 @@ KIT.laserUnit = function (x, z, yaw) {
   return g;
 };
 
+// ── 천장 현수장치 (슬링 시스템) ──────────────────────────────
+// 도수치료실 베드 위에 다는 현수 시스템. 실물(레드코드 워크스테이션 계열)은
+// 천장 레일 두 줄 + 그 위를 미끄러지는 슬라이더 + 거기 매다는 로프·슬링·
+// 탄성밴드로 이루어진다. 레일이 두 줄이어야 몸통 양쪽을 같이 매달 수 있다.
+//
+// 여기서는 '쓰지 않는 동안'의 모습으로 만든다 — 로프는 짧게 감아 클램프로
+// 물려 두고, 슬링은 접어 끈에 걸고, 탄성밴드는 끝단 고리에 감아 건다.
+// 줄을 늘어뜨려 두면 베드 위로 드리워져 누운 환자를 가로막는다. 실제
+// 치료실도 치료가 끝나면 이렇게 걷어 올려 두 줄에 나란히 정리해 둔다.
+//
+// x·z = 베드 중심. yaw=0 이면 레일이 x 방향(베드 길이 방향)으로 뻗는다.
+KIT.slingRig = function (x, z, yaw, opt) {
+  const o = opt || {};
+  const g = new THREE.Group();
+  const ceil = GAME.ROOM.h;
+  // 레일 높이 — 천장등 판(바닥면 3.32m)보다 낮게. 레일 줄은 등판 폭(±0.31)
+  // 바깥으로 벌려야 등을 가리지 않는다.
+  const railY = o.railY === undefined ? 3.12 : o.railY;
+  const half = (o.len || 2.50) / 2;                  // 레일 반길이 (베드보다 조금 길게)
+  const gap = o.gap === undefined ? 0.42 : o.gap;    // 레일 두 줄의 중심 간격(±)
+
+  const alu = KIT.steel(0xd3dade);                                       // 아노다이징 알루미늄
+  const dark = KIT.std(0x30363d, { roughness: 0.44, metalness: 0.18, envMapIntensity: 0.9 });
+  const cord = KIT.std(0x2f353c, { roughness: 0.9 });                    // 로프
+  const web = KIT.std(0x4a545f, { roughness: 0.88 });                    // 웨빙 끈
+  // 패드는 실물이 검정이지만, 밝은 방 천장에 검은 덩어리가 걸리면 그것만
+  // 눈에 남아 방이 좁아 보인다. 한 단계 밝은 회색으로 물린다.
+  const pad = KIT.std(0x59636e, { roughness: 0.86 });                    // 슬링 패드
+  const red = KIT.std(0xb8352c, { roughness: 0.78 });                    // 탄성밴드·슬링 테두리
+
+  // ── 레일 두 줄 ──
+  [-gap, gap].forEach((rz) => {
+    const rail = new THREE.Mesh(KIT.rbox(half * 2, 0.09, 0.075, 0.014), alu);
+    rail.position.set(0, railY, rz);
+    rail.castShadow = true;
+    g.add(rail);
+    // 아래면의 홈 — 슬라이더가 물려 다니는 자리. 이 한 줄이 있어야
+    // 알루미늄 각재가 아니라 레일로 읽힌다.
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(half * 2 - 0.03, 0.022, 0.048), dark);
+    slot.position.set(0, railY - 0.052, rz);
+    g.add(slot);
+  });
+
+  // ── 끝단 가로재 — 두 줄을 묶어 하나의 틀로 만든다 ──
+  [-1, 1].forEach((sx) => {
+    const cross = new THREE.Mesh(KIT.rbox(0.075, 0.075, gap * 2 + 0.075, 0.012), alu);
+    cross.position.set(sx * (half - 0.05), railY, 0);
+    g.add(cross);
+  });
+
+  // ── 천장 행거 4개 ──
+  [-1, 1].forEach((sx) => [-gap, gap].forEach((rz) => {
+    const hx = sx * (half - 0.34);
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, ceil - railY - 0.045, 8), alu);
+    rod.position.set(hx, (ceil + railY + 0.045) / 2, rz);
+    g.add(rod);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.014, 0.13), alu);
+    plate.position.set(hx, ceil - 0.008, rz);
+    g.add(plate);
+  }));
+
+  // ── 슬라이더 ──
+  // 걷어 둔 상태이므로 두 줄에서 같은 자리에 나란히 세워 둔다. 제각각이면
+  // 정리해 둔 것이 아니라 쓰다 만 것으로 보인다. 아래면 높이를 돌려준다.
+  const carriage = (cx, cz) => {
+    const body = new THREE.Mesh(KIT.rbox(0.12, 0.07, 0.085, 0.016), dark);
+    body.position.set(cx, railY - 0.078, cz);
+    g.add(body);
+    const clip = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.055, 6), alu);
+    clip.position.set(cx, railY - 0.128, cz);
+    g.add(clip);
+    return railY - 0.150;
+  };
+
+  // ── 머리쪽 두 자리 — 로프를 짧게 감아 올려 물려 둔다 ──
+  // 자리를 베드 머리끝(-1.03m) 가까이 물린다. 가운데에 두면 누운 환자의
+  // 얼굴 바로 위에 다발이 떠 있어, 걷어 둔 것인데도 답답해 보인다.
+  const ropeX = o.ropeX === undefined ? -0.80 : o.ropeX;
+  [-gap, gap].forEach((rz) => {
+    const y0 = carriage(ropeX, rz);
+    [-0.026, 0.026].forEach((dz) => {
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.10, 6), cord);
+      line.position.set(ropeX, y0 - 0.05, rz + dz);
+      g.add(line);
+    });
+    const clamp = new THREE.Mesh(KIT.rbox(0.05, 0.07, 0.038, 0.01), dark);
+    clamp.position.set(ropeX, y0 - 0.135, rz);
+    g.add(clamp);
+    // 남는 줄은 한 다발로 작게 감아 클램프 아래에 건다. 크게 두면 링처럼
+    // 보여 '걸어 둔 로프'가 아니라 '내려와 있는 손잡이'로 읽힌다.
+    const coil = new THREE.Mesh(new THREE.TorusGeometry(0.048, 0.017, 6, 14), cord);
+    coil.position.set(ropeX, y0 - 0.225, rz);
+    coil.rotation.y = Math.PI / 2;     // 고리 면이 복도 쪽을 본다
+    coil.rotation.z = 0.14;
+    g.add(coil);
+  });
+
+  // ── 발쪽 두 자리 — 슬링(벨트)은 접어서 짧은 끈에 걸어 둔다 ──
+  const slingX = o.slingX === undefined ? 0.62 : o.slingX;
+  [-gap, gap].forEach((rz) => {
+    const y0 = carriage(slingX, rz);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.10, 0.014), web);
+    strap.position.set(slingX, y0 - 0.05, rz);
+    g.add(strap);
+    const roll = new THREE.Mesh(KIT.rbox(0.24, 0.07, 0.09, 0.026), pad);
+    roll.position.set(slingX, y0 - 0.135, rz);
+    roll.castShadow = true;
+    g.add(roll);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.245, 0.016, 0.095), red);
+    trim.position.set(slingX, y0 - 0.105, rz);
+    g.add(trim);
+  });
+
+  // ── 탄성밴드 — 머리쪽 가로재의 고리에 감아 건다 ──
+  // 베드 머리끝(-1.03m)보다 바깥이라 환자 얼굴 위로 오지 않는다.
+  const hookX = -(half - 0.05);
+  const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.08, 6), alu);
+  hook.position.set(hookX, railY - 0.075, 0);
+  g.add(hook);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.019, 6, 14), red);
+  band.position.set(hookX, railY - 0.165, 0);
+  band.rotation.y = Math.PI / 2;
+  g.add(band);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw || 0;
+  GAME.scene.add(g);
+  return g;   // 천장에 매달린 물건이라 바닥 충돌(KIT.solid)은 없다
+};
+
 // ── 소가구 ───────────────────────────────────────────────────
 KIT.stool = function (x, z) {
   const g = new THREE.Group();
