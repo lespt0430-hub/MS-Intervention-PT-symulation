@@ -142,8 +142,8 @@ function buildElectroBay(patient, num, bx, cz, yaw, aisleSide, device) {
     KIT.registerPatient(g, patient, bx, cz, 1.25, 0.95, 1.70);
     // 발치 끝에 낮게 — 높이 두면 누운 환자를 가린다.
     // 표기는 세 치료실 모두 '이름 (성별, 나이)' 한 줄로 통일한다.
-    KIT.nameplate(g, [patient.name + ' (' + patient.sex + ', ' + patient.age + '세)'],
-      0, 0.94, 1.32, 0, 0.54);
+    KIT.nameplate(g, [patient.name, patient.sex + ' · ' + patient.age + '세'],
+      0, 0.94, 1.32, 0, 0.54, { accent: KIT.REGION_COLOR[patient.region] });
   }
 
   // 기기 — 기본은 이동식 전기치료기 카트, 특수치료 베이는 그 자리를 대신 쓴다.

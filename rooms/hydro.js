@@ -307,8 +307,8 @@ function buildTherapyPool(P) {
 
   // 명패 — 수조가 커서 침대처럼 발치에 눕힐 수 없다. 데크 모서리에 세운다.
   const sign = new THREE.Group();
-  KIT.nameplate(sign, [patient.name + ' (' + patient.sex + ', ' + patient.age + '세)'],
-    0, 1.06, 0, 0, 0.62);
+  KIT.nameplate(sign, [patient.name, patient.sex + ' · ' + patient.age + '세'],
+    0, 1.06, 0, 0, 0.62, { accent: KIT.REGION_COLOR[patient.region] });
   const spost = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.96, 8), KIT.steel(0xa8b3ba));
   spost.position.y = 0.48;
   const sbase = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.03, 14),
@@ -586,8 +586,8 @@ function buildGaitPool(G) {
 
   // 명패 — 수조가 커서 침대처럼 발치에 눕힐 수 없다. 창 옆에 스탠드로 세운다.
   const sign = new THREE.Group();
-  KIT.nameplate(sign, [patient.name + ' (' + patient.sex + ', ' + patient.age + '세)'],
-    0, 1.06, 0, 0, 0.62);
+  KIT.nameplate(sign, [patient.name, patient.sex + ' · ' + patient.age + '세'],
+    0, 1.06, 0, 0, 0.62, { accent: KIT.REGION_COLOR[patient.region] });
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.96, 8), KIT.steel(0xa8b3ba));
   post.position.y = 0.48;
   const sbase = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.03, 14), KIT.std(0x8d979e, { roughness: 0.45, metalness: 0.5 }));

@@ -65,8 +65,8 @@ function buildManualBay(patient, num, cz, side) {
 
   // 환자 이름표 — 발치 끝에 낮게. 어느 실인지는 문 앞 사인이 알려주므로
   // 여기에는 이름(성별, 나이)만 적는다.
-  KIT.nameplate(g, [patient.name + ' (' + patient.sex + ', ' + patient.age + '세)'],
-    0, 0.96, 1.34, 0, 0.54);
+  KIT.nameplate(g, [patient.name, patient.sex + ' · ' + patient.age + '세'],
+    0, 0.96, 1.34, 0, 0.54, { accent: KIT.REGION_COLOR[patient.region] });
 
   // ── 베드 위 천장 현수장치 ──
   // 도수치료실은 도수기법만 쓰는 방이 아니다. 같은 베드에서 슬링으로

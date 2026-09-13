@@ -96,7 +96,64 @@ GAME.ZONE = {
   ],
 };
 
+// ── 사인 색·도형 도우미 ──────────────────────────────────────
+// 간판을 단색 사각형으로 칠하면 어느 실에 있든 똑같이 납작해 보인다.
+// 같은 색에서 한두 단계 밝기를 만들어 그라데이션·테두리·그림자를 주면
+// 판 하나도 조명이 닿은 물건으로 읽힌다. 그 계산을 여기 모아 둔다.
+KIT.rgb = function (hex) {
+  const s = String(hex).replace('#', '');
+  const n = parseInt(s.length === 3 ? s.split('').map((c) => c + c).join('') : s, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+};
+// amt > 0 이면 흰쪽으로, < 0 이면 검은쪽으로 섞는다 (−1 ~ 1)
+KIT.shade = function (hex, amt) {
+  const c = KIT.rgb(hex);
+  const mix = (v) => Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt))));
+  return 'rgb(' + mix(c.r) + ',' + mix(c.g) + ',' + mix(c.b) + ')';
+};
+KIT.rgba = function (hex, a) {
+  const c = KIT.rgb(hex);
+  return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a + ')';
+};
+KIT.isDark = function (hex) {
+  const c = KIT.rgb(hex);
+  return (c.r * 299 + c.g * 587 + c.b * 114) / 1000 < 140;
+};
+KIT.roundRect = function (ctx, x, y, w, h, r) {
+  const rad = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad);
+  ctx.arcTo(x + w, y + h, x, y + h, rad);
+  ctx.arcTo(x, y + h, x, y, rad);
+  ctx.arcTo(x, y, x + w, y, rad);
+  ctx.closePath();
+};
+// 실마다 고유색을 준다. 간판·명패의 강조선이 이 색을 쓰면 어느 실에
+// 들어와 있는지 글자를 읽기 전에 색으로 먼저 알게 된다.
+KIT.ACCENT = {
+  manual: '#4bb3a6',     // 도수치료실 — 청록
+  electro: '#5aa9e6',    // 전기치료실 — 하늘
+  exercise: '#7bc86c',   // 운동치료실 — 연두
+  hydro: '#49c6e5',      // 수치료실 — 물빛
+  info: '#e0a83c',       // 안내·주의
+};
+// 부위별 색 — 명패 강조선에 쓴다. 같은 실 안에서도 어느 부위 환자인지
+// 색으로 먼저 구분된다.
+KIT.REGION_COLOR = {
+  cervical: '#6aa9e0', shoulder: '#8e7ae0', wrist: '#4fb9b0',
+  lumbar: '#e08a5a', hip: '#d4699a', knee: '#5fc177',
+  ankle: '#e0b84a', foot: '#c98a5a', spine: '#7f8fe0',
+};
+
+const SIGN_FONT = '"Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif';
+KIT.signFont = (px, weight) => (weight || 700) + ' ' + px + 'px ' + SIGN_FONT;
+
 // ── 캔버스 텍스트 (명패·간판·포스터) ─────────────────────────
+// 첫 줄을 제목으로, 나머지를 본문으로 다룬다. 제목은 크고 굵게, 본문은
+// 작고 흐리게 — 모든 줄을 같은 크기로 찍으면 정보의 층이 사라져서
+// 관공서 안내문처럼 보인다. 그 사이에 강조선을 한 줄 넣는다.
+//
 // fontSize는 "희망 크기"일 뿐이고, 실제로는 판 안에 들어가도록 자동으로 줄인다.
 // 한글은 글자당 폭이 커서 지정 크기 그대로 쓰면 간판 밖으로 삐져나간다 —
 // 정면 간판('광주보건대학교 부속 물리치료실')이 실제로 그랬다.
@@ -105,29 +162,204 @@ function makeTextCanvas(lines, w, h, opts) {
   const cv = document.createElement('canvas');
   cv.width = w; cv.height = h;
   const ctx = cv.getContext('2d');
-  ctx.fillStyle = o.bg || '#ffffff';
-  ctx.fillRect(0, 0, w, h);
-  if (o.border) { ctx.strokeStyle = o.border; ctx.lineWidth = 8; ctx.strokeRect(4, 4, w - 8, h - 8); }
-  ctx.fillStyle = o.color || '#1a2b3c';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-  const font = (px) => 'bold ' + px + 'px "Malgun Gothic", sans-serif';
-  const pad = o.pad === undefined ? Math.round(Math.min(w, h) * 0.09) : o.pad;
+  const bg = o.bg || '#ffffff';
+  const dark = KIT.isDark(bg);
+  const accent = o.accent || o.border || (dark ? '#6fd3e8' : '#2c5f7c');
+  const color = o.color || (dark ? '#f3f7fa' : '#16222c');
+
+  // 바탕 — 위가 살짝 밝고 아래가 어두운 세로 그라데이션.
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, KIT.shade(bg, dark ? 0.17 : 0.05));
+  grad.addColorStop(0.58, bg);
+  grad.addColorStop(1, KIT.shade(bg, dark ? -0.13 : -0.08));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // 안쪽 가는 테두리 — 예전의 8px 굵은 사각 테두리를 대신한다.
+  const inset = Math.round(Math.min(w, h) * 0.05);
+  ctx.strokeStyle = KIT.shade(bg, dark ? 0.30 : -0.20);
+  ctx.lineWidth = Math.max(1.5, Math.min(w, h) * 0.007);
+  KIT.roundRect(ctx, inset, inset, w - inset * 2, h - inset * 2, Math.min(w, h) * 0.09);
+  ctx.stroke();
+
+  const title = lines[0] === undefined ? '' : String(lines[0]);
+  const body = lines.slice(1).map(String);
+  const pad = o.pad === undefined ? Math.round(Math.min(w, h) * 0.14) : o.pad;
   const availW = Math.max(8, w - pad * 2);
   const availH = Math.max(8, h - pad * 2);
+  const bodyRatio = 0.62;
+  const barH = Math.max(2, Math.round(h * 0.020));
+  const barGap = Math.round(h * 0.055);
+  const showBar = o.bar !== false && (body.length > 0 || o.alwaysBar);
+
+  // 제목·본문·강조선이 모두 들어가는 최대 글자 크기를 찾는다.
   let fs = o.fontSize || 40;
+  const blockH = (size) => size * 1.16
+    + (showBar ? barGap + barH : 0)
+    + (body.length ? barGap * 0.75 + body.length * size * bodyRatio * 1.34 : 0);
+  const blockW = (size) => {
+    ctx.font = KIT.signFont(Math.round(size), 800);
+    let widest = ctx.measureText(title).width || 0;
+    ctx.font = KIT.signFont(Math.round(size * bodyRatio), 600);
+    body.forEach((b) => { widest = Math.max(widest, ctx.measureText(b).width || 0); });
+    return widest;
+  };
+  while (fs > 9 && (blockW(fs) > availW || blockH(fs) > availH)) fs -= 1;
+  fs = Math.max(9, Math.round(fs));
 
-  ctx.font = font(fs);
-  let widest = 0;
-  lines.forEach((ln) => { widest = Math.max(widest, ctx.measureText(ln).width || 0); });
-  if (widest > availW) fs = Math.max(9, Math.floor(fs * (availW / widest)));   // 가로 맞춤
-  if (lines.length * fs * 1.3 > availH) fs = Math.max(9, Math.floor(availH / (lines.length * 1.3)));  // 세로 맞춤
-  ctx.font = font(fs);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  let y = h / 2 - blockH(fs) / 2;
 
-  const lh = fs * 1.3;
-  const startY = h / 2 - ((lines.length - 1) * lh) / 2;
-  // maxWidth를 함께 넘겨 반올림 오차로 1~2px 넘치는 경우까지 막는다
-  lines.forEach((ln, i) => ctx.fillText(ln, w / 2, startY + i * lh, availW));
+  // 제목 — 어두운 판에서는 아주 옅은 그림자를 깔아 글자가 뜨지 않게 한다.
+  ctx.font = KIT.signFont(fs, 800);
+  ctx.fillStyle = color;
+  if (dark) { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = Math.round(fs * 0.16); ctx.shadowOffsetY = Math.round(fs * 0.04); }
+  ctx.fillText(title, w / 2, y + fs * 0.58, availW);
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  y += fs * 1.16;
+
+  // 강조선 — 가운데 짧게. 실 색이 여기서 드러난다.
+  if (showBar) {
+    y += barGap;
+    const barW = Math.round(Math.min(availW, fs * 2.6));
+    const bg2 = ctx.createLinearGradient(w / 2 - barW / 2, 0, w / 2 + barW / 2, 0);
+    bg2.addColorStop(0, KIT.rgba(accent, 0.15));
+    bg2.addColorStop(0.5, accent);
+    bg2.addColorStop(1, KIT.rgba(accent, 0.15));
+    ctx.fillStyle = bg2;
+    KIT.roundRect(ctx, w / 2 - barW / 2, y, barW, barH, barH / 2);
+    ctx.fill();
+    y += barH + barGap * 0.75;
+  }
+
+  // 본문 — 한 단계 작고 흐리게
+  if (body.length) {
+    const bfs = Math.max(9, Math.round(fs * bodyRatio));
+    ctx.font = KIT.signFont(bfs, 600);
+    ctx.fillStyle = dark ? KIT.shade(color, -0.22) : KIT.shade(color, 0.32);
+    const lh = bfs * 1.34;
+    body.forEach((ln, i) => ctx.fillText(ln, w / 2, y + lh * (i + 0.5), availW));
+  }
+  return RENDER.colorTex(cv);
+}
+
+// ── 실 간판 캔버스 ───────────────────────────────────────────
+// 어두운 패널 + 실 색 강조선 + 영문 부제. 간판이 어느 실인지 알려 주는
+// 동시에, 색만 보고도 지금 어느 구역에 있는지 알 수 있게 한다.
+function makeSignCanvas(name, sub, accent, w, h) {
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  const base = '#1c232a';
+
+  // 바탕 — 가운데가 옅게 밝은 형태. 뒤에서 빛이 도는 패널처럼 보인다.
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, KIT.shade(base, 0.20));
+  grad.addColorStop(0.55, base);
+  grad.addColorStop(1, KIT.shade(base, -0.35));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // 실 색이 은은하게 도는 안쪽 광
+  const glow = ctx.createRadialGradient(w / 2, h * 0.55, h * 0.08, w / 2, h * 0.55, w * 0.55);
+  glow.addColorStop(0, KIT.rgba(accent, 0.16));
+  glow.addColorStop(1, KIT.rgba(accent, 0));
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, h);
+
+  // 위아래 실 색 선 — 위는 굵게, 아래는 가늘게
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, w, Math.max(3, Math.round(h * 0.032)));
+  ctx.fillStyle = KIT.rgba(accent, 0.45);
+  ctx.fillRect(0, h - Math.max(2, Math.round(h * 0.014)), w, Math.max(2, Math.round(h * 0.014)));
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const availW = w * 0.86;
+  const hasSub = !!sub;
+
+  // 실 이름 — 자간을 살짝 벌려 간판처럼 보이게 한다
+  let fs = Math.round(h * (hasSub ? 0.44 : 0.52));
+  const track = Math.round(fs * 0.06);
+  const widthOf = (txt, size, sp) => {
+    ctx.font = KIT.signFont(size, 800);
+    return ctx.measureText(txt).width + sp * Math.max(0, txt.length - 1);
+  };
+  while (fs > 10 && widthOf(name, fs, track) > availW) fs -= 1;
+  const drawTracked = (txt, size, sp, cy, col, weight) => {
+    ctx.font = KIT.signFont(size, weight || 800);
+    const total = ctx.measureText(txt).width + sp * Math.max(0, txt.length - 1);
+    let cx = w / 2 - total / 2;
+    ctx.textAlign = 'left';
+    for (const ch of txt) {
+      ctx.fillStyle = col;
+      ctx.fillText(ch, cx, cy);
+      cx += ctx.measureText(ch).width + sp;
+    }
+    ctx.textAlign = 'center';
+  };
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = Math.round(fs * 0.22);
+  ctx.shadowOffsetY = Math.round(fs * 0.05);
+  drawTracked(name, fs, track, hasSub ? h * 0.44 : h * 0.53, '#f6f9fb');
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+  if (hasSub) {
+    const sfs = Math.max(9, Math.round(fs * 0.30));
+    drawTracked(sub.toUpperCase(), sfs, Math.round(sfs * 0.28), h * 0.76,
+      KIT.rgba(accent, 0.92), 700);
+  }
+  return RENDER.colorTex(cv);
+}
+
+// ── 환자 명패 캔버스 ─────────────────────────────────────────
+// 이름표는 안내판과 성격이 다르다. 멀리서 훑을 때는 "누구"만 보이면 되고,
+// 다가섰을 때 성별·나이가 읽히면 된다. 그래서 가운데 정렬 대신 왼쪽에
+// 색띠를 두고 이름을 크게, 부가정보를 작게 왼쪽 정렬로 쌓는다.
+function makePlateCanvas(title, sub, accent, w, h) {
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  const base = '#f4f7f9';
+
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(1, KIT.shade(base, -0.09));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // 왼쪽 색띠 — 부위별 색. 글자를 읽기 전에 색이 먼저 눈에 들어온다.
+  const barW = Math.round(w * 0.055);
+  const bar = ctx.createLinearGradient(0, 0, 0, h);
+  bar.addColorStop(0, KIT.shade(accent, 0.22));
+  bar.addColorStop(1, KIT.shade(accent, -0.18));
+  ctx.fillStyle = bar;
+  ctx.fillRect(0, 0, barW, h);
+
+  // 아래쪽 옅은 색 띠 — 판 전체가 그 색 계열임을 알려 주는 받침선
+  ctx.fillStyle = KIT.rgba(accent, 0.16);
+  ctx.fillRect(barW, h - Math.round(h * 0.07), w - barW, Math.round(h * 0.07));
+
+  const padL = barW + Math.round(w * 0.055);
+  const availW = w - padL - Math.round(w * 0.05);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  // 이름 — 판 안에 들어가도록 줄여 가며 맞춘다
+  let fs = Math.round(h * 0.42);
+  ctx.font = KIT.signFont(fs, 800);
+  while (fs > 10 && ctx.measureText(title).width > availW) { fs -= 1; ctx.font = KIT.signFont(fs, 800); }
+  ctx.fillStyle = '#16222c';
+  ctx.fillText(title, padL, h * (sub ? 0.40 : 0.50), availW);
+
+  if (sub) {
+    const sfs = Math.max(9, Math.round(fs * 0.50));
+    ctx.font = KIT.signFont(sfs, 600);
+    ctx.fillStyle = '#6b7d88';
+    ctx.fillText(sub, padL, h * 0.72, availW);
+  }
   return RENDER.colorTex(cv);
 }
 
@@ -386,11 +618,26 @@ KIT.portal = function (x, z, yaw, w, label, opt) {
   g.add(head);
 
   if (label) {
-    const tex = makeTextCanvas([label], 512, 128, { bg: '#28484b', color: '#f5f6ef', fontSize: 66 });
-    const pw = Math.min(w * 0.66, 1.75);
+    // 실 간판 — 문선 위에 걸리는 얇은 패널. 검은 판에 흰 글씨만 있으면
+    // 관공서 명패가 되므로, 실 색 강조선과 영문 부제를 함께 넣는다.
+    const name = Array.isArray(label) ? label[0] : label;
+    const sub = (Array.isArray(label) ? label[1] : o.sub) || '';
+    const accent = o.accent || '#6fd3e8';
+    const tex = makeSignCanvas(name, sub, accent, 640, 176);
+    const pw = Math.min(w * 0.70, 1.85);
+    const ph = pw * 176 / 640;
+    // 패널 몸체 — 살짝 튀어나온 상자라 옆에서 봐도 두께가 보인다
+    const panel = new THREE.Mesh(KIT.rbox(pw + 0.035, ph + 0.035, 0.045, 0.014),
+      KIT.cache('signBody', () => KIT.std(0x20272d, { roughness: 0.42, metalness: 0.35, envMapIntensity: 1.1 })));
+    panel.position.set(0, H + 0.17, 0);
+    panel.castShadow = true;
+    g.add(panel);
+
+    const geo = new THREE.PlaneGeometry(pw, ph);
+    const mat = printedMat(tex, { roughness: 0.55, envMapIntensity: 0.9 });
     [1, -1].forEach((s) => {
-      const pl = new THREE.Mesh(new THREE.PlaneGeometry(pw, pw / 4), printedMat(tex, { roughness: 0.72, envMapIntensity: 0.7 }));
-      pl.position.set(0, H + 0.17, s * (T / 2 + 0.012));
+      const pl = new THREE.Mesh(geo, mat);
+      pl.position.set(0, H + 0.17, s * 0.0245);
       pl.rotation.y = s > 0 ? 0 : Math.PI;
       g.add(pl);
     });
@@ -1274,24 +1521,43 @@ KIT.registerDesk = function (cx, cz, hw, hd, data) {
 };
 
 // 이름표 — 어느 환자인지 멀리서 알아볼 수 있어야 한다.
-// 앞면에만 글자를 인쇄한다. 양면(DoubleSide)으로 두면 뒤에서 봤을 때
-// 글자가 좌우로 뒤집혀 읽혀서 표지가 아니라 오류처럼 보인다.
-KIT.nameplate = function (parent, lines, x, y, z, yaw, w) {
-  const W = w || 0.62;
-  const geo = new THREE.PlaneGeometry(W, W * 0.47);
-  const pl = new THREE.Mesh(geo,
-    printedMat(makeTextCanvas(lines, 512, 240, { border: '#2c5f7c', fontSize: 52 }),
-      { roughness: 0.45, envMapIntensity: 1.1 }));
-  pl.position.set(x, y, z);
-  pl.rotation.y = yaw || 0;
-  parent.add(pl);
-  // 뒷판은 4mm 뒤로 물린다 — 같은 자리에 겹치면 z-파이팅으로 지직거린다
-  const a = yaw || 0;
-  const back = new THREE.Mesh(geo, KIT.cache('plateBack', () => KIT.std(0xe8ecef, { roughness: 0.6 })));
-  back.position.set(x - Math.sin(a) * 0.004, y, z - Math.cos(a) * 0.004);
-  back.rotation.y = a + Math.PI;
-  parent.add(back);
-  return pl;
+//
+// 예전에는 앞면에만 인쇄하고 뒷면은 빈 회색 판이었다. 그 탓에 베드 뒤쪽에서
+// 다가온 학생은 누구인지 알 수가 없었다.
+//
+// 글자가 뒤집히는 것은 한 장의 뒷면(DoubleSide)을 볼 때의 이야기다.
+// 판을 두 장 두고 뒷장을 π 돌리면 그 장의 앞면을 보는 셈이라 그대로 읽힌다
+// — 텍스처를 뒤집으면 오히려 거울글씨가 된다(실제로 한 번 그렇게 했다).
+//
+// lines[0] = 이름, lines[1] = 성별·나이 같은 부가정보.
+// opt.accent 로 부위별 색을 넘기면 왼쪽 색띠가 그 색이 된다.
+KIT.nameplate = function (parent, lines, x, y, z, yaw, w, opt) {
+  const o = opt || {};
+  const W = w || 0.62, H = W * 0.47, D = 0.016;
+  const g = new THREE.Group();
+  const accent = o.accent || '#2c5f7c';
+
+  // 판 몸체 — 얇은 모서리 둥근 상자. 평면 한 장이 아니라 두께가 있어야
+  // 비스듬히 봤을 때 벽에 그려 놓은 그림이 아니라 걸린 물건으로 보인다.
+  const body = new THREE.Mesh(KIT.rbox(W + 0.018, H + 0.018, D, 0.008),
+    KIT.cache('plateBody', () => KIT.std(0xdde4e9, { roughness: 0.38, metalness: 0.25, envMapIntensity: 1.2 })));
+  g.add(body);
+
+  const face = makePlateCanvas(String(lines[0] === undefined ? '' : lines[0]),
+    lines.length > 1 ? lines.slice(1).join(' · ') : '', accent, 512, 240);
+  const geo = new THREE.PlaneGeometry(W, H);
+  const mat = printedMat(face, { roughness: 0.42, envMapIntensity: 1.1 });
+  [1, -1].forEach((s) => {
+    const pl = new THREE.Mesh(geo, mat);
+    pl.position.z = s * (D / 2 + 0.0015);
+    pl.rotation.y = s > 0 ? 0 : Math.PI;
+    g.add(pl);
+  });
+
+  g.position.set(x, y, z);
+  g.rotation.y = yaw || 0;
+  parent.add(g);
+  return g;
 };
 
 // 서 있는 치료사 — 도면처럼 환자 곁에 붙여 둔다.

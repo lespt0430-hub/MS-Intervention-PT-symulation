@@ -18,11 +18,14 @@ function buildLayout() {
 
   // ── 실 입구 (목재 문선 + 검은 사인) ──
   // 도수치료실 — 벽이 x = divM 이므로 문선은 z축을 따라 열린다
-  KIT.portal(Z.divM, Z.manual.entryZ, Math.PI / 2, 1.7, '도수치료실');
+  KIT.portal(Z.divM, Z.manual.entryZ, Math.PI / 2, 1.7,
+    ['도수치료실', 'Manual Therapy'], { accent: KIT.ACCENT.manual });
   // 운동치료실 — 도면의 운동실 입구는 사람이 지나다니는 넓은 개구부다
-  KIT.portal(Z.divE, Z.exercise.entryZ, Math.PI / 2, 3.2, '운동치료실');
+  KIT.portal(Z.divE, Z.exercise.entryZ, Math.PI / 2, 3.2,
+    ['운동치료실', 'Exercise Therapy'], { accent: KIT.ACCENT.exercise });
   // 수치료실 — 운동치료실 안쪽 끝에서 가로벽을 지나 들어간다
-  KIT.portal(Z.hydro.entryX, Z.hydro.wallZ, 0, Z.hydro.entryW, '수치료실');
+  KIT.portal(Z.hydro.entryX, Z.hydro.wallZ, 0, Z.hydro.entryW,
+    ['수치료실', 'Hydrotherapy'], { accent: KIT.ACCENT.hydro });
 
   // 전기치료실 사인 — 도면처럼 중앙 복도 끝(안쪽 벽) 위에 건다.
   // 출입문으로 들어서면 복도 정면으로 바로 읽힌다.
@@ -30,8 +33,8 @@ function buildLayout() {
   eSign.position.set(Z.electro.aisleCX, h - 0.55, d / 2 - 0.10);
   eSign.castShadow = true;
   s.add(eSign);
-  const ePlate = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.42),
-    printedMat(makeTextCanvas(['전기치료실'], 512, 118, { bg: '#2b3239', color: '#f2f5f7', fontSize: 74 }),
+  const ePlate = new THREE.Mesh(new THREE.PlaneGeometry(2.05, 0.56),
+    printedMat(makeSignCanvas('전기치료실', 'Electrotherapy', KIT.ACCENT.electro, 640, 176),
       { roughness: 0.4, envMapIntensity: 1.0 }));
   ePlate.position.set(Z.electro.aisleCX, h - 0.55, d / 2 - 0.18);
   ePlate.rotation.y = Math.PI;
@@ -309,8 +312,9 @@ function buildShell(w, d, h) {
 
   // 정면 간판 — 도면의 검은 사인. 들어와서 뒤를 돌면 읽힌다.
   const sign = new THREE.Mesh(
-    new THREE.PlaneGeometry(7.4, 1.05),
-    printedMat(makeTextCanvas(['광주보건대학교 부속 물리치료실'], 1024, 145, { bg: '#2b3239', color: '#ffffff', fontSize: 70 }),
+    new THREE.PlaneGeometry(7.4, 1.28),
+    printedMat(makeSignCanvas('광주보건대학교 부속 물리치료실',
+      'Gwangju Health University · Physical Therapy Center', '#7fc8d8', 1280, 222),
       { roughness: 0.28, metalness: 0.1, envMapIntensity: 1.2 })
   );
   sign.position.set(0, 2.92, -d / 2 + 0.06);

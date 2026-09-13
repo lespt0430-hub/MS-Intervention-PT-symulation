@@ -1037,8 +1037,9 @@ function exerciseStation(patient, x, z, yaw, stance, yLift) {
 
   // 바닥 안내 표지 — 넓은 실에서 누가 누구인지 알려주는 단서.
   // 표기는 세 치료실 모두 '이름 (성별, 나이)' 한 줄로 통일한다.
-  const sexAge = patient.sex + ', ' + patient.age + '세';
-  KIT.nameplate(g, [patient.name + ' (' + sexAge + ')'], 0.62, 1.02, 0.30, 0, 0.64);
+  const sexAge = patient.sex + ' · ' + patient.age + '세';
+  KIT.nameplate(g, [patient.name, sexAge], 0.62, 1.02, 0.30, 0, 0.64,
+    { accent: KIT.REGION_COLOR[patient.region] });
   const postMat = KIT.steel(0xa8b3ba);
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.92, 8), postMat);
   post.position.set(0.62, 0.46, 0.30);
