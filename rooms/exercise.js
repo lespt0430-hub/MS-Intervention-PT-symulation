@@ -19,12 +19,27 @@ const MAT_H = 0.05;                     // 매트 두께
 // 위에 있어야 로프가 바로 머리 위로 내려온다 — 환자와 로프를 따로 적어 두면
 // 한쪽만 옮겼을 때 허공에 매달린 하네스가 된다. 그래서 여기 한 번만 적는다.
 //
-// 레일의 서쪽(6.15, 1.00)에 세웠다가 남동쪽으로 옮겼다. 서쪽은 케이블
-// 타워·짐볼 매트와 수치료실 문 사이의 좁은 목이라, 사람 하나가 통행 금지
-// 영역(±0.75)을 깔면 그 길로 지나갈 수 없었다. 동쪽 예비 유닛(10.85, 1.00)
-// 도 써 봤지만 늑목 앞 정다솔과 1.6m라 둘이 한 덩어리로 보였다.
-// 지금 자리는 타원 위(θ≈−60°)이면서 사방 2.7m 안에 아무도 없다.
-const SLING_P10 = [10.05, -3.90];
+// p10 이 걷는 트레드밀 위 자리. 트레드밀 본체는 (7.00, −9.95)에 있고
+// 벨트 윗면이 0.20m, 콘솔과 손잡이가 −z 쪽이라 환자는 −z 를 보고 걷는다.
+// 벨트(z −10.58~−9.03) 안쪽에 서야 발이 기계에 묻히지 않는다.
+//
+// 원래는 천장 슬링 레일에 하네스를 매달아 세웠는데, 그 자리(6.15, 1.00)가
+// 케이블 타워·짐볼 매트와 수치료실 문 사이의 좁은 목이라 사람 하나의
+// 통행 금지 영역(±0.75)만으로 길이 막혔다. 발꿈치힘줄병증의 보행·부하
+// 훈련은 트레드밀이 더 직접적인 장비이기도 하다.
+const TREADMILL_P10 = [7.00, -9.70];
+const TREADMILL_BELT_Y = 0.20;
+
+// p21 이 서는 밴드 스테이션 자리. 타워를 거울 벽에 붙여 세우고 환자는
+// 그 앞(−x)에 선다 — 기구와 사람을 따로 적어 두면 한쪽만 옮겼을 때
+// 밴드를 허공에서 당기는 사람이 된다.
+//
+// 거울 벽은 이미 꽉 차 있다: 거울 z −6.8~−0.8, 덤벨 랙 z −0.15~1.55,
+// 늑목 z 0.85~3.15. 남은 곳은 거울 북쪽 끝의 바닥뿐이라 벽걸이가 아니라
+// 세워 두는 타워로 만들었다. 여기 서면 정면이 거울이라 자기 어깨 높이를
+// 보면서 밴드를 당기게 된다 — 자세 재교육과 근력운동이 한자리에서 된다.
+const BAND_P21 = [13.05, -1.55];    // 환자가 서는 자리
+const BAND_TOWER = [14.05, -1.55];  // 타워(벽에 붙임)
 
 function buildExerciseRoom() {
   const X = GAME.ZONE.exercise;
@@ -52,6 +67,8 @@ function buildExerciseRoom() {
   // 자세를 보며 운동하는 자리라 기구가 그 앞을 막으면 거울이 무용지물이고,
   // 거울 앞 통로도 좁아진다. 기구는 거울 위아래로 물리고 벽에 바짝 붙인다.
   buildLegMachine(13.95, -8.30);
+  // 어깨가슴 밴드 운동(p21) — 거울 북쪽 끝에 세우는 밴드 타워.
+  buildBandStation(BAND_TOWER[0], BAND_TOWER[1], 0);
   buildWallBars();
   buildBigMirror();
 
@@ -152,9 +169,11 @@ function buildSlingTrack() {
       }
     });
   };
-  unit(SLING_P10[0], SLING_P10[1]);   // p10 이 매달리는 자리
-  unit(6.15, 1.00);                   // 예비 유닛 (p10 이 쓰던 자리)
-  unit(10.85, 1.00);                  // 예비 유닛
+  // 현수 유닛 세 개는 모두 비어 있는 자리다 — p10 은 트레드밀로 옮겼고,
+  // 슬링 보행 훈련은 도수치료실 베드 위 현수장치(KIT.slingRig)가 맡는다.
+  unit(6.15, 1.00);
+  unit(10.85, 1.00);
+  unit(8.50, -4.00);                  // 레일 앞머리
 }
 
 // ── 보행용 평행봉 ────────────────────────────────────────────
@@ -830,18 +849,13 @@ function buildExercisePatients() {
   // p9 무릎넙다리통증은 수치료실 보행 풀로 옮겼다 (rooms/hydro.js).
   // 부하를 덜어 걷는 과제라 물속 트레드밀이 바로 그 목적의 장비다.
 
-  // p10 발꿈치힘줄 — 천장 슬링 하네스를 매고 보행 훈련.
-  // 트랙 앞머리(8.50, −4.00)에서는 p7·p12 와 한 덩어리로 몰려 보였고,
-  // 반대편(6.15, 1.00)에서는 수치료실로 가는 길목을 막았다. 지금은 레일
-  // 동쪽(+x) 자리라 실 전체에 사람이 흩어지면서 통로도 열려 있다.
-  // 좌표는 슬링 레일(중심 8.50/−1.10, 반지름 약 3.15) 위여야 로프가 머리 위에 온다.
-  exerciseStation(PATIENTS[9], SLING_P10[0], SLING_P10[1], Math.PI / 2, 'stand');
-  KIT.therapist(SLING_P10[0] + 1.15, SLING_P10[1], -Math.PI / 2, 'handson');
-  // 하네스 벨트 — 도면처럼 몸통에 두르고 로프에 연결된다
-  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.30, 14, 1, true),
-    KIT.std(0x37424a, { roughness: 0.7, side: THREE.DoubleSide }));
-  belt.position.set(SLING_P10[0], 1.02, SLING_P10[1]);
-  GAME.scene.add(belt);
+  // p10 발꿈치힘줄 — 트레드밀 위에서 보행·부하 훈련.
+  // 콘솔과 손잡이가 −z 쪽이라 그쪽을 보고 걷는다. 벨트 윗면만큼 띄운다.
+  // 걷는 자세(STANCES.walk)라야 러닝머신 위에 서 있기만 한 사람으로 안 보인다.
+  exerciseStation(PATIENTS[9], TREADMILL_P10[0], TREADMILL_P10[1], Math.PI, 'walk', TREADMILL_BELT_Y);
+  // 치료사는 벨트 뒤쪽(+z) 바닥에 서서 뒤에서 본다 — 옆은 계단·자전거가
+  // 붙어 있어 사람이 들어갈 자리가 없고, 보행 관찰은 원래 뒤에서 한다.
+  KIT.therapist(TREADMILL_P10[0], TREADMILL_P10[1] + 0.95, Math.PI, 'handson');
 
   // p12 발바닥근막염 — 리포머 캐리지(높이 0.53)에 걸터앉는다.
   // 여기도 마찬가지로 종아리가 기구에 묻히지 않도록 옆으로 다리를 낸다.
@@ -877,24 +891,86 @@ function buildExercisePatients() {
   exerciseStation(PATIENTS[19], MAT_GREEN[0], MAT_GREEN[1], Math.PI, 'stand', MAT_H);
   KIT.therapist(MAT_GREEN[0] + 1.05, MAT_GREEN[1] - 0.55, -1.02, 'handson');
 
-  // p21 가슴문증후군 — 거울 벽 앞에서 자세 재교육.
-  // 이 환자에게 필요한 것은 기구가 아니라 내려앉은 어깨이음뼈를 위로 받친
-  // 자세를 스스로 유지하는 훈련이고, 그건 자기 어깨 높이를 눈으로 봐야
-  // 익혀진다 — 거울이 곧 치료 도구라 리포머(p12) 위쪽 거울 앞에 세운다.
+  // p21 가슴문증후군 — 거울 북쪽 끝의 밴드 타워 앞.
+  // 이 환자의 중재는 "낮은 무게·높은 반복"으로 내려앉은 어깨이음뼈를
+  // 떠받치는 것이라, 중량 기구가 아니라 탄성밴드가 맞는 도구다. 옆 덤벨
+  // 랙과 나란히 두면 "이 환자에게는 저쪽이 아니라 이쪽"이 눈에 보인다.
+  // 정면이 거울이라 자기 어깨 높이를 보면서 당기게 된다.
   //
   // 빨간 매트(7.40, 2.60)에 세웠다가 옮겼다. 그 자리는 운동치료실에서
   // 수치료실 문으로 가는 유일한 통로 위라, 사람 한 명(통행 금지 ±0.75)과
   // 치료사를 세우면 문 앞 구역이 통째로 섬이 되어 표민아·문가영에게
   // 걸어갈 수 없게 된다. node test/reach.mjs 가 이것을 잡아 준다.
-  exerciseStation(PATIENTS[20], 13.20, -2.60, Math.PI / 2, 'stand');
-  KIT.therapist(13.20, -1.45, Math.PI, 'handson');
-  KIT.stool(12.15, -2.25);
+  exerciseStation(PATIENTS[20], BAND_P21[0], BAND_P21[1], Math.PI / 2, 'stand');
+  KIT.therapist(BAND_P21[0] - 0.95, BAND_P21[1], Math.PI / 2, 'handson');
+  KIT.stool(BAND_P21[0] - 0.75, BAND_P21[1] + 1.05);
 
   // p22 SLAP(투구 어깨) — 케이블 타워 앞. 돌림근띠·어깨가슴 강화를
   // 저항 케이블로 하는 자리라 기구가 곧 중재를 설명한다.
   // 타워(4.35, −0.30)를 마주 보게 세운다.
   exerciseStation(PATIENTS[21], 5.60, -0.30, -Math.PI / 2, 'stand');
   KIT.therapist(5.60, 0.85, Math.PI, 'handson');
+}
+
+// ── 벽걸이 탄성밴드 스테이션 ─────────────────────────────────
+// 어깨가슴 안정화 운동은 무거운 기구가 아니라 저부하 고반복이라, 실제
+// 치료실에서도 벽에 앵커를 박고 탄성밴드를 걸어 쓴다. 색이 곧 저항 등급이라
+// (노랑 약함 → 빨강 → 파랑 강함) 여러 색을 나란히 걸어 두는 것이 보통이다.
+//
+// x·z = 타워 기둥의 중심. yaw=0 이면 밴드가 −x 로 늘어진다.
+function buildBandStation(x, z, yaw) {
+  const g = new THREE.Group();
+  const steel = KIT.steel(0xb9c3c9);
+  const plateMat = KIT.std(0x46525c, { roughness: 0.45, metalness: 0.35 });
+
+  // 바닥 받침 — 벽에 못을 박지 않고 세워 쓰는 형태라 발판이 있어야 한다.
+  const foot = new THREE.Mesh(KIT.rbox(0.46, 0.05, 0.60, 0.015),
+    KIT.std(0x39424a, { roughness: 0.55, metalness: 0.2 }));
+  foot.position.set(-0.10, 0.025, 0);
+  foot.receiveShadow = true;
+  g.add(foot);
+
+  // 세로 앵커 기둥 — 높이를 바꿔 걸 수 있도록 고리가 여러 개 달렸다
+  const rail = new THREE.Mesh(KIT.rbox(0.10, 1.90, 0.09, 0.015), plateMat);
+  rail.position.set(0, 0.98, 0);
+  rail.castShadow = true;
+  g.add(rail);
+  [0.55, 1.15, 1.75].forEach((hy) => {
+    const eye = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.010, 6, 12), steel);
+    eye.position.set(-0.05, hy, 0);
+    eye.rotation.y = Math.PI / 2;
+    g.add(eye);
+  });
+
+  // 밴드 세 줄 — 어깨 높이(1.15)에서 두 줄이 당겨져 나오고, 한 줄은 쉬고 있다.
+  // 당기는 두 줄은 약간 아래로 처지게 눕혀 실제로 손에 잡힌 것처럼 보이게 한다.
+  const band = (hy, len, drop, col) => {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, len, 8),
+      KIT.std(col, { roughness: 0.55 }));
+    b.position.set(-len / 2, hy - drop / 2, 0);
+    b.rotation.z = Math.PI / 2 - Math.atan2(drop, len);
+    g.add(b);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.13, 8),
+      KIT.std(0x2c3e50, { roughness: 0.5 }));
+    grip.position.set(-len, hy - drop, 0);
+    grip.rotation.x = Math.PI / 2;
+    g.add(grip);
+  };
+  band(1.15, 0.95, 0.10, 0xc0392b);   // 빨강 — 중간 저항, 당겨진 상태
+  band(1.15, 0.88, 0.06, 0x2e6da4);   // 파랑 — 강한 저항
+  // 쉬고 있는 노랑 밴드는 고리에 감아 늘어뜨려 둔다
+  const idle = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.015, 6, 16),
+    KIT.std(0xd4ac2b, { roughness: 0.6 }));
+  idle.position.set(-0.06, 1.60, 0);
+  idle.rotation.y = Math.PI / 2;
+  g.add(idle);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw || 0;
+  GAME.scene.add(g);
+  // 벽에 바짝 붙은 기둥이라 통행 금지는 발판 크기까지만 잡는다 —
+  // 크게 잡으면 거울 앞 통로가 좁아진다.
+  KIT.solid(x - 0.10, z, 0.26, 0.32);
 }
 
 // ── 균형·고유수용성 훈련 구역 ────────────────────────────────
